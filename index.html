@@ -186,6 +186,7 @@
 
   .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:30px;line-height:1.7}
   .foot b{color:var(--ink-2)}
+  .build{text-align:center;color:var(--muted);font-size:10.5px;letter-spacing:.05em;margin-top:8px;opacity:.7;font-family:"IBM Plex Mono",monospace}
   .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:12px 19px;border-radius:13px;font-size:13.5px;font-weight:500;opacity:0;pointer-events:none;transition:.26s;z-index:90;box-shadow:0 14px 34px -8px rgba(0,0,0,.45)}
   .toast.show{opacity:1;transform:translate(-50%,0)}
   .install{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:60;display:none}
@@ -221,6 +222,7 @@
   <main id="app"></main>
 
   <p class="foot"><b id="modeLine">Running in local mode.</b> Add your database in the file to sync across all three of you.</p>
+  <div class="build" id="build"></div>
 </div>
 
 <button class="btn accent install" id="installBtn">↓ Install app</button>
@@ -451,6 +453,7 @@
   document.getElementById("nextM").onclick=function(){view.m++;if(view.m>11){view.m=0;view.y++;}render();if(cloud)pull();};
 
   render(); // show cached data instantly
+  document.getElementById("build").textContent = "Build 4 · active-days";
 
   var decided=false;
   function decide(){
@@ -491,7 +494,13 @@
     setTimeout(function(){ if(!decided){ if(window.supabase) startCloud(); else decide(); } }, 5000);
   }
 
-  if("serviceWorker" in navigator){ window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js").catch(function(){});}); }
+  if("serviceWorker" in navigator){
+    var swRefreshing=false;
+    navigator.serviceWorker.addEventListener("controllerchange",function(){ if(swRefreshing)return; swRefreshing=true; location.reload(); });
+    window.addEventListener("load",function(){
+      navigator.serviceWorker.register("./sw.js").then(function(reg){ if(reg.update) reg.update(); }).catch(function(){});
+    });
+  }
   var deferred=null, installBtn=document.getElementById("installBtn");
   window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferred=e;installBtn.classList.add("show");});
   installBtn.onclick=function(){if(!deferred)return;deferred.prompt();deferred.userChoice.then(function(){deferred=null;installBtn.classList.remove("show");});};
