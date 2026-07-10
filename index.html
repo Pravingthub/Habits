@@ -64,11 +64,12 @@
   .tab[data-who="pravin"] .dot{background:var(--pravin)}
   .tab[data-who="swetha"] .dot{background:var(--swetha)}
   .tab[data-who="both"] .dot{background:conic-gradient(from 210deg,var(--pravin),var(--swetha),var(--pravin))}
-  .tab.active{box-shadow:var(--sh-2)}
-  .tab.active[data-who="pravin"]{color:var(--pravin-deep);background:color-mix(in srgb,var(--pravin) 14%,#fff);box-shadow:var(--sh-2),inset 0 0 0 1.5px color-mix(in srgb,var(--pravin) 45%,#fff)}
-  .tab.active[data-who="swetha"]{color:var(--swetha-deep);background:color-mix(in srgb,var(--swetha) 14%,#fff);box-shadow:var(--sh-2),inset 0 0 0 1.5px color-mix(in srgb,var(--swetha) 45%,#fff)}
-  .tab.active[data-who="both"]{color:var(--ink);background:linear-gradient(100deg,color-mix(in srgb,var(--pravin) 13%,#fff),color-mix(in srgb,var(--swetha) 13%,#fff));box-shadow:var(--sh-2),inset 0 0 0 1.5px color-mix(in srgb,var(--swetha) 30%,#fff)}
+  .tab.active{color:#fff;box-shadow:0 6px 16px -7px rgba(16,20,28,.55)}
+  .tab.active[data-who="pravin"]{background:linear-gradient(105deg,var(--pravin),var(--pravin-deep))}
+  .tab.active[data-who="swetha"]{background:linear-gradient(105deg,var(--swetha),var(--swetha-deep))}
+  .tab.active[data-who="both"]{background:linear-gradient(105deg,var(--pravin),var(--swetha))}
   .tab .dot{width:11px;height:11px}
+  .tab.active .dot{background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.28)}
   .sec-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 13px}
   .sec-name{--c:#888;font-family:"Bricolage Grotesque";font-weight:800;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
   .sec-name::before{content:"";width:11px;height:11px;border-radius:50%;background:var(--c)}
@@ -279,6 +280,7 @@
   }
   function habitCount(hid){var pre=hid+"|"+ymKey()+"|",n=0;for(var k in state.logs){if(k.indexOf(pre)===0)n++;}return n;}
   function dayTotal(who,day){var n=0;state.habits[who].forEach(function(h){if(isDone(h.id,day))n++;});return n;}
+  function activeDays(who){var dim=daysIn(view.y,view.m),n=0;for(var d=1;d<=dim;d++){if(dayTotal(who,d)>0)n++;}return n;}
   function currentStreak(who,hid){var end=isThisMonth()?todayDate():daysIn(view.y,view.m),s=0;for(var d=end;d>=1;d--){if(isDone(hid,d))s++;else break;}return s;}
   function bestStreak(who){var dim=daysIn(view.y,view.m),best=0;state.habits[who].forEach(function(h){var r=0;for(var d=1;d<=dim;d++){if(isDone(h.id,d)){r++;if(r>best)best=r;}else r=0;}});return best;}
 
@@ -368,7 +370,7 @@
     }
     var total=0; habits.forEach(function(x){total+=habitCount(x.id);});
     var elapsed=showToday?td:dim, possible=habits.length*elapsed, pct=possible?Math.round(total/possible*100):0;
-    h.push('<section class="stats">'+stat(total,"","check-ins this month")+stat(bestStreak(who),"","longest streak (days)")+stat(pct,"%","consistency so far")+'</section>');
+    h.push('<section class="stats">'+stat(activeDays(who),"","active days this month")+stat(bestStreak(who),"","longest streak (days)")+stat(pct,"%","consistency so far")+'</section>');
 
     h.push('<section><h2 class="eyebrow">The month at a glance</h2><div class="gridwrap"><div class="scroller"><table class="grid"><thead><tr><th class="habitcol">Habit</th>');
     for(var d=1;d<=dim;d++) h.push('<th'+(showToday&&d===td?' class="today"':'')+'>'+d+'</th>');
@@ -406,7 +408,7 @@
       if(!habits.length){h.push('<div class="panel empty-p">'+esc(state.names[who])+' has no habits yet.</div>');return;}
       var total=0;habits.forEach(function(x){total+=habitCount(x.id);});
       var possible=habits.length*elapsed, pct=possible?Math.round(total/possible*100):0;
-      h.push('<div class="panel" style="--pc:'+pc+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+MONTHS[view.m]+' '+view.y+' · '+pct+'% consistent</div><div class="bignum">'+total+' <small>check-ins</small></div><div class="hlist">');
+      h.push('<div class="panel" style="--pc:'+pc+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+MONTHS[view.m]+' '+view.y+' · '+pct+'% consistent</div><div class="bignum">'+activeDays(who)+' <small>active days · of '+elapsed+'</small></div><div class="hlist">');
       habits.forEach(function(hb){
         var c=habitCount(hb.id), w=elapsed?Math.min(100,Math.round(c/elapsed*100)):0, st=currentStreak(who,hb.id);
         h.push('<div class="hitem"><div class="row1"><b><span class="sw" style="background:'+hb.color+'"></span><span>'+esc(hb.label)+'</span></b><span class="v">'+c+'/'+elapsed+(st>1?' · '+st+' 🔥':'')+'</span></div><div class="bar"><i style="width:'+w+'%;background:'+hb.color+'"></i></div></div>');
