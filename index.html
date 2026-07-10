@@ -64,7 +64,17 @@
   .tab[data-who="pravin"] .dot{background:var(--pravin)}
   .tab[data-who="swetha"] .dot{background:var(--swetha)}
   .tab[data-who="both"] .dot{background:conic-gradient(from 210deg,var(--pravin),var(--swetha),var(--pravin))}
-  .tab.active{color:var(--ink);background:var(--surface);box-shadow:var(--sh-2)}
+  .tab.active{box-shadow:var(--sh-2)}
+  .tab.active[data-who="pravin"]{color:var(--pravin-deep);background:color-mix(in srgb,var(--pravin) 14%,#fff);box-shadow:var(--sh-2),inset 0 0 0 1.5px color-mix(in srgb,var(--pravin) 45%,#fff)}
+  .tab.active[data-who="swetha"]{color:var(--swetha-deep);background:color-mix(in srgb,var(--swetha) 14%,#fff);box-shadow:var(--sh-2),inset 0 0 0 1.5px color-mix(in srgb,var(--swetha) 45%,#fff)}
+  .tab.active[data-who="both"]{color:var(--ink);background:linear-gradient(100deg,color-mix(in srgb,var(--pravin) 13%,#fff),color-mix(in srgb,var(--swetha) 13%,#fff));box-shadow:var(--sh-2),inset 0 0 0 1.5px color-mix(in srgb,var(--swetha) 30%,#fff)}
+  .tab .dot{width:11px;height:11px}
+  .sec-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 13px}
+  .sec-name{--c:#888;font-family:"Bricolage Grotesque";font-weight:800;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
+  .sec-name::before{content:"";width:11px;height:11px;border-radius:50%;background:var(--c)}
+  .mini-edit{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-family:"Inter";font-weight:600;font-size:13px;padding:7px 12px;border-radius:10px;cursor:pointer;transition:.15s;box-shadow:var(--sh-1);white-space:nowrap}
+  .mini-edit:hover{background:var(--surface-2);border-color:var(--accent);color:var(--accent-deep)}
+  .mini-edit:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
   .eyebrow{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:var(--muted);margin:0 0 13px;display:flex;align-items:center;gap:11px}
@@ -249,13 +259,8 @@
   function saveCache(){lset(CKEY,state);}
   function saveOutbox(){lset(OKEY,outbox);}
 
-  var supa=null, cloud=false;
-  if(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase){
-    try{ supa=window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY); cloud=true; }catch(e){ cloud=false; }
-  }
+  var supa=null, cloud=false, localReason="Local only";
   function setStatus(kind,txt){var el=document.getElementById("status");el.className="status "+kind;document.getElementById("statusTxt").textContent=txt;}
-  document.getElementById("modeLine").textContent = cloud ? "Synced to your shared database." : "Running in local mode.";
-  document.querySelector(".foot").style.display = cloud ? "none" : "";
 
   var now=new Date(), view={y:now.getFullYear(),m:now.getMonth()};
   var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -380,13 +385,13 @@
     for(var d3=1;d3<=dim;d3++){var t=dayTotal(who,d3);h.push('<td'+(t?' class="total-on"':'')+'>'+(t||'·')+'</td>');}
     h.push('<td class="countcol">'+total+'</td></tr></tfoot></table></div><div class="gridhint">Tap any cell to mark a day. Each habit has its own colour; days in a row link into a streak bar.</div></div></section>');
 
-    h.push('<section><h2 class="eyebrow">'+esc(state.names[who])+'’s habits</h2><div class="editor">');
+    h.push('<section><div class="sec-head"><span class="sec-name" style="--c:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'">'+esc(state.names[who])+'’s habits</span><button class="mini-edit" id="renameProfile">✎ Rename '+esc(state.names[who])+'</button></div><div class="editor">');
     habits.forEach(function(hb){
       h.push('<div class="hrow"><button class="swatch-btn" style="background:'+hb.color+'" data-color="'+hb.id+'" aria-label="Change colour"></button><input class="hname" value="'+esc(hb.label)+'" data-rename="'+hb.id+'" aria-label="Habit name" /><button class="del" data-del="'+hb.id+'" aria-label="Remove habit">✕</button></div>');
       h.push('<div class="palette" data-pal="'+hb.id+'">'+PALETTE.map(function(c){return '<button class="sw'+(c.toLowerCase()===String(hb.color).toLowerCase()?' sel':'')+'" style="background:'+c+'" data-pick="'+hb.id+'|'+c+'" aria-label="colour"></button>';}).join("")+'</div>');
     });
     h.push('<div class="addrow"><input id="newHabit" placeholder="Add a habit, e.g. Read 10 pages" aria-label="New habit" /><button class="btn accent" id="addHabit">Add</button></div></div>');
-    h.push('<div class="toolrow"><button class="btn" id="renameProfile">Rename '+esc(state.names[who])+'</button>');
+    h.push('<div class="toolrow">');
     h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>');
     h.push('</div></section>');
 
@@ -443,17 +448,45 @@
   document.getElementById("prevM").onclick=function(){view.m--;if(view.m<0){view.m=11;view.y--;}render();if(cloud)pull();};
   document.getElementById("nextM").onclick=function(){view.m++;if(view.m>11){view.m=0;view.y++;}render();if(cloud)pull();};
 
-  render();
-  if(cloud){
-    setStatus("wait","Connecting…"); pull();
-    try{ supa.channel("habits-sync")
-      .on("postgres_changes",{event:"*",schema:"public",table:"logs"},pull)
-      .on("postgres_changes",{event:"*",schema:"public",table:"habits"},pull)
-      .on("postgres_changes",{event:"*",schema:"public",table:"people"},pull)
-      .subscribe(); }catch(e){}
-    window.addEventListener("online",function(){setStatus("wait","Back online…");flush();pull();});
-    window.addEventListener("offline",function(){setStatus("wait","Offline — will sync");});
-    document.addEventListener("visibilitychange",function(){if(!document.hidden)pull();});
+  render(); // show cached data instantly
+
+  var decided=false;
+  function decide(){
+    if(decided) return; decided=true;
+    document.getElementById("modeLine").textContent = cloud ? "Synced to your shared database." : localReason;
+    document.querySelector(".foot").style.display = cloud ? "none" : "";
+    if(cloud){
+      setStatus("wait","Connecting…"); pull();
+      try{ supa.channel("habits-sync")
+        .on("postgres_changes",{event:"*",schema:"public",table:"logs"},pull)
+        .on("postgres_changes",{event:"*",schema:"public",table:"habits"},pull)
+        .on("postgres_changes",{event:"*",schema:"public",table:"people"},pull)
+        .subscribe(); }catch(e){}
+      window.addEventListener("online",function(){setStatus("wait","Back online…");flush();pull();});
+      window.addEventListener("offline",function(){setStatus("wait","Offline — will sync");});
+      document.addEventListener("visibilitychange",function(){if(!document.hidden)pull();});
+    } else {
+      setStatus("local", localReason);
+    }
+  }
+  function startCloud(){
+    try{ supa=window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY); cloud=true; }
+    catch(e){ cloud=false; localReason="Local only · sync error"; }
+    decide();
+  }
+  if(!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY){
+    cloud=false; localReason="Local only · no keys in file"; decide();
+  } else if(window.supabase){
+    startCloud();
+  } else {
+    // first CDN didn't load the sync library — try a fallback, then decide
+    localReason="Local only · sync library blocked";
+    var fb=document.createElement("script");
+    fb.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
+    fb.onload=function(){ if(window.supabase) startCloud(); else decide(); };
+    fb.onerror=function(){ decide(); };
+    document.head.appendChild(fb);
+    setTimeout(function(){ if(!decided){ if(window.supabase) startCloud(); else decide(); } }, 5000);
   }
 
   if("serviceWorker" in navigator){ window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js").catch(function(){});}); }
