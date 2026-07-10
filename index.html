@@ -181,6 +181,9 @@
   .hitem .row1 .v{font-family:"IBM Plex Mono";color:var(--muted);white-space:nowrap}
   .bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
   .bar i{display:block;height:100%;border-radius:99px;transition:width .4s cubic-bezier(.2,.7,.2,1)}
+  .daystrip{display:flex;flex-wrap:wrap;gap:3px;margin:14px 0 2px}
+  .daystrip .d{width:13px;height:13px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line)}
+  .daystrip .d.on{background:var(--pc);border-color:transparent}
   .panel.empty-p{color:var(--muted);font-size:14px;display:grid;place-items:center;text-align:center;min-height:130px}
   .panel.empty-p::before{background:var(--line-2)}
 
@@ -410,7 +413,9 @@
       if(!habits.length){h.push('<div class="panel empty-p">'+esc(state.names[who])+' has no habits yet.</div>');return;}
       var total=0;habits.forEach(function(x){total+=habitCount(x.id);});
       var possible=habits.length*elapsed, pct=possible?Math.round(total/possible*100):0;
-      h.push('<div class="panel" style="--pc:'+pc+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+MONTHS[view.m]+' '+view.y+' · '+pct+'% consistent</div><div class="bignum">'+activeDays(who)+' <small>active days · of '+elapsed+'</small></div><div class="hlist">');
+      var ad=activeDays(who), strip="";
+      for(var sd=1;sd<=dim;sd++){ strip+='<span class="d'+(dayTotal(who,sd)>0?' on':'')+'" title="Day '+sd+'"></span>'; }
+      h.push('<div class="panel" style="--pc:'+pc+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+MONTHS[view.m]+' '+view.y+' · '+pct+'% consistent</div><div class="bignum">'+ad+' <small>active days · of '+elapsed+'</small></div><div class="daystrip">'+strip+'</div><div class="hlist">');
       habits.forEach(function(hb){
         var c=habitCount(hb.id), w=elapsed?Math.min(100,Math.round(c/elapsed*100)):0, st=currentStreak(who,hb.id);
         h.push('<div class="hitem"><div class="row1"><b><span class="sw" style="background:'+hb.color+'"></span><span>'+esc(hb.label)+'</span></b><span class="v">'+c+'/'+elapsed+(st>1?' · '+st+' 🔥':'')+'</span></div><div class="bar"><i style="width:'+w+'%;background:'+hb.color+'"></i></div></div>');
@@ -453,7 +458,7 @@
   document.getElementById("nextM").onclick=function(){view.m++;if(view.m>11){view.m=0;view.y++;}render();if(cloud)pull();};
 
   render(); // show cached data instantly
-  document.getElementById("build").textContent = "Build 4 · active-days";
+  document.getElementById("build").textContent = "Build 5 · day-strip";
 
   var decided=false;
   function decide(){
