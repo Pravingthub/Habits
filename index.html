@@ -288,7 +288,7 @@
   .install{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:60;display:none}
   .install.show{display:block}
 
-  @media (max-width:560px){.stats{grid-template-columns:1fr 1fr}.duo{grid-template-columns:1fr}.brand p{display:none}.rightcol{gap:7px}}
+  @media (max-width:560px){.stats{grid-template-columns:1fr 1fr}.duo{grid-template-columns:1fr}.brand p{display:none}.rightcol{gap:7px}.tabs .tab{font-size:11.5px;padding:9px 5px;gap:5px;letter-spacing:-.02em;white-space:nowrap}.tabs .tab .dot{width:8px;height:8px}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -312,7 +312,7 @@
   <div class="tabs" role="tablist">
     <button class="tab active" data-who="pravin" role="tab"><span class="dot"></span><span class="tname">Pravin</span></button>
     <button class="tab" data-who="swetha" role="tab"><span class="dot"></span><span class="tname">Swetha</span></button>
-    <button class="tab" data-who="both" role="tab"><span class="dot"></span>Both</button>
+    <button class="tab" data-who="both" role="tab"><span class="dot"></span>Coach Hari’s View</button>
   </div>
 
   <main id="app"></main>
@@ -709,7 +709,7 @@
 
   function renderBoth(){
     var dim=daysIn(view.y,view.m), showToday=isThisMonth(), elapsed=showToday?todayDate():dim;
-    var h=['<section><h2 class="eyebrow">Coach view · both of you this month</h2><div class="duo">'];
+    var h=['<section><h2 class="eyebrow">Coach Hari · both of you this month</h2><div class="duo">'];
     ["pravin","swetha"].forEach(function(who){
       var pc=who==="swetha"?"var(--swetha)":"var(--pravin)", habits=state.habits[who];
       if(!habits.length){h.push('<div class="panel empty-p">'+esc(state.names[who])+' has no habits yet.</div>');return;}
@@ -839,7 +839,7 @@
   document.getElementById("nextM").onclick=function(){view.m++;if(view.m>11){view.m=0;view.y++;}render();if(cloud)pull();};
 
   render(); // show cached data instantly
-  document.getElementById("build").textContent = "Build 10 · sections+food";
+  document.getElementById("build").textContent = "Build 11 · coach-hari";
 
   var decided=false;
   function decide(){
