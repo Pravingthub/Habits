@@ -52,6 +52,9 @@
   .monthnav button{border:0;background:transparent;cursor:pointer;color:var(--ink);width:32px;height:32px;border-radius:999px;font-size:17px;display:grid;place-items:center;transition:.15s}
   .monthnav button:hover{background:var(--surface-2)}
   .monthnav .label{font-family:"Bricolage Grotesque";font-weight:700;padding:0 8px;font-size:14px;min-width:104px;text-align:center;letter-spacing:.01em}
+  .datepick{border:0;background:transparent;font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:14px;color:var(--ink);padding:2px 6px;border-radius:8px;cursor:pointer;min-width:132px;text-align:center}
+  .datepick:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .datepick::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6}
   .status{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:500;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:5px 11px;border-radius:999px;box-shadow:var(--sh-1)}
   .status .led{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;transition:.3s}
   .status.ok .led{background:#2FA36B;box-shadow:0 0 0 3px rgba(47,163,107,.16)}
@@ -182,6 +185,11 @@
   .noteslist .nl .dd{font-family:"IBM Plex Mono";font-size:11px;color:var(--muted);flex:none;padding-top:1px;min-width:34px}
   .noteslist .nl .bd{color:var(--ink-2)}
   .noteslist .nl-empty{font-size:12.5px;color:var(--muted)}
+  .dchips{display:flex;flex-wrap:wrap;gap:6px}
+  .dchip{--c:#888;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;border:1.5px solid var(--line-2);color:var(--muted);background:var(--surface)}
+  .dchip.done{background:var(--c);border-color:transparent;color:#fff}
+  .dchip.skip{border-style:dashed;color:var(--ink-2)}
+  .dchip.miss{opacity:.65}
   /* sub navigation (sections within a person) */
   .subnav{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:20px}
   .subtab{flex:1;border:0;background:transparent;cursor:pointer;padding:9px 6px;border-radius:10px;font-family:"Inter";font-weight:600;font-size:13.5px;color:var(--muted);transition:.15s}
@@ -309,9 +317,9 @@
     </div>
     <div class="rightcol">
       <div class="monthnav">
-        <button id="prevM" aria-label="Previous month">‹</button>
-        <div class="label mono" id="monthLabel">—</div>
-        <button id="nextM" aria-label="Next month">›</button>
+        <button id="prevD" aria-label="Previous day">‹</button>
+        <input type="date" id="datePick" class="datepick" aria-label="Choose date" />
+        <button id="nextD" aria-label="Next day">›</button>
       </div>
       <div class="status local" id="status"><span class="led"></span><span id="statusTxt">Local only</span></div>
     </div>
@@ -384,12 +392,18 @@
   function setStatus(kind,txt){var el=document.getElementById("status");el.className="status "+kind;document.getElementById("statusTxt").textContent=txt;}
 
   var now=new Date(), view={y:now.getFullYear(),m:now.getMonth()};
+  var selDay=now.getDate();  // selected day-of-month; the daily views operate on this
   var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
   var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   function ymKey(){return view.y+"-"+(view.m+1);}
   function daysIn(y,m){return new Date(y,m+1,0).getDate();}
   function isThisMonth(){return view.y===now.getFullYear()&&view.m===now.getMonth();}
   function todayDate(){return now.getDate();}
+  function pad2(n){return (n<10?"0":"")+n;}
+  function selISO(){return view.y+"-"+pad2(view.m+1)+"-"+pad2(selDay);}
+  function isSelToday(){return isThisMonth()&&selDay===now.getDate();}
+  function setSelFromDate(dt){ view.y=dt.getFullYear(); view.m=dt.getMonth(); selDay=dt.getDate(); }
+  function stepSel(delta){ setSelFromDate(new Date(view.y,view.m,selDay+delta)); }
 
   function lk(hid,day){return hid+"|"+ymKey()+"|"+day;}
   function cellState(hid,day){return state.logs[lk(hid,day)]||null;} // "done" | "skip" | null
@@ -454,7 +468,7 @@
   function activeDays(who){var dim=daysIn(view.y,view.m),n=0;for(var d=1;d<=dim;d++){if(dayTotal(who,d)>0)n++;}return n;}
   // streak: skips are neutral (don't break, don't add); misses break it
   function currentStreak(who,hid){
-    var end=isThisMonth()?todayDate():daysIn(view.y,view.m),s=0;
+    var end=selDay,s=0;
     for(var d=end;d>=1;d--){ if(isDone(hid,d)) s++; else if(isSkip(hid,d)) continue; else break; }
     return s;
   }
@@ -470,7 +484,7 @@
     return [start,end];
   }
   function doneInRange(hid,a,b){var n=0;for(var d=a;d<=b;d++)if(isDone(hid,d))n++;return n;}
-  function thisWeekDone(hid){ var ref=isThisMonth()?todayDate():daysIn(view.y,view.m); var w=weekWindow(ref); return doneInRange(hid,w[0],w[1]); }
+  function thisWeekDone(hid){ var w=weekWindow(selDay); return doneInRange(hid,w[0],w[1]); }
   // per-habit consistency (0..1), target-aware, excluding skipped days
   function habitConsistency(who,hb,elapsed){
     if(hb.week>0){ // weekly target
@@ -599,22 +613,23 @@
     h+='<div class="whead"><div class="wnow">'+(latest?latest.y.toFixed(1)+'<small>kg</small>':'—')+'</div>';
     if(s.length>1){ var dlt=latest.y-first.y, cls=dlt<0?'down':(dlt>0?'up':''), sign=dlt>0?'+':(dlt<0?'−':''); h+='<div class="wdelta '+cls+'">'+sign+Math.abs(dlt).toFixed(1)+' kg this month</div>'; }
     h+='</div>';
-    if(isThisMonth()){ var tv=getWeight(who,todayDate()); h+='<div class="winput"><label>Today</label><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(tv!=null?tv:'')+'" placeholder="0.0" aria-label="Today weight in kg" /><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div>'; }
+    var tv=getWeight(who,selDay);
+    h+='<div class="winput"><label>'+(isSelToday()?'Today':(selDay+' '+MONTHS[view.m].slice(0,3)))+'</label><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(tv!=null?tv:'')+'" placeholder="0.0" aria-label="Weight in kg" /><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div>';
     h+= s.length ? weightChart([{name:state.names[who],color:HEX[who],points:s}],daysIn(view.y,view.m))
-                 : '<div class="wempty">No weight logged yet'+(isThisMonth()?' — add today\u2019s above.':' this month.')+'</div>';
+                 : '<div class="wempty">No weight logged this month yet — add it above.</div>';
     h+='</div></section>';
     return h;
   }
 
   var app=document.getElementById("app"), current="pravin", section="today";
-  var SECTIONS=[["today","Today"],["habits","Habits"],["weight","Weight"],["food","Food"]];
+  var SECTIONS=[["today","Day"],["habits","Habits"],["weight","Weight"],["food","Food"]];
   function accentVars(who){return who==="swetha"?"--accent:var(--swetha);--accent-deep:var(--swetha-deep)":"--accent:var(--pravin);--accent-deep:var(--pravin-deep)";}
   function applyAccent(who){document.documentElement.setAttribute("style",accentVars(who));}
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function stat(v,suf,l){return '<div class="stat"><div class="k display">'+v+(suf?'<small>'+suf+'</small>':'')+'</div><div class="l">'+l+'</div></div>';}
 
   function render(){
-    document.getElementById("monthLabel").textContent=MONTHS[view.m].slice(0,3).toUpperCase()+" "+view.y;
+    var dp=document.getElementById("datePick"); if(dp) dp.value=selISO();
     document.querySelector('.tab[data-who="pravin"] .tname').textContent=state.names.pravin;
     document.querySelector('.tab[data-who="swetha"] .tname').textContent=state.names.swetha;
     document.querySelectorAll(".tab").forEach(function(t){t.classList.toggle("active",t.dataset.who===current);});
@@ -639,30 +654,24 @@
 
   // ---- section builders ----
   function secToday(who){
-    var habits=state.habits[who], td=todayDate(), showToday=isThisMonth(), h="";
-    if(!showToday){
-      h+='<section><div class="today-head"><div class="date display">'+MONTHS[view.m]+' '+view.y+'</div><div class="prog">Viewing another month — switch to Habits/Weight/Food to review it.</div></div></section>';
-      return h;
-    }
+    var habits=state.habits[who], td=selDay, real=isSelToday(), h="";
     var done=habits.filter(function(x){return isDone(x.id,td);}).length;
-    h+='<section><div class="today-head"><div class="date display">Today · <span>'+DOW[now.getDay()]+' '+td+' '+MONTHS[view.m].slice(0,3)+'</span></div><div class="prog mono">'+done+' / '+habits.length+' habits</div></div><div class="cards">';
+    var dateLabel=(real?'Today · ':'')+DOW[selDate().getDay()]+' '+td+' '+MONTHS[view.m].slice(0,3)+' '+view.y;
+    h+='<section><div class="today-head"><div class="date display">'+dateLabel+'</div><div class="prog mono">'+done+' / '+habits.length+' habits</div></div><div class="cards">';
     if(!habits.length) h+='<div class="empty-note">No habits yet. Add some in the Habits tab.</div>';
     habits.forEach(function(hb){
       var on=isDone(hb.id,td), sk=isSkip(hb.id,td), sub, srest="";
       if(sk){ sub="Rest day"; srest=" rest"; }
       else if(hb.week>0){ var wd=thisWeekDone(hb.id); sub=wd+' / '+hb.week+' this week'+(wd>=hb.week?' — goal hit':''); }
-      else { var st=currentStreak(who,hb.id); sub=st>0?FLAME+st+' day'+(st>1?'s':'')+' in a row':'Not yet today'; }
+      else { var st=currentStreak(who,hb.id); sub=st>0?FLAME+st+' day'+(st>1?'s':'')+' in a row':'Not marked'; }
       var icon=on?CHECK:(sk?DASH:CHECK);
       h+='<button class="card'+(on?' done':'')+(sk?' skip':'')+'" style="--c:'+hb.color+'" data-today="'+hb.id+'"><span class="check">'+icon+'</span><span class="body"><span class="name">'+esc(hb.label)+(hb.week>0?' · '+hb.week+'×/wk':'')+'</span><span class="streak'+srest+'">'+sub+'</span></span></button>';
     });
     h+='</div>';
-    // quick weight
     var lw=getWeight(who,td);
-    h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Weight today</div><div class="winput"><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(lw!=null?lw:'')+'" placeholder="0.0" aria-label="Weight kg"/><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div></div>';
-    // quick meals today
-    h+='<div class="qcard"><div class="qlabel">Meals today</div><div class="meals" id="todayMeals">'+mealItems(who,td,true)+'</div>'+mealAddRow()+'</div></div>';
-    // note
-    h+='<div class="noterow"><div class="nlabel">Note for today (optional)</div><textarea id="todayNote" placeholder="How did today go?">'+esc(getNote(who,td))+'</textarea></div>';
+    h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Weight'+(real?' today':' this day')+'</div><div class="winput"><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(lw!=null?lw:'')+'" placeholder="0.0" aria-label="Weight kg"/><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div></div>';
+    h+='<div class="qcard"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
+    h+='<div class="noterow"><div class="nlabel">Note for this day (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea></div>';
     h+='</section>';
     return h;
   }
@@ -674,13 +683,13 @@
     var pct=habits.length?Math.round(cs/habits.length*100):0, h="";
     h+='<section class="stats">'+stat(activeDays(who),"","active days this month")+stat(bestStreak(who),"","longest streak (days)")+stat(pct,"%","consistency so far")+'</section>';
     h+='<section><h2 class="eyebrow">The month at a glance</h2><div class="gridwrap"><div class="scroller"><table class="grid"><thead><tr><th class="habitcol">Habit</th>';
-    for(var d=1;d<=dim;d++){ var hasN=!!getNote(who,d); h+='<th'+(showToday&&d===td?' class="today"':'')+'><button class="dnum'+(hasN?' hasnote':'')+'" data-note="'+d+'" title="Add / view note">'+d+'</button></th>'; }
+    for(var d=1;d<=dim;d++){ var hasN=!!getNote(who,d); h+='<th'+(d===selDay?' class="today"':'')+'><button class="dnum'+(hasN?' hasnote':'')+'" data-note="'+d+'" title="Add / view note">'+d+'</button></th>'; }
     h+='<th class="countcol">Σ</th></tr></thead><tbody>';
     habits.forEach(function(hb){
       h+='<tr><td class="habitcol" title="'+esc(hb.label)+'"><span class="swatch" style="background:'+hb.color+'"></span>'+esc(hb.label)+'</td>';
       for(var d=1;d<=dim;d++){
         var on=isDone(hb.id,d), sk=isSkip(hb.id,d), lL=on&&d>1&&isDone(hb.id,d-1), lR=on&&d<dim&&isDone(hb.id,d+1);
-        h+='<td class="day'+(showToday&&d===td?' col-today':'')+'"><button class="cell'+(on?' on':'')+(sk?' sk':'')+(lL?' lnkL':'')+(lR?' lnkR':'')+'" style="--c:'+hb.color+'" data-cell="'+hb.id+'|'+d+'" aria-label="'+esc(hb.label)+' day '+d+'"></button></td>';
+        h+='<td class="day'+(d===selDay?' col-today':'')+'"><button class="cell'+(on?' on':'')+(sk?' sk':'')+(lL?' lnkL':'')+(lR?' lnkR':'')+'" style="--c:'+hb.color+'" data-cell="'+hb.id+'|'+d+'" aria-label="'+esc(hb.label)+' day '+d+'"></button></td>';
       }
       h+='<td class="countcol">'+habitCount(hb.id)+'</td></tr>';
     });
@@ -703,12 +712,12 @@
   function secWeight(who){ return '<section><h2 class="eyebrow">Weight trend · '+MONTHS[view.m]+' '+view.y+'</h2>'+weightBlock(who).replace('<section><h2 class="eyebrow">Weight</h2>','').replace(/<\/section>$/,'')+'</section>'; }
 
   function secFood(who){
-    var days=mealDays(who), showToday=isThisMonth(), td=todayDate(), h="";
+    var days=mealDays(who), td=selDay, real=isSelToday(), h="";
     h+='<section><h2 class="eyebrow">Food diary · '+MONTHS[view.m]+' '+view.y+'</h2><div class="wcard">';
-    if(showToday){ h+='<div class="qlabel">Add for today ('+td+' '+MONTHS[view.m].slice(0,3)+')</div>'+mealAddRow(); }
+    h+='<div class="qlabel">Add for '+td+' '+MONTHS[view.m].slice(0,3)+(real?' (today)':'')+'</div>'+mealAddRow();
     if(!days.length){ h+='<div class="meal-empty" style="padding:14px 2px">No meals logged this month yet.</div>'; }
     days.forEach(function(d){
-      h+='<div class="mealday"><div class="mday-h">'+d+' '+MONTHS[view.m].slice(0,3)+(d===td&&showToday?' · today':'')+'</div>'+mealItems(who,d,true,true)+'</div>';
+      h+='<div class="mealday"><div class="mday-h">'+d+' '+MONTHS[view.m].slice(0,3)+(d===td?' · selected':'')+'</div>'+mealItems(who,d,true,true)+'</div>';
     });
     h+='</div></section>';
     return h;
@@ -762,16 +771,21 @@
       h.push('<div class="wempty">No weight logged yet this month.</div>');
     }
     h.push('</div></section>');
-    // food today comparison
-    if(isThisMonth()){
-      var td2=todayDate();
-      h.push('<section><h2 class="eyebrow">Food · today</h2><div class="duo">');
-      ["pravin","swetha"].forEach(function(who){
-        var pc2=who==="swetha"?"var(--swetha)":"var(--pravin)";
-        h.push('<div class="panel" style="--pc:'+pc2+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+td2+' '+MONTHS[view.m].slice(0,3)+' · '+mealCount(who,td2)+' logged</div><div class="meals">'+mealItems(who,td2,false)+'</div></div>');
-      });
-      h.push('</div></section>');
-    }
+    // selected-day snapshot for both
+    var selL=DOW[selDate().getDay()]+' '+selDay+' '+MONTHS[view.m].slice(0,3)+' '+view.y+(isSelToday()?' · today':'');
+    h.push('<section><h2 class="eyebrow">Selected day · '+selL+'</h2><div class="duo">');
+    ["pravin","swetha"].forEach(function(who){
+      var pc2=who==="swetha"?"var(--swetha)":"var(--pravin)", hbs=state.habits[who];
+      var doneN=hbs.filter(function(x){return isDone(x.id,selDay);}).length;
+      var wt=getWeight(who,selDay), note=getNote(who,selDay);
+      var chips=hbs.length?hbs.map(function(hb){var stt=isDone(hb.id,selDay)?'done':(isSkip(hb.id,selDay)?'skip':'miss');return '<span class="dchip '+stt+'" style="--c:'+hb.color+'">'+esc(hb.label)+'</span>';}).join(""):'<span class="nl-empty">No habits</span>';
+      h.push('<div class="panel" style="--pc:'+pc2+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+doneN+'/'+hbs.length+' habits · '+(wt!=null?wt.toFixed(1)+' kg':'no weight')+'</div>');
+      h.push('<div class="dchips">'+chips+'</div>');
+      h.push('<div class="nl-h" style="margin-top:15px">Meals</div><div class="meals">'+mealItems(who,selDay,false)+'</div>');
+      if(note) h.push('<div class="noteslist"><div class="nl-h">Note</div><div class="nl"><span class="bd">'+esc(note)+'</span></div></div>');
+      h.push('</div>');
+    });
+    h.push('</div></section>');
     h.push('<div class="toolrow">');
     h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>');
     h.push('</div>');
@@ -808,8 +822,8 @@
   function wireProfile(who){
     app.querySelectorAll("[data-sec]").forEach(function(el){ el.onclick=function(){ section=el.dataset.sec; render(); window.scrollTo(0,0); }; });
     app.querySelectorAll("[data-today]").forEach(function(el){
-      press(el, function(){ tapCell(who,el.dataset.today,todayDate()); render(); },
-                function(){ skipCell(who,el.dataset.today,todayDate()); render(); });
+      press(el, function(){ tapCell(who,el.dataset.today,selDay); render(); },
+                function(){ skipCell(who,el.dataset.today,selDay); render(); });
     });
     app.querySelectorAll("[data-cell]").forEach(function(el){
       var p=el.dataset.cell.split("|"), hid=p[0], day=+p[1];
@@ -819,14 +833,14 @@
     app.querySelectorAll("[data-note]").forEach(function(el){ el.onclick=function(){ openNote(who,+el.dataset.note); }; });
     // meals
     var mAdd=document.getElementById("mealAdd"), mTime=document.getElementById("mealTime"), mItem=document.getElementById("mealItem");
-    function addM(){ if(!mItem)return; var v=mItem.value.trim(); if(!v)return; addMeal(who,todayDate(),mTime?mTime.value:nowHM(),v); render(); }
+    function addM(){ if(!mItem)return; var v=mItem.value.trim(); if(!v)return; addMeal(who,selDay,mTime?mTime.value:nowHM(),v); render(); }
     if(mAdd) mAdd.onclick=addM;
     if(mItem) mItem.onkeydown=function(e){ if(e.key==="Enter") addM(); };
     app.querySelectorAll("[data-meal]").forEach(function(el){ el.onclick=function(){ delMeal(el.dataset.meal); render(); }; });
     var tn=document.getElementById("todayNote");
-    if(tn) tn.addEventListener("change",function(){ setNote(who,todayDate(),tn.value); render(); });
+    if(tn) tn.addEventListener("change",function(){ setNote(who,selDay,tn.value); render(); });
     var wtI=document.getElementById("wtInput"), wtB=document.getElementById("wtSave");
-    function saveWt(){ if(!wtI)return; var v=wtI.value.trim(); setWeight(who,todayDate(), v===""?null:parseFloat(v)); render(); toast(v===""?"Weight cleared":"Weight saved"); }
+    function saveWt(){ if(!wtI)return; var v=wtI.value.trim(); setWeight(who,selDay, v===""?null:parseFloat(v)); render(); toast(v===""?"Weight cleared":"Weight saved"); }
     if(wtB) wtB.onclick=saveWt;
     if(wtI) wtI.onkeydown=function(e){ if(e.key==="Enter") saveWt(); };
     app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
@@ -863,13 +877,14 @@
   function toast(m){toastEl.textContent=m;toastEl.classList.add("show");clearTimeout(tT);tT=setTimeout(function(){toastEl.classList.remove("show");},2000);}
 
   document.querySelectorAll(".tab").forEach(function(t){t.onclick=function(){current=t.dataset.who;render();};});
-  document.getElementById("prevM").onclick=function(){view.m--;if(view.m<0){view.m=11;view.y--;}render();if(cloud)pull();};
-  document.getElementById("nextM").onclick=function(){view.m++;if(view.m>11){view.m=0;view.y++;}render();if(cloud)pull();};
+  document.getElementById("prevD").onclick=function(){stepSel(-1);render();if(cloud)pull();};
+  document.getElementById("nextD").onclick=function(){stepSel(1);render();if(cloud)pull();};
+  document.getElementById("datePick").onchange=function(e){var v=e.target.value;if(!v)return;var p=v.split("-");setSelFromDate(new Date(+p[0],+p[1]-1,+p[2]));render();if(cloud)pull();};
 
   render(); // show cached data instantly
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 15 · meal-reorder</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 16 · date-picker</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
