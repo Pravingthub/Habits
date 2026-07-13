@@ -401,6 +401,7 @@
   function todayDate(){return now.getDate();}
   function pad2(n){return (n<10?"0":"")+n;}
   function selISO(){return view.y+"-"+pad2(view.m+1)+"-"+pad2(selDay);}
+  function selDate(){return new Date(view.y,view.m,selDay);}
   function isSelToday(){return isThisMonth()&&selDay===now.getDate();}
   function setSelFromDate(dt){ view.y=dt.getFullYear(); view.m=dt.getMonth(); selDay=dt.getDate(); }
   function stepSel(delta){ setSelFromDate(new Date(view.y,view.m,selDay+delta)); }
@@ -889,7 +890,7 @@
   render(); // show cached data instantly
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 18 · sync-diagnostics</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 19 · boot-fix</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
