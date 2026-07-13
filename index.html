@@ -333,7 +333,7 @@
 
   <main id="app"></main>
 
-  <p class="foot"><b id="modeLine">Running in local mode.</b> Add your database in the file to sync across all three of you.</p>
+  <p class="foot"><span id="modeLine">Connecting to your shared database…</span></p>
   <div class="build" id="build"></div>
 </div>
 
@@ -348,7 +348,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase.min.js"></script>
 <script>
 (function(){
   "use strict";
@@ -884,7 +884,7 @@
   render(); // show cached data instantly
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 16 · date-picker</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 17 · self-host sync</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
@@ -900,7 +900,7 @@
   var decided=false;
   function decide(){
     if(decided) return; decided=true;
-    document.getElementById("modeLine").textContent = cloud ? "Synced to your shared database." : localReason;
+    document.getElementById("modeLine").textContent = cloud ? "Synced to your shared database." : (localReason + " · your data is safe on synced devices.");
     document.querySelector(".foot").style.display = cloud ? "none" : "";
     if(cloud){
       setStatus("wait","Connecting…"); pull();
@@ -927,7 +927,7 @@
     startCloud();
   } else {
     // first CDN didn't load the sync library — try a fallback, then decide
-    localReason="Local only · sync library blocked";
+    localReason="Local only · this device can't reach the sync service";
     var fb=document.createElement("script");
     fb.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
     fb.onload=function(){ if(window.supabase) startCloud(); else decide(); };
