@@ -430,8 +430,9 @@
   // meals (food log): flat store keyed by id
   function nowHM(){var d=new Date();return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);}
   function mealsFor(who,day){
-    var arr=[]; for(var id in state.meals){var m=state.meals[id]; if(m.person===who&&m.ym===ymKey()&&m.day===day) arr.push({id:id,at:m.at||"",item:m.item});}
-    arr.sort(function(a,b){return (a.at||"").localeCompare(b.at||"");}); return arr;
+    var arr=[]; for(var id in state.meals){var m=state.meals[id]; if(m.person===who&&m.ym===ymKey()&&m.day===day) arr.push({id:id,at:m.at||"",item:m.item,sort:(m.sort||0)});}
+    arr.sort(function(a,b){ var d=(a.sort||0)-(b.sort||0); return d!==0?d:(a.at||"").localeCompare(b.at||""); });
+    return arr;
   }
   function mealDays(who){
     var set={}; for(var id in state.meals){var m=state.meals[id]; if(m.person===who&&m.ym===ymKey()) set[m.day]=1;}
@@ -440,8 +441,10 @@
   function mealCount(who,day){var n=0;for(var id in state.meals){var m=state.meals[id];if(m.person===who&&m.ym===ymKey()&&m.day===day)n++;}return n;}
   function addMeal(who,day,at,item){
     item=(item||"").trim(); if(!item) return;
-    var id=uid(); state.meals[id]={person:who,ym:ymKey(),day:day,at:at||"",item:item};
-    enqueue({k:"mealAdd",id:id,person:who,ym:ymKey(),day:day,at:at||"",item:item}); saveCache();
+    var mx=0; for(var k in state.meals){var mm=state.meals[k]; if(mm.person===who&&mm.ym===ymKey()&&mm.day===day&&(mm.sort||0)>mx) mx=(mm.sort||0);}
+    var srt=mx+1, id=uid();
+    state.meals[id]={person:who,ym:ymKey(),day:day,at:at||"",item:item,sort:srt};
+    enqueue({k:"mealAdd",id:id,person:who,ym:ymKey(),day:day,at:at||"",item:item,sort:srt}); saveCache();
   }
   function delMeal(id){ if(state.meals[id]){ delete state.meals[id]; enqueue({k:"mealDel",id:id}); saveCache(); } }
 
@@ -504,8 +507,9 @@
       if(op.kg!=null) return supa.from("weights").upsert({person:op.person,ym:op.ym,day:op.day,kg:op.kg},{onConflict:"person,ym,day"});
       return supa.from("weights").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
-    if(op.k==="mealAdd") return supa.from("meals").insert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item});
+    if(op.k==="mealAdd") return supa.from("meals").insert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0});
     if(op.k==="mealDel") return supa.from("meals").delete().eq("id",op.id);
+    if(op.k==="mealSort") return supa.from("meals").update({sort:op.sort}).eq("id",op.id);
     if(op.k==="habitAdd") return supa.from("habits").insert({id:op.id,person:op.person,label:op.label,color:op.color,sort:op.sort,week:op.week||0});
     if(op.k==="habitRename") return supa.from("habits").update({label:op.label}).eq("id",op.id);
     if(op.k==="habitColor") return supa.from("habits").update({color:op.color}).eq("id",op.id);
@@ -531,7 +535,7 @@
       lgs.forEach(function(l){ fresh.logs[l.habit_id+"|"+l.ym+"|"+l.day]=l.state||"done"; });
       nts.forEach(function(n){ fresh.notes[n.person+"|"+n.ym+"|"+n.day]=n.body; });
       wts.forEach(function(x){ fresh.weights[x.person+"|"+x.ym+"|"+x.day]=x.kg; });
-      mls.forEach(function(m){ fresh.meals[m.id]={person:m.person,ym:m.ym,day:m.day,at:m.at||"",item:m.item}; });
+      mls.forEach(function(m){ fresh.meals[m.id]={person:m.person,ym:m.ym,day:m.day,at:m.at||"",item:m.item,sort:(m.sort||0)}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
       state=fresh; saveCache(); render();
@@ -542,8 +546,9 @@
     if(op.k==="log"){var key=op.hid+"|"+op.ym+"|"+op.day;if(op.state)s.logs[key]=op.state;else delete s.logs[key];}
     else if(op.k==="note"){var nkey=op.person+"|"+op.ym+"|"+op.day;if(op.body)s.notes[nkey]=op.body;else delete s.notes[nkey];}
     else if(op.k==="weight"){var wkey=op.person+"|"+op.ym+"|"+op.day;if(op.kg!=null)s.weights[wkey]=op.kg;else delete s.weights[wkey];}
-    else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item}; }
+    else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
     else if(op.k==="mealDel"){ if(s.meals) delete s.meals[op.id]; }
+    else if(op.k==="mealSort"){ if(s.meals&&s.meals[op.id]) s.meals[op.id].sort=op.sort; }
     else if(op.k==="habitAdd"){if(s.habits[op.person])s.habits[op.person].push({id:op.id,label:op.label,color:op.color,sort:op.sort,week:op.week||0});}
     else if(op.k==="habitRename"){eachHabit(s,function(h){if(h.id===op.id)h.label=op.label;});}
     else if(op.k==="habitColor"){eachHabit(s,function(h){if(h.id===op.id)h.color=op.color;});}
@@ -617,11 +622,12 @@
   }
 
   // ---- meal list markup (reused in Today, Food, coach) ----
-  function mealItems(who,day,editable){
+  function mealItems(who,day,editable,reorder){
     var ms=mealsFor(who,day);
     if(!ms.length) return '<div class="meal-empty">No meals logged.</div>';
-    return ms.map(function(m){
-      return '<div class="meal"><span class="mtime">'+(m.at||'—')+'</span><span class="mitem">'+esc(m.item)+'</span>'+
+    return ms.map(function(m,i){
+      var mv = reorder ? '<span class="mvcol"><button class="mv" data-mmv="up|'+day+'|'+m.id+'"'+(i===0?' disabled':'')+' aria-label="Move up">▲</button><button class="mv" data-mmv="down|'+day+'|'+m.id+'"'+(i===ms.length-1?' disabled':'')+' aria-label="Move down">▼</button></span>' : '';
+      return '<div class="meal">'+mv+'<span class="mtime">'+(m.at||'—')+'</span><span class="mitem">'+esc(m.item)+'</span>'+
         (editable?'<button class="mdel" data-meal="'+m.id+'" aria-label="Delete">✕</button>':'')+'</div>';
     }).join("");
   }
@@ -684,7 +690,7 @@
     h+='<section><div class="sec-head"><span class="sec-name" style="--c:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'">'+esc(state.names[who])+'’s habits</span><button class="mini-edit" id="renameProfile">✎ Rename '+esc(state.names[who])+'</button></div><div class="editor">';
     habits.forEach(function(hb,i){
       var freqLabel=hb.week>0?hb.week+'×/wk':'Daily';
-      h+='<div class="hrow"><span class="mvcol"><button class="mv" data-mv="up|'+hb.id+'"'+(i===0?' disabled':'')+' aria-label="Move up">▲</button><button class="mv" data-mv="down|'+hb.id+'"'+(i===habits.length-1?' disabled':'')+' aria-label="Move down">▼</button></span><button class="swatch-btn" style="background:'+hb.color+'" data-color="'+hb.id+'" aria-label="Change colour"></button><input class="hname" value="'+esc(hb.label)+'" data-rename="'+hb.id+'" aria-label="Habit name" /><button class="freqbtn" data-freq="'+hb.id+'" title="Target">'+freqLabel+'</button><button class="del" data-del="'+hb.id+'" aria-label="Remove habit">✕</button></div>';
+      h+='<div class="hrow"><button class="swatch-btn" style="background:'+hb.color+'" data-color="'+hb.id+'" aria-label="Change colour"></button><input class="hname" value="'+esc(hb.label)+'" data-rename="'+hb.id+'" aria-label="Habit name" /><button class="freqbtn" data-freq="'+hb.id+'" title="Target">'+freqLabel+'</button><button class="del" data-del="'+hb.id+'" aria-label="Remove habit">✕</button></div>';
       h+='<div class="palette" data-pal="'+hb.id+'">'+PALETTE.map(function(c){return '<button class="sw'+(c.toLowerCase()===String(hb.color).toLowerCase()?' sel':'')+'" style="background:'+c+'" data-pick="'+hb.id+'|'+c+'" aria-label="colour"></button>';}).join("")+'</div>';
       var opts='<button class="fq'+(hb.week===0?' sel':'')+'" data-fq="'+hb.id+'|0">Daily</button>';
       for(var wk=1;wk<=6;wk++) opts+='<button class="fq'+(hb.week===wk?' sel':'')+'" data-fq="'+hb.id+'|'+wk+'">'+wk+'×/wk</button>';
@@ -702,7 +708,7 @@
     if(showToday){ h+='<div class="qlabel">Add for today ('+td+' '+MONTHS[view.m].slice(0,3)+')</div>'+mealAddRow(); }
     if(!days.length){ h+='<div class="meal-empty" style="padding:14px 2px">No meals logged this month yet.</div>'; }
     days.forEach(function(d){
-      h+='<div class="mealday"><div class="mday-h">'+d+' '+MONTHS[view.m].slice(0,3)+(d===td&&showToday?' · today':'')+'</div>'+mealItems(who,d,true)+'</div>';
+      h+='<div class="mealday"><div class="mday-h">'+d+' '+MONTHS[view.m].slice(0,3)+(d===td&&showToday?' · today':'')+'</div>'+mealItems(who,d,true,true)+'</div>';
     });
     h+='</div></section>';
     return h;
@@ -827,7 +833,7 @@
     app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
     app.querySelectorAll("[data-pick]").forEach(function(el){el.onclick=function(){var p=el.dataset.pick.split("|"),hb=find(who,p[0]);if(hb){hb.color=p[1];enqueue({k:"habitColor",id:hb.id,color:p[1]});saveCache();render();}};});
     app.querySelectorAll("[data-freq]").forEach(function(el){el.onclick=function(){var fp=app.querySelector('[data-fqp="'+el.dataset.freq+'"]');if(fp)fp.classList.toggle("open");};});
-    app.querySelectorAll("[data-mv]").forEach(function(el){el.onclick=function(){var p=el.dataset.mv.split("|");moveHabit(who,p[1],p[0]);};});
+    app.querySelectorAll("[data-mmv]").forEach(function(el){el.onclick=function(){var p=el.dataset.mmv.split("|");moveMeal(who,+p[1],p[2],p[0]);};});
     app.querySelectorAll("[data-fq]").forEach(function(el){el.onclick=function(){var p=el.dataset.fq.split("|"),hb=find(who,p[0]);if(hb){hb.week=+p[1];enqueue({k:"habitFreq",id:hb.id,week:hb.week});saveCache();render();}};});
     app.querySelectorAll("[data-del]").forEach(function(el){el.onclick=function(){var hb=find(who,el.dataset.del);if(hb&&confirm('Remove "'+hb.label+'"? Its logged days will be cleared.')){state.habits[who]=state.habits[who].filter(function(x){return x.id!==hb.id;});var pre=hb.id+"|";Object.keys(state.logs).forEach(function(k){if(k.indexOf(pre)===0)delete state.logs[k];});enqueue({k:"habitDel",id:hb.id});saveCache();render();}};});
     var add=document.getElementById("addHabit"),inp=document.getElementById("newHabit");
@@ -839,14 +845,14 @@
     var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
   }
   function find(who,id){return state.habits[who].find(function(x){return x.id===id;});}
-  function moveHabit(who,id,dir){
-    var arr=state.habits[who], i=-1;
+  function moveMeal(who,day,id,dir){
+    var arr=mealsFor(who,day), i=-1;
     arr.forEach(function(x,k){ if(x.id===id) i=k; });
     if(i<0) return;
     var j=dir==="up"?i-1:i+1;
     if(j<0||j>=arr.length) return;
     var t=arr[i]; arr[i]=arr[j]; arr[j]=t;
-    arr.forEach(function(h,k){ if(h.sort!==k){ h.sort=k; enqueue({k:"habitSort",id:h.id,sort:k}); } });
+    arr.forEach(function(m,k){ var srt=k+1; if(state.meals[m.id]&&(state.meals[m.id].sort||0)!==srt){ state.meals[m.id].sort=srt; enqueue({k:"mealSort",id:m.id,sort:srt}); } });
     saveCache(); render();
   }
 
@@ -863,7 +869,7 @@
   render(); // show cached data instantly
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 14 · reorder</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 15 · meal-reorder</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
