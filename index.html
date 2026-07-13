@@ -554,7 +554,12 @@
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
       state=fresh; saveCache(); render();
       setStatus(outbox.length?"wait":"ok", outbox.length?"Syncing…":"Synced"); flush();
-    }).catch(function(){ setStatus("wait","Connection issue"); });
+      var okf=document.querySelector(".foot"); if(okf) okf.style.display="none";
+    }).catch(function(){
+      setStatus("wait","Connection issue");
+      var bf=document.querySelector(".foot");
+      if(bf){ bf.style.display=""; document.getElementById("modeLine").textContent="Can’t reach the database from this network — your data is safe and syncs on other networks."; }
+    });
   }
   function applyOpLocal(s,op){
     if(op.k==="log"){var key=op.hid+"|"+op.ym+"|"+op.day;if(op.state)s.logs[key]=op.state;else delete s.logs[key];}
@@ -884,7 +889,7 @@
   render(); // show cached data instantly
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 17 · self-host sync</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 18 · sync-diagnostics</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
@@ -921,19 +926,26 @@
     catch(e){ cloud=false; localReason="Local only · sync error"; }
     decide();
   }
+  function failLib(){ if(decided) return; cloud=false; localReason="Local only · sync engine didn’t load (check supabase.min.js is deployed)"; decide(); }
   if(!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY){
     cloud=false; localReason="Local only · no keys in file"; decide();
-  } else if(window.supabase){
-    startCloud();
   } else {
-    // first CDN didn't load the sync library — try a fallback, then decide
-    localReason="Local only · this device can't reach the sync service";
-    var fb=document.createElement("script");
-    fb.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
-    fb.onload=function(){ if(window.supabase) startCloud(); else decide(); };
-    fb.onerror=function(){ decide(); };
-    document.head.appendChild(fb);
-    setTimeout(function(){ if(!decided){ if(window.supabase) startCloud(); else decide(); } }, 5000);
+    var tries=0;
+    (function waitLib(){
+      if(decided) return;
+      if(window.supabase){ startCloud(); return; }
+      if(++tries>15){   // ~3s — the self-hosted library should be ready well before this
+        // last resort: public CDN (only helps if this network allows it)
+        var fb=document.createElement("script");
+        fb.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
+        fb.onload=function(){ window.supabase?startCloud():failLib(); };
+        fb.onerror=failLib;
+        document.head.appendChild(fb);
+        setTimeout(function(){ if(!decided){ window.supabase?startCloud():failLib(); } },4000);
+        return;
+      }
+      setTimeout(waitLib,200);
+    })();
   }
 
   if("serviceWorker" in navigator){
