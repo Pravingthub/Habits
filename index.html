@@ -839,7 +839,18 @@
   document.getElementById("nextM").onclick=function(){view.m++;if(view.m>11){view.m=0;view.y++;}render();if(cloud)pull();};
 
   render(); // show cached data instantly
-  document.getElementById("build").textContent = "Build 11 · coach-hari";
+  (function(){
+    var b=document.getElementById("build");
+    b.textContent = "Build 12 · update-anywhere";
+    b.style.cursor="pointer"; b.title="Tap to force the latest version";
+    b.addEventListener("click",function(){
+      toast("Updating to latest…");
+      var steps=Promise.resolve();
+      if(window.caches) steps=steps.then(function(){return caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));});});
+      if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations) steps=steps.then(function(){return navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));});});
+      steps.then(function(){ setTimeout(function(){ location.reload(); },400); });
+    });
+  })();
 
   var decided=false;
   function decide(){
@@ -891,8 +902,10 @@
       navigator.serviceWorker.register("./sw.js").then(function(reg){
         function check(){ try{ reg.update(); }catch(e){} }
         check();                                                   // on load
-        setInterval(check, 60*60*1000);                            // hourly while open
+        setInterval(check, 15*60*1000);                            // every 15 min while open
         document.addEventListener("visibilitychange",function(){ if(!document.hidden) check(); }); // when refocused
+        window.addEventListener("pageshow", check);                // when PWA/tab is resumed from background
+        window.addEventListener("focus", check);
         window.addEventListener("online", check);                  // when back online
       }).catch(function(){});
     });
