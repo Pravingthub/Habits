@@ -1,5 +1,5 @@
 /* Daily Habits — service worker */
-const CACHE = "daily-habits-v17";
+const CACHE = "daily-habits-v18";
 const SHELL = [
   "./",
   "./index.html",
@@ -35,20 +35,18 @@ self.addEventListener("fetch", (e) => {
   if (req.mode === "navigate") {
     e.respondWith(
       fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put("./index.html", copy));
+        if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put("./index.html", copy)); }
         return res;
       }).catch(() => caches.match("./index.html"))
     );
     return;
   }
 
-  // Static assets: cache first, then network (and cache it).
+  // Static assets: cache first, then network (cache only OK responses).
   e.respondWith(
     caches.match(req).then((hit) =>
       hit || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
         return res;
       }).catch(() => hit)
     )
