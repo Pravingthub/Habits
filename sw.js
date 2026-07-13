@@ -1,8 +1,9 @@
 /* Daily Habits — service worker */
-const CACHE = "daily-habits-v16";
+const CACHE = "daily-habits-v17";
 const SHELL = [
   "./",
   "./index.html",
+  "./supabase.min.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
