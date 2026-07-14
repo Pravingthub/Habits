@@ -156,6 +156,7 @@
     padding:12px 14px;font-family:"Inter";font-size:14px;color:var(--ink);box-shadow:var(--sh-1)}
   .noterow textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
   .noterow .nlabel{font-family:"IBM Plex Mono";font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  .noterow .noterowbtn{margin-top:9px}
   /* day-header note button */
   thead th .dnum{border:0;background:transparent;font:inherit;color:inherit;cursor:pointer;padding:2px 4px;border-radius:6px;position:relative}
   thead th .dnum:hover{background:var(--surface-2)}
@@ -293,6 +294,12 @@
   .panel.empty-p::before{background:var(--line-2)}
 
   .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:30px;line-height:1.7}
+  .syncbar{margin:2px 0 16px;padding:11px 15px;border-radius:13px;font-size:13.5px;font-weight:500;display:flex;align-items:flex-start;gap:10px;cursor:pointer;line-height:1.4}
+  .syncbar b{font-weight:750}
+  .syncbar.warn{background:#FDECCF;color:#7A4B00;border:1px solid #EEC069}
+  .syncbar.info{background:#E9EFF6;color:#3A5470;border:1px solid #C9D8E7}
+  .syncbar .sb-dot{width:9px;height:9px;margin-top:5px;border-radius:50%;flex:none;background:currentColor;animation:sbpulse 1.4s ease-in-out infinite}
+  @keyframes sbpulse{0%,100%{opacity:.3}50%{opacity:.95}}
   .foot b{color:var(--ink-2)}
   .build{display:flex;justify-content:center;margin-top:16px}
   .build .chip{display:inline-flex;align-items:center;gap:7px;cursor:pointer;color:var(--muted);font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.04em;background:var(--surface);border:1px solid var(--line);padding:8px 14px;border-radius:999px;box-shadow:var(--sh-1);transition:.15s;-webkit-tap-highlight-color:transparent}
@@ -331,6 +338,7 @@
     <button class="tab" data-who="both" role="tab"><span class="dot"></span>Coach Hari’s View</button>
   </div>
 
+  <div id="syncbar" class="syncbar" hidden></div>
   <main id="app"></main>
 
   <p class="foot"><span id="modeLine">Connecting to your shared database…</span></p>
@@ -388,8 +396,25 @@
   function saveCache(){lset(CKEY,state);}
   function saveOutbox(){lset(OKEY,outbox);}
 
-  var supa=null, cloud=false, localReason="Local only";
-  function setStatus(kind,txt){var el=document.getElementById("status");el.className="status "+kind;document.getElementById("statusTxt").textContent=txt;}
+  var supa=null, cloud=false, localReason="Local only", wantCloud=!!(CONFIG.SUPABASE_URL&&CONFIG.SUPABASE_ANON_KEY), synced=false, lastPermErr="";
+  function setStatus(kind,txt){var el=document.getElementById("status");el.className="status "+kind;document.getElementById("statusTxt").textContent=txt; synced=(kind==="ok"&&outbox.length===0); updateSyncBar();}
+  function updateSyncBar(){
+    var bar=document.getElementById("syncbar"); if(!bar) return;
+    if(!wantCloud){ bar.hidden=true; return; }
+    var n=outbox.length;
+    if(cloud && synced && n===0){ bar.hidden=true; return; }
+    bar.hidden=false;
+    if(n>0 && lastPermErr){
+      bar.className="syncbar warn";
+      bar.innerHTML='<span class="sb-dot"></span><span><b>'+n+' change'+(n>1?'s':'')+' couldn’t be saved.</b> The shared database may be missing an update. Saved on this device meanwhile. <span style="opacity:.8">('+esc(lastPermErr)+')</span> Tap to retry.</span>';
+    } else if(n>0){
+      bar.className="syncbar warn";
+      bar.innerHTML='<span class="sb-dot"></span><span><b>'+n+' change'+(n>1?'s':'')+' not uploaded yet.</b> Saved on this device — will sync automatically when the shared database is reachable. Tap to retry now.</span>';
+    } else {
+      bar.className="syncbar info";
+      bar.innerHTML='<span class="sb-dot"></span><span>Connecting to the shared database… anything you enter is saved and will sync. Tap to retry.</span>';
+    }
+  }
 
   var now=new Date(), view={y:now.getFullYear(),m:now.getMonth()};
   var selDay=now.getDate();  // selected day-of-month; the daily views operate on this
@@ -497,16 +522,44 @@
     return Math.min(1, habitCount(hb.id)/denom);
   }
 
-  function enqueue(op){ if(!cloud)return; outbox.push(op); saveOutbox(); flush(); }
+  function enqueue(op){ if(!wantCloud) return; outbox.push(op); saveOutbox(); updateSyncBar(); if(cloud) flush(); }
   var flushing=false;
+  function isTransient(err){
+    // Decide whether a failed write should keep retrying (connection-ish)
+    // or is rejected by the server for this specific op (schema/constraint).
+    if(!err) return true;
+    if(err.name==="TypeError") return true;                         // fetch/network failure
+    var m=((err.message||"")+"");
+    if(/fetch|network|timeout|Failed to fetch|load failed/i.test(m)) return true;
+    var c=((err.code||"")+"");                                      // Postgres SQLSTATE / PostgREST code
+    if(/^(42|23|22|PGRST)/.test(c)) return false;                   // undefined column/table, constraint, etc = permanent
+    return true;                                                    // unknown server error → retry (don't drop recoverable writes)
+  }
   function flush(){
     if(!cloud||flushing) return;
     if(!navigator.onLine){ setStatus("wait","Offline — will sync"); return; }
     flushing=true; setStatus("wait","Syncing…");
+    var passCount=outbox.length;   // only touch items present at the start of this pass (prevents re-hitting rotated ops)
     (function step(){
-      if(!outbox.length){ flushing=false; setStatus("ok","Synced"); return; }
-      applyOp(outbox[0]).then(function(){ outbox.shift(); saveOutbox(); step(); })
-        .catch(function(){ flushing=false; setStatus("wait","Retrying soon"); });
+      if(passCount<=0 || !outbox.length){
+        flushing=false;
+        if(outbox.length){ setStatus("wait","Retrying soon"); } else { lastPermErr=""; setStatus("ok","Synced"); }
+        updateSyncBar();
+        return;
+      }
+      var op=outbox[0];
+      applyOp(op).then(function(){ outbox.shift(); saveOutbox(); passCount--; updateSyncBar(); step(); })
+        .catch(function(err){
+          if(isTransient(err)){
+            // connection problem — keep everything queued in order and retry later
+            flushing=false; setStatus("wait","Retrying soon"); updateSyncBar();
+            return;
+          }
+          // server rejected THIS op (e.g. schema mismatch) — record why, move it to the back so it
+          // can't jam the rest; it will retry on later flushes and succeed once the cause is fixed.
+          lastPermErr=(err&&(err.message||err.code))?((err.code?err.code+": ":"")+(err.message||"")):"rejected by database";
+          outbox.push(outbox.shift()); saveOutbox(); passCount--; updateSyncBar(); step();
+        });
     })();
   }
   function rawOp(op){
@@ -677,7 +730,7 @@
     var lw=getWeight(who,td);
     h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Weight'+(real?' today':' this day')+'</div><div class="winput"><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(lw!=null?lw:'')+'" placeholder="0.0" aria-label="Weight kg"/><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div></div>';
     h+='<div class="qcard"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
-    h+='<div class="noterow"><div class="nlabel">Note for this day (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea></div>';
+    h+='<div class="noterow"><div class="nlabel">Note for '+td+' '+MONTHS[view.m].slice(0,3)+(real?' · today':'')+' (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea><div class="noterowbtn"><button class="btn accent" id="noteSave">Save note</button></div></div>';
     h+='</section>';
     return h;
   }
@@ -843,8 +896,10 @@
     if(mAdd) mAdd.onclick=addM;
     if(mItem) mItem.onkeydown=function(e){ if(e.key==="Enter") addM(); };
     app.querySelectorAll("[data-meal]").forEach(function(el){ el.onclick=function(){ delMeal(el.dataset.meal); render(); }; });
-    var tn=document.getElementById("todayNote");
-    if(tn) tn.addEventListener("change",function(){ setNote(who,selDay,tn.value); render(); });
+    var tn=document.getElementById("todayNote"), nsave=document.getElementById("noteSave");
+    function saveNote(){ if(!tn) return; setNote(who,selDay,tn.value); toast("Note saved"); render(); }
+    if(nsave) nsave.onclick=saveNote;
+    if(tn) tn.addEventListener("keydown",function(e){ if((e.metaKey||e.ctrlKey)&&e.key==="Enter"){ e.preventDefault(); saveNote(); } });
     var wtI=document.getElementById("wtInput"), wtB=document.getElementById("wtSave");
     function saveWt(){ if(!wtI)return; var v=wtI.value.trim(); setWeight(who,selDay, v===""?null:parseFloat(v)); render(); toast(v===""?"Weight cleared":"Weight saved"); }
     if(wtB) wtB.onclick=saveWt;
@@ -889,8 +944,13 @@
 
   render(); // show cached data instantly
   (function(){
+    var sb=document.getElementById("syncbar");
+    if(sb) sb.onclick=function(){ if(cloud){ toast("Retrying sync…"); flush(); pull(); } else { location.reload(); } };
+    updateSyncBar();
+  })();
+  (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 19 · boot-fix</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 22 · per-day-notes</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
@@ -921,6 +981,7 @@
     } else {
       setStatus("local", localReason);
     }
+    updateSyncBar();
   }
   function startCloud(){
     try{ supa=window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY); cloud=true; }
