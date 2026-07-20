@@ -221,6 +221,27 @@
   .mealday{margin-top:16px}
   .mealday .mday-h{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;padding-top:12px;border-top:1px solid var(--line-2)}
   @media (max-width:560px){ .qgrid{grid-template-columns:1fr} }
+  .qspan{grid-column:1/-1}
+  .water-total{font-size:22px;font-weight:750;color:var(--ink);margin:2px 0 8px}
+  .water-total .water-goal{font-size:12px;font-weight:600;color:var(--muted)}
+  .water-bar{height:7px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-bottom:11px}
+  .water-bar i{display:block;height:100%;border-radius:99px;transition:width .25s ease}
+  .water-btns{display:flex;flex-wrap:wrap;gap:7px}
+  .wbtn{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-weight:700;font-size:13px;padding:8px 12px;border-radius:10px;cursor:pointer}
+  .wbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .wbtn.ghost{color:var(--muted);font-weight:600}
+  .wbtn.ghost:hover{border-color:var(--swetha-deep,#C0492B);color:var(--swetha-deep,#C0492B)}
+  .photo-add{display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:var(--accent);color:#fff;font-weight:750;font-size:14px;padding:11px 16px;border-radius:12px;border:0}
+  .photo-add:hover{filter:brightness(1.05)}
+  .photo-hint{font-size:12px;color:var(--muted);margin:9px 0 4px}
+  .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-top:14px}
+  .photo-cell{position:relative;margin:0;border-radius:12px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line)}
+  .photo-cell img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;cursor:zoom-in}
+  .photo-cell figcaption{position:absolute;left:0;right:0;bottom:0;font-size:11px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.6));padding:14px 8px 5px}
+  .photo-del{position:absolute;top:6px;right:6px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .photo-del:hover{background:#C0492B}
+  .lightbox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
   /* weight */
   .wcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);padding:16px 17px}
   .whead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px;flex-wrap:wrap}
@@ -311,6 +332,7 @@
 
   .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:30px;line-height:1.7}
   .syncbar{margin:2px 0 16px;padding:11px 15px;border-radius:13px;font-size:13.5px;font-weight:500;display:flex;align-items:flex-start;gap:10px;cursor:pointer;line-height:1.4}
+  .syncbar[hidden]{display:none}
   .syncbar b{font-weight:750}
   .syncbar.warn{background:#FDECCF;color:#7A4B00;border:1px solid #EEC069}
   .syncbar.info{background:#E9EFF6;color:#3A5470;border:1px solid #C9D8E7}
@@ -355,6 +377,7 @@
   </div>
 
   <div id="syncbar" class="syncbar" hidden></div>
+  <div id="lightbox" class="lightbox" hidden><img id="lightboxImg" alt="progress photo" /></div>
   <main id="app"></main>
 
   <p class="foot"><span id="modeLine">Connecting to your shared database…</span></p>
@@ -401,6 +424,8 @@
   if(!state.notes) state.notes={};
   if(!state.weights) state.weights={};
   if(!state.meals) state.meals={};
+  if(!state.water) state.water={};
+  if(!state.photos) state.photos={};
   // migrate old boolean logs (true) -> "done"
   Object.keys(state.logs).forEach(function(k){ if(state.logs[k]===true) state.logs[k]="done"; });
   ["pravin","swetha"].forEach(function(w){
@@ -418,7 +443,9 @@
     var bar=document.getElementById("syncbar"); if(!bar) return;
     if(!wantCloud){ bar.hidden=true; return; }
     var n=outbox.length;
-    if(cloud && synced && n===0){ bar.hidden=true; return; }
+    var st=document.getElementById("status"), kind=st?((st.className.split(" ")[1])||""):"";
+    // Single source of truth = the status pill. If it's showing "Synced" with nothing pending, hide.
+    if(kind==="ok" && n===0){ bar.hidden=true; return; }
     bar.hidden=false;
     if(n>0 && lastPermErr){
       bar.className="syncbar warn";
@@ -475,6 +502,48 @@
     var key=wtk(who,day);
     if(kg==null||kg==="") delete state.weights[key]; else state.weights[key]=+kg;
     enqueue({k:"weight",person:who,ym:ymKey(),day:day,kg:(kg==null||kg==="")?null:+kg}); saveCache();
+  }
+  function getWater(who,day){var v=state.water[wtk(who,day)];return (v||v===0)?v:0;}
+  function setWater(who,day,ml){
+    var key=wtk(who,day), val=Math.max(0,Math.round(ml||0));
+    if(val<=0) delete state.water[key]; else state.water[key]=val;
+    enqueue({k:"water",person:who,ym:ymKey(),day:day,ml:val}); saveCache();
+  }
+  function addWater(who,day,delta){ setWater(who,day, getWater(who,day)+delta); }
+
+  // progress photos (stored in Supabase Storage; metadata row syncs like other tables)
+  var PHOTO_BUCKET="progress";
+  function dowOf(day){ return new Date(view.y,view.m,day).getDay(); }
+  function photosFor(who){ var a=[]; for(var id in state.photos){var p=state.photos[id]; if(p.person===who&&p.ym===ymKey()) a.push({id:id,day:p.day,path:p.path});} a.sort(function(x,y){return y.day-x.day;}); return a; }
+  function photoUrl(path){ try{ return supa? supa.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl : ""; }catch(e){ return ""; } }
+  function compressImage(file){ return new Promise(function(resolve,reject){
+    var url=URL.createObjectURL(file), img=new Image();
+    img.onload=function(){ var max=1280,w=img.width,h=img.height;
+      if(w>h && w>max){ h=Math.round(h*max/w); w=max; } else if(h>=w && h>max){ w=Math.round(w*max/h); h=max; }
+      var c=document.createElement("canvas"); c.width=w; c.height=h; c.getContext("2d").drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url); c.toBlob(function(b){ b?resolve(b):reject(new Error("could not process image")); },"image/jpeg",0.82);
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("that file isn't a readable image")); };
+    img.src=url;
+  });}
+  function uploadPhoto(who,file){
+    if(!cloud||!supa){ toast("Connect to the shared database to add photos"); return; }
+    if(!file || !/^image\//.test(file.type)){ toast("Please choose an image"); return; }
+    toast("Processing photo…");
+    compressImage(file).then(function(blob){
+      var id=uid(), ym=ymKey(), day=selDay, path=who+"/"+ym+"/"+day+"_"+id+".jpg";
+      return supa.storage.from(PHOTO_BUCKET).upload(path, blob, {contentType:"image/jpeg",upsert:true}).then(function(res){
+        if(res.error) throw res.error;
+        state.photos[id]={person:who,ym:ym,day:day,path:path};
+        enqueue({k:"photoAdd",id:id,person:who,ym:ym,day:day,path:path}); saveCache();
+        toast("Photo added"); render();
+      });
+    }).catch(function(e){ toast("Upload failed: "+((e&&e.message)||e)); });
+  }
+  function delPhoto(id){
+    var p=state.photos[id]; if(!p) return;
+    if(supa && cloud){ try{ supa.storage.from(PHOTO_BUCKET).remove([p.path]); }catch(e){} }
+    delete state.photos[id]; enqueue({k:"photoDel",id:id}); saveCache(); render();
   }
   function weightSeries(who){
     var dim=daysIn(view.y,view.m),pts=[];
@@ -591,6 +660,12 @@
       if(op.kg!=null) return supa.from("weights").upsert({person:op.person,ym:op.ym,day:op.day,kg:op.kg},{onConflict:"person,ym,day"});
       return supa.from("weights").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
+    if(op.k==="water"){
+      if(op.ml!=null && op.ml>0) return supa.from("water").upsert({person:op.person,ym:op.ym,day:op.day,ml:op.ml},{onConflict:"person,ym,day"});
+      return supa.from("water").delete().match({person:op.person,ym:op.ym,day:op.day});
+    }
+    if(op.k==="photoAdd") return supa.from("photos").insert({id:op.id,person:op.person,ym:op.ym,day:op.day,path:op.path});
+    if(op.k==="photoDel") return supa.from("photos").delete().eq("id",op.id);
     if(op.k==="mealAdd") return supa.from("meals").insert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0});
     if(op.k==="mealDel") return supa.from("meals").delete().eq("id",op.id);
     if(op.k==="mealSort") return supa.from("meals").update({sort:op.sort}).eq("id",op.id);
@@ -608,11 +683,11 @@
   function pull(){
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
-    Promise.all([supa.from("people").select("*"),supa.from("habits").select("*"),supa.from("logs").select("*"),supa.from("notes").select("*"),supa.from("weights").select("*"),supa.from("meals").select("*")])
+    Promise.all([supa.from("people").select("*"),supa.from("habits").select("*"),supa.from("logs").select("*"),supa.from("notes").select("*"),supa.from("weights").select("*"),supa.from("meals").select("*"),supa.from("water").select("*"),supa.from("photos").select("*")])
     .then(function(r){
-      if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error);
-      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[];
-      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{}};
+      if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error);
+      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[];
+      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{}};
       ppl.forEach(function(p){ if(fresh.names[p.person]!==undefined) fresh.names[p.person]=p.display_name; });
       hbs.forEach(function(h){ if(fresh.habits[h.person]) fresh.habits[h.person].push({id:h.id,label:h.label,color:h.color||"#888",sort:h.sort||0,week:h.week||0}); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); if(!cloud && !fresh.habits[w].length) fresh.habits[w]=seedHabits(); });
@@ -620,6 +695,8 @@
       nts.forEach(function(n){ fresh.notes[n.person+"|"+n.ym+"|"+n.day]=n.body; });
       wts.forEach(function(x){ fresh.weights[x.person+"|"+x.ym+"|"+x.day]=x.kg; });
       mls.forEach(function(m){ fresh.meals[m.id]={person:m.person,ym:m.ym,day:m.day,at:m.at||"",item:m.item,sort:(m.sort||0)}; });
+      wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
+      pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
       state=fresh; saveCache(); render();
@@ -635,6 +712,9 @@
     if(op.k==="log"){var key=op.hid+"|"+op.ym+"|"+op.day;if(op.state)s.logs[key]=op.state;else delete s.logs[key];}
     else if(op.k==="note"){var nkey=op.person+"|"+op.ym+"|"+op.day;if(op.body)s.notes[nkey]=op.body;else delete s.notes[nkey];}
     else if(op.k==="weight"){var wkey=op.person+"|"+op.ym+"|"+op.day;if(op.kg!=null)s.weights[wkey]=op.kg;else delete s.weights[wkey];}
+    else if(op.k==="water"){if(!s.water)s.water={};var wak=op.person+"|"+op.ym+"|"+op.day;if(op.ml!=null&&op.ml>0)s.water[wak]=op.ml;else delete s.water[wak];}
+    else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,path:op.path};}
+    else if(op.k==="photoDel"){if(s.photos)delete s.photos[op.id];}
     else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
     else if(op.k==="mealDel"){ if(s.meals) delete s.meals[op.id]; }
     else if(op.k==="mealSort"){ if(s.meals&&s.meals[op.id]) s.meals[op.id].sort=op.sort; }
@@ -712,7 +792,7 @@
   }
 
   var app=document.getElementById("app"), current="pravin", section="today";
-  var SECTIONS=[["today","Day"],["habits","Habits"],["weight","Weight"],["food","Food"]];
+  var SECTIONS=[["today","Day"],["habits","Habits"],["weight","Weight"],["food","Food"],["photos","Photos"]];
   function accentVars(who){return who==="swetha"?"--accent:var(--swetha);--accent-deep:var(--swetha-deep)":"--accent:var(--pravin);--accent-deep:var(--pravin-deep)";}
   function applyAccent(who){document.documentElement.setAttribute("style",accentVars(who));}
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -759,8 +839,10 @@
     });
     h+='</div>';
     var lw=getWeight(who,td);
+    var wtot=getWater(who,td), goal=3000, wpct=Math.min(100,Math.round(wtot/goal*100));
     h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Weight'+(real?' today':' this day')+'</div><div class="winput"><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(lw!=null?lw:'')+'" placeholder="0.0" aria-label="Weight kg"/><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div></div>';
-    h+='<div class="qcard"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
+    h+='<div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
+    h+='<div class="qcard qspan"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
     h+='<div class="noterow"><div class="nlabel">Note for '+td+' '+MONTHS[view.m].slice(0,3)+(real?' · today':'')+' (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea><div class="noterowbtn"><button class="btn accent" id="noteSave">Save note</button></div></div>';
     h+='</section>';
     return h;
@@ -813,12 +895,36 @@
     return h;
   }
 
+  function secPhotos(who){
+    var real=isSelToday(), ps=photosFor(who), mon=MONTHS[view.m].slice(0,3), h="";
+    h+='<section><h2 class="eyebrow">Progress photos · '+MONTHS[view.m]+' '+view.y+'</h2><div class="wcard">';
+    h+='<div class="qlabel">Add photo for '+selDay+' '+mon+(real?' (today)':'')+(selDate().getDay()===0?' · Sunday':'')+'</div>';
+    if(cloud){
+      h+='<label class="photo-add"><input type="file" accept="image/*" id="photoInput" hidden />+ Add / take photo</label>';
+      h+='<div class="photo-hint">Tip: take one every Sunday, same pose & lighting, to see the change over weeks.</div>';
+    } else {
+      h+='<div class="wempty">Connect to the shared database to add photos.</div>';
+    }
+    if(!ps.length){ h+='<div class="meal-empty" style="padding:14px 2px">No photos this month yet.</div>'; }
+    else {
+      h+='<div class="photo-grid">';
+      ps.forEach(function(p){
+        var u=photoUrl(p.path);
+        h+='<figure class="photo-cell"><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="progress '+p.day+' '+mon+'"/><figcaption>'+p.day+' '+mon+(dowOf(p.day)===0?' · Sun':'')+'</figcaption><button class="photo-del" data-photo="'+p.id+'" aria-label="Delete photo">✕</button></figure>';
+      });
+      h+='</div>';
+    }
+    h+='</div></section>';
+    return h;
+  }
+
   function renderProfile(who){
     var h='<div class="subnav">'+SECTIONS.map(function(s){return '<button class="subtab'+(section===s[0]?' active':'')+'" data-sec="'+s[0]+'">'+s[1]+'</button>';}).join("")+'</div>';
     if(section==="today") h+=secToday(who);
     else if(section==="habits") h+=secHabits(who);
     else if(section==="weight") h+=secWeight(who);
     else if(section==="food") h+=secFood(who);
+    else if(section==="photos") h+=secPhotos(who);
     h+='<div class="toolrow">'+(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>')+'</div>';
     app.innerHTML=h; wireProfile(who);
   }
@@ -866,12 +972,25 @@
     ["pravin","swetha"].forEach(function(who){
       var pc2=who==="swetha"?"var(--swetha)":"var(--pravin)", hbs=state.habits[who];
       var doneN=hbs.filter(function(x){return isDone(x.id,selDay);}).length;
-      var wt=getWeight(who,selDay), note=getNote(who,selDay);
+      var wt=getWeight(who,selDay), note=getNote(who,selDay), wtr=getWater(who,selDay);
       var chips=hbs.length?hbs.map(function(hb){var stt=isDone(hb.id,selDay)?'done':(isSkip(hb.id,selDay)?'skip':'miss');return '<span class="dchip '+stt+'" style="--c:'+hb.color+'">'+esc(hb.label)+'</span>';}).join(""):'<span class="nl-empty">No habits</span>';
-      h.push('<div class="panel" style="--pc:'+pc2+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+doneN+'/'+hbs.length+' habits · '+(wt!=null?wt.toFixed(1)+' kg':'no weight')+'</div>');
+      h.push('<div class="panel" style="--pc:'+pc2+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+doneN+'/'+hbs.length+' habits · '+(wt!=null?wt.toFixed(1)+' kg':'no weight')+' · '+(wtr>0?wtr+' ml water':'no water')+'</div>');
       h.push('<div class="dchips">'+chips+'</div>');
       h.push('<div class="nl-h" style="margin-top:15px">Meals</div><div class="meals">'+mealItems(who,selDay,false)+'</div>');
       if(note) h.push('<div class="notecallout"><div class="nc-h">Note for this day</div><div class="nc-body">'+esc(note)+'</div></div>');
+      h.push('</div>');
+    });
+    h.push('</div></section>');
+    // progress photos — both people, read-only for the coach
+    var monP=MONTHS[view.m].slice(0,3);
+    h.push('<section><h2 class="eyebrow">Progress photos · '+MONTHS[view.m]+' '+view.y+'</h2><div class="duo">');
+    ["pravin","swetha"].forEach(function(who){
+      var pc3=who==="swetha"?"var(--swetha)":"var(--pravin)", ps=photosFor(who);
+      h.push('<div class="panel" style="--pc:'+pc3+'"><h3>'+esc(state.names[who])+'</h3>');
+      if(!ps.length){ h.push('<div class="nl-empty">No photos this month</div>'); }
+      else {
+        h.push('<div class="photo-grid">'+ps.map(function(p){var u=photoUrl(p.path);return '<figure class="photo-cell"><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="progress '+p.day+'"/><figcaption>'+p.day+' '+monP+(dowOf(p.day)===0?' · Sun':'')+'</figcaption></figure>';}).join("")+'</div>');
+      }
       h.push('</div>');
     });
     h.push('</div></section>');
@@ -920,6 +1039,10 @@
                 function(){ skipCell(who,hid,day); render(); });
     });
     app.querySelectorAll("[data-note]").forEach(function(el){ el.onclick=function(){ openNote(who,+el.dataset.note); }; });
+    // photos
+    var pin=document.getElementById("photoInput");
+    if(pin) pin.onchange=function(){ if(pin.files&&pin.files[0]) uploadPhoto(who,pin.files[0]); pin.value=""; };
+    app.querySelectorAll("[data-photo]").forEach(function(el){ el.onclick=function(ev){ ev.stopPropagation(); if(confirm("Delete this photo?")) delPhoto(el.dataset.photo); }; });
     // meals
     var mAdd=document.getElementById("mealAdd"), mTime=document.getElementById("mealTime"), mItem=document.getElementById("mealItem");
     function addM(){ if(!mItem)return; var v=mItem.value.trim(); if(!v)return; addMeal(who,selDay,mTime?mTime.value:nowHM(),v); render(); }
@@ -934,6 +1057,8 @@
     function saveWt(){ if(!wtI)return; var v=wtI.value.trim(); setWeight(who,selDay, v===""?null:parseFloat(v)); render(); toast(v===""?"Weight cleared":"Weight saved"); }
     if(wtB) wtB.onclick=saveWt;
     if(wtI) wtI.onkeydown=function(e){ if(e.key==="Enter") saveWt(); };
+    app.querySelectorAll("[data-water]").forEach(function(el){ el.onclick=function(){ addWater(who,selDay, parseInt(el.dataset.water,10)); render(); }; });
+    var wClr=document.getElementById("waterClear"); if(wClr) wClr.onclick=function(){ setWater(who,selDay,0); render(); };
     app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
     app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
     app.querySelectorAll("[data-pick]").forEach(function(el){el.onclick=function(){var p=el.dataset.pick.split("|"),hb=find(who,p[0]);if(hb){hb.color=p[1];enqueue({k:"habitColor",id:hb.id,color:p[1]});saveCache();render();}};});
@@ -977,10 +1102,15 @@
     var sb=document.getElementById("syncbar");
     if(sb) sb.onclick=function(){ if(cloud){ toast("Retrying sync…"); flush(); pull(); } else { location.reload(); } };
     updateSyncBar();
+    var lb=document.getElementById("lightbox"), lbImg=document.getElementById("lightboxImg");
+    if(lb&&lbImg){
+      app.addEventListener("click",function(e){ var t=e.target; if(t&&t.tagName==="IMG"&&t.dataset&&t.dataset.full){ lbImg.src=t.dataset.full; lb.hidden=false; } });
+      lb.addEventListener("click",function(){ lb.hidden=true; lbImg.src=""; });
+    }
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 24 · readable-chart</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 27 · progress-photos</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
