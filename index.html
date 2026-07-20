@@ -243,6 +243,19 @@
   .photo-del:hover{background:#C0492B}
   .lightbox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
   .lightbox[hidden]{display:none}
+  .repctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .repctl select{font:inherit;font-size:14px;padding:9px 11px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+  .btn.accent{background:var(--accent);color:#fff;border-color:transparent;font-weight:750}
+  .btn.accent:hover{filter:brightness(1.05)}
+  .cmp-wrap{margin-top:2px}
+  .cmp-sels{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .cmp-sels select{flex:1;min-width:120px;font:inherit;font-size:14px;padding:9px 11px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+  .cmp-vs{color:var(--muted);font-size:12px;font-weight:700}
+  .cmp-imgs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}
+  .cmp-fig{margin:0}
+  .cmp-fig img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;display:block}
+  .cmp-fig figcaption{font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;text-align:center}
+  .cmp-none{aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border-radius:12px;color:var(--muted)}
   .lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
   /* weight */
   .wcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);padding:16px 17px}
@@ -463,6 +476,7 @@
 
   var now=new Date(), view={y:now.getFullYear(),m:now.getMonth()};
   var selDay=now.getDate();  // selected day-of-month; the daily views operate on this
+  var cmpA=null, cmpB=null;  // photo ids selected in the Photos compare picker
   var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
   var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   function ymKey(){return view.y+"-"+(view.m+1);}
@@ -917,6 +931,18 @@
       h+='</div>';
     }
     h+='</div></section>';
+    // side-by-side compare (all-time photos for this person)
+    var allp=allPhotosFor(who);
+    if(allp.length>=2){
+      if(!cmpA || !state.photos[cmpA] || state.photos[cmpA].person!==who) cmpA=allp[0].id;
+      if(!cmpB || !state.photos[cmpB] || state.photos[cmpB].person!==who) cmpB=allp[allp.length-1].id;
+      function optList(sel){ return allp.map(function(p){ return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+p.day+' '+ymShort(p.ym)+' '+ymParse(p.ym).y+(ymDow(p.ym,p.day)===0?' (Sun)':'')+'</option>'; }).join(''); }
+      function cmpFig(id){ var p=state.photos[id]; if(!p) return '<figure class="cmp-fig"><div class="cmp-none">—</div></figure>'; var u=photoUrl(p.path); return '<figure class="cmp-fig"><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="progress"/><figcaption>'+p.day+' '+ymShort(p.ym)+' '+ymParse(p.ym).y+(ymDow(p.ym,p.day)===0?' · Sun':'')+'</figcaption></figure>'; }
+      h+='<section><h2 class="eyebrow">Compare progress</h2><div class="wcard cmp-wrap">';
+      h+='<div class="cmp-sels"><select data-cmp="a">'+optList(cmpA)+'</select><span class="cmp-vs">vs</span><select data-cmp="b">'+optList(cmpB)+'</select></div>';
+      h+='<div class="cmp-imgs">'+cmpFig(cmpA)+cmpFig(cmpB)+'</div>';
+      h+='</div></section>';
+    }
     return h;
   }
 
@@ -929,6 +955,137 @@
     else if(section==="photos") h+=secPhotos(who);
     h+='<div class="toolrow">'+(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>')+'</div>';
     app.innerHTML=h; wireProfile(who);
+  }
+
+  // ───────── all-time helpers (report + compare) ─────────
+  function ymParse(ym){var p=(ym||"").split("-");return {y:+p[0],m:+p[1]};}
+  function ymDays(ym){var o=ymParse(ym);return new Date(o.y,o.m,0).getDate();}
+  function ymDow(ym,day){var o=ymParse(ym);return new Date(o.y,o.m-1,day).getDay();}
+  function ymLabel(ym){var o=ymParse(ym);return MONTHS[o.m-1]+" "+o.y;}
+  function ymShort(ym){var o=ymParse(ym);return MONTHS[o.m-1].slice(0,3);}
+  function ymRank(ym){var o=ymParse(ym);return o.y*12+o.m;}
+  function allMonths(){
+    var set={};
+    function add(ym){ if(ym) set[ym]=1; }
+    for(var k in state.weights) add(k.split("|")[1]);
+    for(var k in state.water) add(k.split("|")[1]);
+    for(var k in state.notes) add(k.split("|")[1]);
+    for(var k in state.logs) add(k.split("|")[1]);
+    for(var id in state.meals) add(state.meals[id].ym);
+    for(var id in state.photos) add(state.photos[id].ym);
+    return Object.keys(set).sort(function(a,b){return ymRank(a)-ymRank(b);});
+  }
+  function allPhotosFor(who){
+    var a=[]; for(var id in state.photos){var p=state.photos[id]; if(p.person===who) a.push({id:id,ym:p.ym,day:p.day,path:p.path});}
+    a.sort(function(x,y){return ymRank(x.ym)-ymRank(y.ym) || x.day-y.day;}); return a;
+  }
+  function photosForYM(who,ym){ var a=[]; for(var id in state.photos){var p=state.photos[id]; if(p.person===who&&p.ym===ym) a.push({day:p.day,path:p.path});} a.sort(function(x,y){return x.day-y.day;}); return a; }
+  function mealsForYM(who,ym){ var a=[]; for(var id in state.meals){var m=state.meals[id]; if(m.person===who&&m.ym===ym) a.push({day:m.day,at:m.at||"",item:m.item,sort:(m.sort||0)});} a.sort(function(x,y){return x.day-y.day||(x.sort||0)-(y.sort||0)||(x.at||"").localeCompare(y.at||"");}); return a; }
+  function ptsFor(store,who,ym){ var a=[],days=ymDays(ym); for(var d=1;d<=days;d++){var v=store[who+"|"+ym+"|"+d]; if(v!=null&&v!=="") a.push({x:d,y:+v});} return a; }
+
+  // ───────── HTML progress report ─────────
+  var REP_PLACEHOLDER="data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="160"><rect width="120" height="160" fill="#efeae2"/><text x="60" y="82" font-size="9" fill="#9a948a" text-anchor="middle">image unavailable</text></svg>');
+  function repLine(pts,color){
+    if(!pts.length) return '<div style="color:#9a948a;font-size:12px;padding:6px 0">No data</div>';
+    var W=300,H=92,pad=11, xs=pts.map(function(p){return p.x;}), ys=pts.map(function(p){return p.y;});
+    var xmin=Math.min.apply(null,xs),xmax=Math.max.apply(null,xs); if(xmin===xmax)xmax=xmin+1;
+    var ymin=Math.min.apply(null,ys),ymax=Math.max.apply(null,ys); if(ymin===ymax){ymin-=1;ymax+=1;} var p2=(ymax-ymin)*0.15; ymin-=p2; ymax+=p2;
+    function X(x){return (pad+(x-xmin)/(xmax-xmin)*(W-2*pad)).toFixed(1);}
+    function Y(y){return (H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad)).toFixed(1);}
+    var d=pts.map(function(p,i){return (i?'L':'M')+X(p.x)+' '+Y(p.y);}).join(' ');
+    var dots=pts.map(function(p){return '<circle cx="'+X(p.x)+'" cy="'+Y(p.y)+'" r="2.4" fill="#fff" stroke="'+color+'" stroke-width="1.6"/>';}).join('');
+    return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:340px;height:auto;margin-top:4px"><path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linejoin="round"/>'+dots+'</svg>';
+  }
+  function repHabitGrid(who,ym){
+    var days=ymDays(ym), hs=state.habits[who]||[];
+    if(!hs.length) return '<div style="color:#9a948a;font-size:12px">No habits</div>';
+    var h='<table class="rp-grid"><tr><td></td>';
+    for(var d=1;d<=days;d++) h+='<td class="rp-gd">'+(ymDow(ym,d)===0?'<b>'+d+'</b>':d)+'</td>';
+    h+='</tr>';
+    hs.forEach(function(hb){
+      h+='<tr><td class="rp-gh">'+esc(hb.label)+'</td>';
+      for(var d=1;d<=days;d++){ var v=state.logs[hb.id+"|"+ym+"|"+d], bg=v==="done"?hb.color:(v==="skip"?"#d9d4cc":"#efeae2"); h+='<td><div class="rp-cell" style="background:'+bg+'"></div></td>'; }
+      h+='</tr>';
+    });
+    return h+'</table>';
+  }
+  function repPersonMonth(who,ym){
+    var col=who==="swetha"?"#DD5A86":"#E08A1E", name=esc(state.names[who]||who);
+    var wp=ptsFor(state.weights,who,ym), watp=ptsFor(state.water,who,ym);
+    var h='<div class="rp-person"><h4 style="color:'+col+'">'+name+'</h4>';
+    h+='<div class="rp-sec"><div class="rp-lab">Weight</div>';
+    if(wp.length){ var f=wp[0].y,l=wp[wp.length-1].y,dl=l-f; h+='<div class="rp-big">'+l.toFixed(1)+' kg</div><div class="rp-sub">'+(wp.length>1?((dl>0?"+":"")+dl.toFixed(1)+" kg over the month"):"first entry")+'</div>'; }
+    h+=repLine(wp,col)+'</div>';
+    var wavg=watp.length?Math.round(watp.reduce(function(s,p){return s+p.y;},0)/watp.length):0;
+    h+='<div class="rp-sec"><div class="rp-lab">Water</div>'+(watp.length?('<div class="rp-sub">avg '+wavg+' ml/day · '+watp.length+' day(s)</div>'+repLine(watp,"#2E9BD6")):'<div class="rp-sub">No water logged</div>')+'</div>';
+    h+='<div class="rp-sec"><div class="rp-lab">Habits</div><div style="overflow-x:auto">'+repHabitGrid(who,ym)+'</div></div>';
+    var ms=mealsForYM(who,ym);
+    if(ms.length){ h+='<div class="rp-sec"><div class="rp-lab">Meals</div><div class="rp-meals">'; var last=null; ms.forEach(function(m){ if(m.day!==last){ h+='<div class="rp-mday">'+m.day+' '+ymShort(ym)+'</div>'; last=m.day; } h+='<div class="rp-mrow"><span>'+esc(m.at||"")+'</span> '+esc(m.item)+'</div>'; }); h+='</div></div>'; }
+    var days=ymDays(ym), notes=[]; for(var d=1;d<=days;d++){var nb=state.notes[who+"|"+ym+"|"+d]; if(nb) notes.push({d:d,b:nb});}
+    if(notes.length){ h+='<div class="rp-sec"><div class="rp-lab">Notes</div>'; notes.forEach(function(n){ h+='<div class="rp-note"><b>'+n.d+' '+ymShort(ym)+':</b> '+esc(n.b)+'</div>'; }); h+='</div>'; }
+    return h+'</div>';
+  }
+  function repImg(pmap,path){ return '<img src="'+((path&&pmap[path])?pmap[path]:REP_PLACEHOLDER)+'" style="width:100%;border-radius:8px;display:block"/>'; }
+  function repPhotosBoth(ym,pmap){
+    var pP={},pS={}; photosForYM("pravin",ym).forEach(function(p){pP[p.day]=p.path;}); photosForYM("swetha",ym).forEach(function(p){pS[p.day]=p.path;});
+    var dset={}; Object.keys(pP).forEach(function(d){dset[d]=1;}); Object.keys(pS).forEach(function(d){dset[d]=1;});
+    var dl=Object.keys(dset).map(Number).sort(function(a,b){return a-b;});
+    if(!dl.length) return '';
+    var rows=dl.map(function(d){ return '<tr><td class="rp-pcap">'+d+' '+ymShort(ym)+(ymDow(ym,d)===0?' (Sun)':'')+'</td><td>'+(pP[d]?repImg(pmap,pP[d]):'<div class="rp-noimg">no photo</div>')+'</td><td>'+(pS[d]?repImg(pmap,pS[d]):'<div class="rp-noimg">no photo</div>')+'</td></tr>'; }).join('');
+    return '<div class="rp-sec rp-photos"><div class="rp-lab">Progress photos — same day, side by side</div><table class="rp-ptable"><tr><th></th><th style="color:#E08A1E">Pravin</th><th style="color:#DD5A86">Swetha</th></tr>'+rows+'</table></div>';
+  }
+  function collectPhotoPaths(scope){
+    var persons=scope==="both"?["pravin","swetha"]:[scope], seen={}, out=[];
+    for(var id in state.photos){var p=state.photos[id]; if(persons.indexOf(p.person)>=0 && !seen[p.path]){seen[p.path]=1; out.push(p.path);}}
+    return out;
+  }
+  function buildReportHTML(scope,pmap){
+    var months=allMonths(), body="";
+    var css="body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#F3F0E9;color:#2A2A28;line-height:1.5}"
+      +".rp-h{padding:26px 22px;background:#fff;border-bottom:1px solid #e7e1d7}.rp-h h1{margin:0;font-size:22px}.rp-meta{color:#9a948a;font-size:13px;margin-top:5px}"
+      +".rp-month{max-width:900px;margin:0 auto;padding:20px 18px}.rp-month>h2{font-size:19px;border-bottom:2px solid #e7e1d7;padding-bottom:6px}"
+      +".rp-two{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:680px){.rp-two{grid-template-columns:1fr}}"
+      +".rp-person{background:#fff;border:1px solid #e7e1d7;border-radius:14px;padding:15px}.rp-person h4{margin:0 0 10px;font-size:16px}"
+      +".rp-sec{margin-top:13px}.rp-lab{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9a948a;margin-bottom:4px}"
+      +".rp-big{font-size:24px;font-weight:800}.rp-sub{font-size:12.5px;color:#6b655c}"
+      +".rp-grid{border-collapse:collapse;font-size:9px}.rp-gd{text-align:center;color:#b0a99e;padding:1px 2px}.rp-gh{padding:2px 6px 2px 0;white-space:nowrap;font-size:11px}.rp-cell{width:9px;height:9px;border-radius:2px}"
+      +".rp-meals{font-size:12.5px}.rp-mday{font-weight:700;margin-top:6px}.rp-mrow{color:#3a352e}.rp-mrow span{color:#9a948a;font-variant-numeric:tabular-nums}"
+      +".rp-note{font-size:12.5px;background:#FBF4E8;border-left:4px solid #EAD9BC;border-radius:8px;padding:7px 10px;margin-top:5px}"
+      +".rp-photos{margin-top:16px}.rp-ptable{width:100%;border-collapse:collapse}.rp-ptable th{font-size:11px;text-align:center;padding:5px}.rp-ptable td{vertical-align:top;padding:5px;width:42%}.rp-pcap{width:16%;font-size:12px;color:#6b655c;font-weight:600}.rp-noimg{background:#efeae2;color:#9a948a;font-size:11px;text-align:center;padding:26px 6px;border-radius:8px}"
+      +".rp-pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}.rp-pgrid figure{margin:0}.rp-pgrid figcaption{font-size:11px;color:#6b655c;margin-top:3px}"
+      +".rp-f{max-width:900px;margin:10px auto 40px;padding:0 18px;color:#b0a99e;font-size:11px}";
+    if(!months.length){ body='<div class="rp-month"><p>No data logged yet.</p></div>'; }
+    months.forEach(function(ym){
+      body+='<section class="rp-month"><h2>'+ymLabel(ym)+'</h2>';
+      if(scope==="both"){
+        body+='<div class="rp-two">'+repPersonMonth("pravin",ym)+repPersonMonth("swetha",ym)+'</div>'+repPhotosBoth(ym,pmap);
+      } else {
+        body+=repPersonMonth(scope,ym);
+        var ph=photosForYM(scope,ym);
+        if(ph.length) body+='<div class="rp-sec rp-photos"><div class="rp-lab">Progress photos</div><div class="rp-pgrid">'+ph.map(function(p){return '<figure>'+repImg(pmap,p.path)+'<figcaption>'+p.day+' '+ymShort(ym)+(ymDow(ym,p.day)===0?' (Sun)':'')+'</figcaption></figure>';}).join('')+'</div></div>';
+      }
+      body+='</section>';
+    });
+    var who=scope==="both"?"Pravin & Swetha":esc(state.names[scope]||scope), gen=new Date().toLocaleString();
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Daily Habits Report — '+who+'</title><style>'+css+'</style></head><body><header class="rp-h"><h1>Daily Habits — Progress Report</h1><div class="rp-meta">'+who+' · generated '+esc(gen)+'</div></header>'+body+'<footer class="rp-f">Self-contained report · photos embedded · generated from the Daily Habits app</footer></body></html>';
+  }
+  function fetchAsDataURL(url){
+    return fetch(url).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.blob(); })
+      .then(function(b){ return new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=function(){rej(new Error("read failed"));}; fr.readAsDataURL(b); }); });
+  }
+  function downloadReport(scope){
+    if(!cloud||!supa){ toast("Connect to the shared database to download the report"); return; }
+    var paths=collectPhotoPaths(scope), pmap={}, done=0;
+    toast(paths.length?("Building report… embedding "+paths.length+" photo(s)"):"Building report…");
+    var chain=Promise.resolve();
+    paths.forEach(function(p){
+      chain=chain.then(function(){ return fetchAsDataURL(photoUrl(p)).then(function(d){pmap[p]=d;}).catch(function(){pmap[p]=REP_PLACEHOLDER;}).then(function(){ done++; if(done%3===0||done===paths.length) toast("Embedding photos… "+done+"/"+paths.length); }); });
+    });
+    chain.then(function(){
+      var html=buildReportHTML(scope,pmap), blob=new Blob([html],{type:"text/html"}), url=URL.createObjectURL(blob);
+      var a=document.createElement("a"); a.href=url; a.download="habits-report-"+scope+"-"+selISO()+".html"; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){URL.revokeObjectURL(url);},5000); toast("Report downloaded");
+    }).catch(function(e){ toast("Report failed: "+((e&&e.message)||e)); });
   }
 
   function renderBoth(){
@@ -997,11 +1154,13 @@
     });
     h.push('</div></section>');
     h.push('<div class="toolrow">');
+    h.push('<div class="repctl"><select id="repScope" aria-label="Report scope"><option value="pravin">Pravin</option><option value="swetha">Swetha</option><option value="both">Both — comparison</option></select><button class="btn accent" id="repDl">↓ Download report</button></div>');
     h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>');
     h.push('</div>');
     app.innerHTML=h.join("");
     var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
     var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
+    var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
   }
 
   function press(el,onTap,onLong){
@@ -1045,6 +1204,7 @@
     var pin=document.getElementById("photoInput");
     if(pin) pin.onchange=function(){ if(pin.files&&pin.files[0]) uploadPhoto(who,pin.files[0]); pin.value=""; };
     app.querySelectorAll("[data-photo]").forEach(function(el){ el.onclick=function(ev){ ev.stopPropagation(); if(confirm("Delete this photo?")) delPhoto(el.dataset.photo); }; });
+    app.querySelectorAll("[data-cmp]").forEach(function(el){ el.onchange=function(){ if(el.dataset.cmp==="a") cmpA=el.value; else cmpB=el.value; render(); }; });
     // meals
     var mAdd=document.getElementById("mealAdd"), mTime=document.getElementById("mealTime"), mItem=document.getElementById("mealItem");
     function addM(){ if(!mItem)return; var v=mItem.value.trim(); if(!v)return; addMeal(who,selDay,mTime?mTime.value:nowHM(),v); render(); }
@@ -1112,7 +1272,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 28 · lightbox-fix</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 29 · report-compare</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
