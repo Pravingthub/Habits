@@ -32,6 +32,7 @@
     --sh-3:0 4px 12px rgba(16,20,28,.08), 0 24px 48px -20px rgba(16,20,28,.34);
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{margin:0;padding:0}
   body{
     font-family:"Inter",system-ui,-apple-system,sans-serif;color:var(--ink);
@@ -241,6 +242,7 @@
   .photo-del{position:absolute;top:6px;right:6px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .photo-del:hover{background:#C0492B}
   .lightbox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+  .lightbox[hidden]{display:none}
   .lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
   /* weight */
   .wcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);padding:16px 17px}
@@ -1110,7 +1112,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 27 · progress-photos</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 28 · lightbox-fix</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
