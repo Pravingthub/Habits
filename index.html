@@ -440,6 +440,7 @@
   if(!state.weights) state.weights={};
   if(!state.meals) state.meals={};
   if(!state.water) state.water={};
+  if(!state.steps) state.steps={};
   if(!state.photos) state.photos={};
   // migrate old boolean logs (true) -> "done"
   Object.keys(state.logs).forEach(function(k){ if(state.logs[k]===true) state.logs[k]="done"; });
@@ -526,6 +527,12 @@
     enqueue({k:"water",person:who,ym:ymKey(),day:day,ml:val}); saveCache();
   }
   function addWater(who,day,delta){ setWater(who,day, getWater(who,day)+delta); }
+  function getSteps(who,day){var v=state.steps[wtk(who,day)];return (v||v===0)?v:0;}
+  function setSteps(who,day,n){
+    var key=wtk(who,day), val=Math.max(0,Math.round(n||0));
+    if(val<=0) delete state.steps[key]; else state.steps[key]=val;
+    enqueue({k:"steps",person:who,ym:ymKey(),day:day,count:val}); saveCache();
+  }
 
   // progress photos (stored in Supabase Storage; metadata row syncs like other tables)
   var PHOTO_BUCKET="progress";
@@ -680,6 +687,10 @@
       if(op.ml!=null && op.ml>0) return supa.from("water").upsert({person:op.person,ym:op.ym,day:op.day,ml:op.ml},{onConflict:"person,ym,day"});
       return supa.from("water").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
+    if(op.k==="steps"){
+      if(op.count!=null && op.count>0) return supa.from("steps").upsert({person:op.person,ym:op.ym,day:op.day,count:op.count},{onConflict:"person,ym,day"});
+      return supa.from("steps").delete().match({person:op.person,ym:op.ym,day:op.day});
+    }
     if(op.k==="photoAdd") return supa.from("photos").insert({id:op.id,person:op.person,ym:op.ym,day:op.day,path:op.path});
     if(op.k==="photoDel") return supa.from("photos").delete().eq("id",op.id);
     if(op.k==="mealAdd") return supa.from("meals").insert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0});
@@ -699,11 +710,11 @@
   function pull(){
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
-    Promise.all([supa.from("people").select("*"),supa.from("habits").select("*"),supa.from("logs").select("*"),supa.from("notes").select("*"),supa.from("weights").select("*"),supa.from("meals").select("*"),supa.from("water").select("*"),supa.from("photos").select("*")])
+    Promise.all([supa.from("people").select("*"),supa.from("habits").select("*"),supa.from("logs").select("*"),supa.from("notes").select("*"),supa.from("weights").select("*"),supa.from("meals").select("*"),supa.from("water").select("*"),supa.from("photos").select("*"),supa.from("steps").select("*")])
     .then(function(r){
-      if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error);
-      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[];
-      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{}};
+      if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error);
+      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[];
+      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{}};
       ppl.forEach(function(p){ if(fresh.names[p.person]!==undefined) fresh.names[p.person]=p.display_name; });
       hbs.forEach(function(h){ if(fresh.habits[h.person]) fresh.habits[h.person].push({id:h.id,label:h.label,color:h.color||"#888",sort:h.sort||0,week:h.week||0}); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); if(!cloud && !fresh.habits[w].length) fresh.habits[w]=seedHabits(); });
@@ -712,6 +723,7 @@
       wts.forEach(function(x){ fresh.weights[x.person+"|"+x.ym+"|"+x.day]=x.kg; });
       mls.forEach(function(m){ fresh.meals[m.id]={person:m.person,ym:m.ym,day:m.day,at:m.at||"",item:m.item,sort:(m.sort||0)}; });
       wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
+      stp.forEach(function(x){ fresh.steps[x.person+"|"+x.ym+"|"+x.day]=x.count; });
       pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
@@ -729,6 +741,7 @@
     else if(op.k==="note"){var nkey=op.person+"|"+op.ym+"|"+op.day;if(op.body)s.notes[nkey]=op.body;else delete s.notes[nkey];}
     else if(op.k==="weight"){var wkey=op.person+"|"+op.ym+"|"+op.day;if(op.kg!=null)s.weights[wkey]=op.kg;else delete s.weights[wkey];}
     else if(op.k==="water"){if(!s.water)s.water={};var wak=op.person+"|"+op.ym+"|"+op.day;if(op.ml!=null&&op.ml>0)s.water[wak]=op.ml;else delete s.water[wak];}
+    else if(op.k==="steps"){if(!s.steps)s.steps={};var stk=op.person+"|"+op.ym+"|"+op.day;if(op.count!=null&&op.count>0)s.steps[stk]=op.count;else delete s.steps[stk];}
     else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,path:op.path};}
     else if(op.k==="photoDel"){if(s.photos)delete s.photos[op.id];}
     else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
@@ -856,8 +869,10 @@
     h+='</div>';
     var lw=getWeight(who,td);
     var wtot=getWater(who,td), goal=3000, wpct=Math.min(100,Math.round(wtot/goal*100));
+    var stot=getSteps(who,td), sgoal=8000, spct=Math.min(100,Math.round(stot/sgoal*100));
     h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Weight'+(real?' today':' this day')+'</div><div class="winput"><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(lw!=null?lw:'')+'" placeholder="0.0" aria-label="Weight kg"/><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div></div>';
     h+='<div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
+    h+='<div class="qcard"><div class="qlabel">Steps'+(real?' today':' this day')+'</div><div class="water-total"><b>'+stot.toLocaleString()+'</b> <span class="water-goal">/ '+sgoal.toLocaleString()+'</span></div><div class="water-bar"><i style="width:'+spct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="winput" style="margin-top:11px"><span class="ibox"><input type="number" step="100" min="0" inputmode="numeric" id="stInput" value="'+(stot>0?stot:'')+'" placeholder="0" aria-label="Steps"/><span class="kg">steps</span></span><button class="btn accent" id="stSave">Save</button></div></div>';
     h+='<div class="qcard qspan"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
     h+='<div class="noterow"><div class="nlabel">Note for '+td+' '+MONTHS[view.m].slice(0,3)+(real?' · today':'')+' (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea><div class="noterowbtn"><button class="btn accent" id="noteSave">Save note</button></div></div>';
     h+='</section>';
@@ -969,6 +984,7 @@
     function add(ym){ if(ym) set[ym]=1; }
     for(var k in state.weights) add(k.split("|")[1]);
     for(var k in state.water) add(k.split("|")[1]);
+    for(var k in state.steps) add(k.split("|")[1]);
     for(var k in state.notes) add(k.split("|")[1]);
     for(var k in state.logs) add(k.split("|")[1]);
     for(var id in state.meals) add(state.meals[id].ym);
@@ -1018,6 +1034,8 @@
     h+=repLine(wp,col)+'</div>';
     var wavg=watp.length?Math.round(watp.reduce(function(s,p){return s+p.y;},0)/watp.length):0;
     h+='<div class="rp-sec"><div class="rp-lab">Water</div>'+(watp.length?('<div class="rp-sub">avg '+wavg+' ml/day · '+watp.length+' day(s)</div>'+repLine(watp,"#2E9BD6")):'<div class="rp-sub">No water logged</div>')+'</div>';
+    var stp=ptsFor(state.steps,who,ym), savg=stp.length?Math.round(stp.reduce(function(s,p){return s+p.y;},0)/stp.length):0;
+    h+='<div class="rp-sec"><div class="rp-lab">Steps</div>'+(stp.length?('<div class="rp-sub">avg '+savg.toLocaleString()+'/day · '+stp.length+' day(s)</div>'+repLine(stp,"#7A8B3A")):'<div class="rp-sub">No steps logged</div>')+'</div>';
     h+='<div class="rp-sec"><div class="rp-lab">Habits</div><div style="overflow-x:auto">'+repHabitGrid(who,ym)+'</div></div>';
     var ms=mealsForYM(who,ym);
     if(ms.length){ h+='<div class="rp-sec"><div class="rp-lab">Meals</div><div class="rp-meals">'; var last=null; ms.forEach(function(m){ if(m.day!==last){ h+='<div class="rp-mday">'+m.day+' '+ymShort(ym)+'</div>'; last=m.day; } h+='<div class="rp-mrow"><span>'+esc(m.at||"")+'</span> '+esc(m.item)+'</div>'; }); h+='</div></div>'; }
@@ -1131,9 +1149,9 @@
     ["pravin","swetha"].forEach(function(who){
       var pc2=who==="swetha"?"var(--swetha)":"var(--pravin)", hbs=state.habits[who];
       var doneN=hbs.filter(function(x){return isDone(x.id,selDay);}).length;
-      var wt=getWeight(who,selDay), note=getNote(who,selDay), wtr=getWater(who,selDay);
+      var wt=getWeight(who,selDay), note=getNote(who,selDay), wtr=getWater(who,selDay), stp=getSteps(who,selDay);
       var chips=hbs.length?hbs.map(function(hb){var stt=isDone(hb.id,selDay)?'done':(isSkip(hb.id,selDay)?'skip':'miss');return '<span class="dchip '+stt+'" style="--c:'+hb.color+'">'+esc(hb.label)+'</span>';}).join(""):'<span class="nl-empty">No habits</span>';
-      h.push('<div class="panel" style="--pc:'+pc2+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+doneN+'/'+hbs.length+' habits · '+(wt!=null?wt.toFixed(1)+' kg':'no weight')+' · '+(wtr>0?wtr+' ml water':'no water')+'</div>');
+      h.push('<div class="panel" style="--pc:'+pc2+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+doneN+'/'+hbs.length+' habits · '+(wt!=null?wt.toFixed(1)+' kg':'no weight')+' · '+(wtr>0?wtr+' ml water':'no water')+' · '+(stp>0?stp.toLocaleString()+' steps':'no steps')+'</div>');
       h.push('<div class="dchips">'+chips+'</div>');
       h.push('<div class="nl-h" style="margin-top:15px">Meals</div><div class="meals">'+mealItems(who,selDay,false)+'</div>');
       if(note) h.push('<div class="notecallout"><div class="nc-h">Note for this day</div><div class="nc-body">'+esc(note)+'</div></div>');
@@ -1221,6 +1239,10 @@
     if(wtI) wtI.onkeydown=function(e){ if(e.key==="Enter") saveWt(); };
     app.querySelectorAll("[data-water]").forEach(function(el){ el.onclick=function(){ addWater(who,selDay, parseInt(el.dataset.water,10)); render(); }; });
     var wClr=document.getElementById("waterClear"); if(wClr) wClr.onclick=function(){ setWater(who,selDay,0); render(); };
+    var stI=document.getElementById("stInput"), stB=document.getElementById("stSave");
+    function saveSt(){ if(!stI)return; var v=stI.value.trim(); setSteps(who,selDay, v===""?0:parseInt(v,10)); render(); toast(v===""?"Steps cleared":"Steps saved"); }
+    if(stB) stB.onclick=saveSt;
+    if(stI) stI.onkeydown=function(e){ if(e.key==="Enter") saveSt(); };
     app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
     app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
     app.querySelectorAll("[data-pick]").forEach(function(el){el.onclick=function(){var p=el.dataset.pick.split("|"),hb=find(who,p[0]);if(hb){hb.color=p[1];enqueue({k:"habitColor",id:hb.id,color:p[1]});saveCache();render();}};});
@@ -1272,7 +1294,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 29 · report-compare</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 30 · steps</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
