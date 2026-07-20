@@ -256,6 +256,15 @@
   .cmp-fig img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;display:block}
   .cmp-fig figcaption{font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;text-align:center}
   .cmp-none{aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border-radius:12px;color:var(--muted)}
+  .tl-stage{position:relative;width:100%;max-width:360px;margin:0 auto;aspect-ratio:3/4;border-radius:14px;overflow:hidden;background:var(--surface-2)}
+  .tl-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .45s ease;cursor:zoom-in}
+  .tl-date{position:absolute;left:0;right:0;bottom:0;text-align:center;font-weight:750;font-size:14px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.65));padding:22px 8px 9px;pointer-events:none}
+  .tl-row{display:flex;align-items:center;gap:12px;margin-top:14px}
+  .tl-play{white-space:nowrap}
+  .tl-scrub{flex:1;accent-color:var(--accent)}
+  .tl-speed{display:flex;align-items:center;gap:7px;margin-top:11px;font-size:12px;color:var(--muted)}
+  .tl-sp{font:inherit;font-size:12px;padding:5px 11px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+  .tl-sp.active{background:var(--accent);color:#fff;border-color:transparent;font-weight:700}
   .lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
   /* weight */
   .wcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);padding:16px 17px}
@@ -478,6 +487,7 @@
   var now=new Date(), view={y:now.getFullYear(),m:now.getMonth()};
   var selDay=now.getDate();  // selected day-of-month; the daily views operate on this
   var cmpA=null, cmpB=null;  // photo ids selected in the Photos compare picker
+  var tlTimers={};           // running timelapse interval handles, keyed by widget
   var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
   var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   function ymKey(){return view.y+"-"+(view.m+1);}
@@ -707,10 +717,25 @@
   }
   function applyOp(op){ return Promise.resolve(rawOp(op)).then(function(r){ if(r&&r.error) throw r.error; return r; }); }
 
+  function fetchAllRows(table){
+    var PAGE=1000, all=[], from=0;
+    function step(){
+      return supa.from(table).select("*").range(from, from+PAGE-1).then(function(r){
+        if(r.error) return {data:null,error:r.error};
+        var rows=r.data||[];
+        all=all.concat(rows);
+        if(rows.length<PAGE) return {data:all,error:null};
+        from+=PAGE;
+        return step();
+      });
+    }
+    return step();
+  }
+
   function pull(){
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
-    Promise.all([supa.from("people").select("*"),supa.from("habits").select("*"),supa.from("logs").select("*"),supa.from("notes").select("*"),supa.from("weights").select("*"),supa.from("meals").select("*"),supa.from("water").select("*"),supa.from("photos").select("*"),supa.from("steps").select("*")])
+    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps")])
     .then(function(r){
       if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error);
       var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[];
@@ -828,6 +853,7 @@
   function stat(v,suf,l){return '<div class="stat"><div class="k display">'+v+(suf?'<small>'+suf+'</small>':'')+'</div><div class="l">'+l+'</div></div>';}
 
   function render(){
+    for(var _tk in tlTimers){ if(tlTimers[_tk]) clearInterval(tlTimers[_tk]); } tlTimers={};
     var dp=document.getElementById("datePick"); if(dp) dp.value=selISO();
     document.querySelector('.tab[data-who="pravin"] .tname').textContent=state.names.pravin;
     document.querySelector('.tab[data-who="swetha"] .tname').textContent=state.names.swetha;
@@ -958,6 +984,7 @@
       h+='<div class="cmp-imgs">'+cmpFig(cmpA)+cmpFig(cmpB)+'</div>';
       h+='</div></section>';
     }
+    h+=timelapseCard(who,"tl-"+who);
     return h;
   }
 
@@ -1106,6 +1133,34 @@
     }).catch(function(e){ toast("Report failed: "+((e&&e.message)||e)); });
   }
 
+  // ───────── progress timelapse (in-app player) ─────────
+  function timelapseCard(who,key){
+    var ps=allPhotosFor(who);
+    if(ps.length<2) return "";
+    var frames=ps.map(function(p,i){ var u=photoUrl(p.path); return '<img class="tl-frame" src="'+u+'" data-full="'+u+'" data-date="'+esc(p.day+' '+ymShort(p.ym)+' '+ymParse(p.ym).y+(ymDow(p.ym,p.day)===0?' · Sun':''))+'" style="opacity:'+(i===0?1:0)+'" alt="progress"/>'; }).join("");
+    var first=ps[0];
+    return '<section><h2 class="eyebrow">Progress timelapse · '+esc(state.names[who]||who)+'</h2><div class="wcard tl-wrap" data-tl="'+key+'">'
+      +'<div class="tl-stage">'+frames+'<div class="tl-date">'+esc(first.day+' '+ymShort(first.ym)+' '+ymParse(first.ym).y)+'</div></div>'
+      +'<div class="tl-row"><button class="btn accent tl-play" type="button">▶ Play</button><input type="range" class="tl-scrub" min="0" max="'+(ps.length-1)+'" value="0" step="1" aria-label="Scrub timelapse" /></div>'
+      +'<div class="tl-speed"><span>Speed</span><button class="tl-sp" data-sp="1400" type="button">Slow</button><button class="tl-sp active" data-sp="800" type="button">Medium</button><button class="tl-sp" data-sp="400" type="button">Fast</button></div>'
+      +'<div class="photo-hint">'+ps.length+' photos · '+esc(state.names[who]||who)+'\u2019s journey, oldest to newest</div>'
+      +'</div></section>';
+  }
+  function wireTimelapse(root){
+    var key=root.getAttribute("data-tl");
+    var frames=root.querySelectorAll(".tl-frame"), n=frames.length;
+    if(!n) return;
+    var stageDate=root.querySelector(".tl-date"), scrub=root.querySelector(".tl-scrub"), playBtn=root.querySelector(".tl-play");
+    var idx=0, playing=false, speed=800;
+    function show(i){ idx=((i%n)+n)%n; for(var f=0;f<n;f++) frames[f].style.opacity=(f===idx?1:0); if(stageDate) stageDate.textContent=frames[idx].getAttribute("data-date")||""; if(scrub) scrub.value=idx; }
+    function stop(){ playing=false; if(tlTimers[key]){clearInterval(tlTimers[key]); tlTimers[key]=null;} if(playBtn) playBtn.innerHTML="\u25B6 Play"; }
+    function play(){ playing=true; if(playBtn) playBtn.innerHTML="\u23F8 Pause"; if(tlTimers[key]) clearInterval(tlTimers[key]); tlTimers[key]=setInterval(function(){ show(idx+1); }, speed); }
+    if(playBtn) playBtn.onclick=function(){ playing?stop():play(); };
+    if(scrub) scrub.oninput=function(){ stop(); show(+scrub.value); };
+    root.querySelectorAll(".tl-sp").forEach(function(b){ b.onclick=function(){ speed=+b.getAttribute("data-sp"); root.querySelectorAll(".tl-sp").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); if(playing) play(); }; });
+    show(0);
+  }
+
   function renderBoth(){
     var dim=daysIn(view.y,view.m), showToday=isThisMonth(), elapsed=showToday?todayDate():dim;
     var h=['<section><h2 class="eyebrow">Coach Hari · both of you this month</h2><div class="duo">'];
@@ -1171,6 +1226,8 @@
       h.push('</div>');
     });
     h.push('</div></section>');
+    h.push(timelapseCard("pravin","tlc-pravin"));
+    h.push(timelapseCard("swetha","tlc-swetha"));
     h.push('<div class="toolrow">');
     h.push('<div class="repctl"><select id="repScope" aria-label="Report scope"><option value="pravin">Pravin</option><option value="swetha">Swetha</option><option value="both">Both — comparison</option></select><button class="btn accent" id="repDl">↓ Download report</button></div>');
     h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>');
@@ -1179,6 +1236,7 @@
     var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
     var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
     var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
+    app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
   }
 
   function press(el,onTap,onLong){
@@ -1223,6 +1281,7 @@
     if(pin) pin.onchange=function(){ if(pin.files&&pin.files[0]) uploadPhoto(who,pin.files[0]); pin.value=""; };
     app.querySelectorAll("[data-photo]").forEach(function(el){ el.onclick=function(ev){ ev.stopPropagation(); if(confirm("Delete this photo?")) delPhoto(el.dataset.photo); }; });
     app.querySelectorAll("[data-cmp]").forEach(function(el){ el.onchange=function(){ if(el.dataset.cmp==="a") cmpA=el.value; else cmpB=el.value; render(); }; });
+    app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
     // meals
     var mAdd=document.getElementById("mealAdd"), mTime=document.getElementById("mealTime"), mItem=document.getElementById("mealItem");
     function addM(){ if(!mItem)return; var v=mItem.value.trim(); if(!v)return; addMeal(who,selDay,mTime?mTime.value:nowHM(),v); render(); }
@@ -1294,7 +1353,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 30 · steps</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 32 · timelapse</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
