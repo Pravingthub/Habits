@@ -1,0 +1,23 @@
+name: Supabase keep-alive
+
+# Prevents the free-tier Supabase project from auto-pausing after ~7 days idle.
+# Runs once a day, makes one tiny read query (resets the idle clock), and if that
+# query ever fails, GitHub emails you — an early warning that sync is broken.
+
+on:
+  schedule:
+    - cron: '19 5 * * *'      # every day at 05:19 UTC (~10:49 AM IST)
+  workflow_dispatch: {}         # lets you run it manually from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Supabase (reset idle timer)
+        run: |
+          curl -sS -f \
+            "https://gjrtmaobnotlczjdimfm.supabase.co/rest/v1/habits?select=id&limit=1" \
+            -H "apikey: sb_publishable_8F0wcw89qfhic99SGwCw9w_wGpeSl7J" \
+            -H "Authorization: Bearer sb_publishable_8F0wcw89qfhic99SGwCw9w_wGpeSl7J" \
+            > /dev/null
+          echo "Keep-alive query succeeded at $(date -u)"
