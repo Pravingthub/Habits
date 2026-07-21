@@ -701,9 +701,9 @@
       if(op.count!=null && op.count>0) return supa.from("steps").upsert({person:op.person,ym:op.ym,day:op.day,count:op.count},{onConflict:"person,ym,day"});
       return supa.from("steps").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
-    if(op.k==="photoAdd") return supa.from("photos").insert({id:op.id,person:op.person,ym:op.ym,day:op.day,path:op.path});
+    if(op.k==="photoAdd") return supa.from("photos").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,path:op.path},{onConflict:"id"});
     if(op.k==="photoDel") return supa.from("photos").delete().eq("id",op.id);
-    if(op.k==="mealAdd") return supa.from("meals").insert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0});
+    if(op.k==="mealAdd") return supa.from("meals").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0},{onConflict:"id"});
     if(op.k==="mealDel") return supa.from("meals").delete().eq("id",op.id);
     if(op.k==="mealSort") return supa.from("meals").update({sort:op.sort}).eq("id",op.id);
     if(op.k==="habitAdd") return supa.from("habits").insert({id:op.id,person:op.person,label:op.label,color:op.color,sort:op.sort,week:op.week||0});
@@ -1353,7 +1353,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 34 · revert-labels</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 35 · idempotent-add</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
