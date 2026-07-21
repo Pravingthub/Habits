@@ -285,6 +285,7 @@
   .wgrid{stroke:var(--line);stroke-width:1}
   .wylab{fill:var(--muted);font-family:"IBM Plex Mono";font-size:9px;text-anchor:end}
   .wxlab{fill:var(--muted);font-family:"IBM Plex Mono";font-size:9px;text-anchor:middle}
+  .wval{font-family:"IBM Plex Mono";font-size:9px;font-weight:700;paint-order:stroke;stroke:var(--surface,#fff);stroke-width:2.6px;stroke-linejoin:round}
   .wempty{color:var(--muted);font-size:13.5px;padding:18px 4px 6px;text-align:center}
   .wduo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .wmini{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-2);padding:14px 15px}
@@ -814,7 +815,15 @@
       if(!s.points.length) return;
       var dstr=s.points.map(function(p,i){return (i?'L':'M')+X(p.x).toFixed(1)+' '+Y(p.y).toFixed(1);}).join(' ');
       svg+='<path d="'+dstr+'" fill="none" stroke="'+s.color+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" class="wline"/>';
-      s.points.forEach(function(p){ svg+='<circle cx="'+X(p.x).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="3.2" fill="#fff" stroke="'+s.color+'" stroke-width="2"/>'; });
+      s.points.forEach(function(p,i){
+        svg+='<circle cx="'+X(p.x).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="3.2" fill="#fff" stroke="'+s.color+'" stroke-width="2"/>';
+        var prev=s.points[i-1], next=s.points[i+1];
+        var isValley = prev && next && p.y<=prev.y && p.y<=next.y;
+        var yp=Y(p.y), ly = isValley ? yp+13 : yp-8;
+        if(ly < mt+8) ly = yp+13;
+        if(ly > H-mb-3) ly = yp-8;
+        svg+='<text x="'+X(p.x).toFixed(1)+'" y="'+ly.toFixed(1)+'" class="wval" text-anchor="middle" fill="'+s.color+'">'+p.y.toFixed(1)+'</text>';
+      });
     });
     svg+='</svg>';
     return svg;
@@ -1230,213 +1239,4 @@
     h.push(timelapseCard("swetha","tlc-swetha"));
     h.push('<div class="toolrow">');
     h.push('<div class="repctl"><select id="repScope" aria-label="Report scope"><option value="pravin">Pravin</option><option value="swetha">Swetha</option><option value="both">Both — comparison</option></select><button class="btn accent" id="repDl">↓ Download report</button></div>');
-    h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>');
-    h.push('</div>');
-    app.innerHTML=h.join("");
-    var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
-    var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
-    var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
-    app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
-  }
-
-  function press(el,onTap,onLong){
-    var timer=null,longed=false,lock=false;
-    function fireLong(){ if(lock)return; lock=true; longed=true; setTimeout(function(){lock=false;},600); setTimeout(function(){longed=false;},750); onLong(); }
-    el.addEventListener("click",function(){ if(longed){longed=false;return;} onTap(); });
-    el.addEventListener("contextmenu",function(e){ e.preventDefault(); fireLong(); });
-    el.addEventListener("touchstart",function(){ if(timer)clearTimeout(timer); timer=setTimeout(function(){ if(navigator.vibrate)navigator.vibrate(15); fireLong(); },500); },{passive:true});
-    ["touchend","touchmove","touchcancel"].forEach(function(ev){ el.addEventListener(ev,function(){ if(timer){clearTimeout(timer);timer=null;} }); });
-  }
-
-  var nmWho=null,nmDay=null;
-  function openNote(who,day){
-    nmWho=who; nmDay=day;
-    document.getElementById("nmTitle").textContent="Note · "+day+" "+MONTHS[view.m].slice(0,3);
-    document.getElementById("nmSub").textContent=state.names[who]+" · "+view.y;
-    document.getElementById("nmText").value=getNote(who,day);
-    document.getElementById("noteModal").classList.add("open");
-    setTimeout(function(){document.getElementById("nmText").focus();},50);
-  }
-  function closeNote(){document.getElementById("noteModal").classList.remove("open");}
-  (function setupModal(){
-    document.getElementById("nmCancel").onclick=closeNote;
-    document.getElementById("nmSave").onclick=function(){ if(nmWho!=null){ setNote(nmWho,nmDay,document.getElementById("nmText").value); } closeNote(); render(); };
-    document.getElementById("noteModal").addEventListener("click",function(e){ if(e.target.id==="noteModal") closeNote(); });
-  })();
-
-  function wireProfile(who){
-    app.querySelectorAll("[data-sec]").forEach(function(el){ el.onclick=function(){ section=el.dataset.sec; render(); window.scrollTo(0,0); }; });
-    app.querySelectorAll("[data-today]").forEach(function(el){
-      press(el, function(){ tapCell(who,el.dataset.today,selDay); render(); },
-                function(){ skipCell(who,el.dataset.today,selDay); render(); });
-    });
-    app.querySelectorAll("[data-cell]").forEach(function(el){
-      var p=el.dataset.cell.split("|"), hid=p[0], day=+p[1];
-      press(el, function(){ tapCell(who,hid,day); render(); },
-                function(){ skipCell(who,hid,day); render(); });
-    });
-    app.querySelectorAll("[data-note]").forEach(function(el){ el.onclick=function(){ openNote(who,+el.dataset.note); }; });
-    // photos
-    var pin=document.getElementById("photoInput");
-    if(pin) pin.onchange=function(){ if(pin.files&&pin.files[0]) uploadPhoto(who,pin.files[0]); pin.value=""; };
-    app.querySelectorAll("[data-photo]").forEach(function(el){ el.onclick=function(ev){ ev.stopPropagation(); if(confirm("Delete this photo?")) delPhoto(el.dataset.photo); }; });
-    app.querySelectorAll("[data-cmp]").forEach(function(el){ el.onchange=function(){ if(el.dataset.cmp==="a") cmpA=el.value; else cmpB=el.value; render(); }; });
-    app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
-    // meals
-    var mAdd=document.getElementById("mealAdd"), mTime=document.getElementById("mealTime"), mItem=document.getElementById("mealItem");
-    function addM(){ if(!mItem)return; var v=mItem.value.trim(); if(!v)return; addMeal(who,selDay,mTime?mTime.value:nowHM(),v); render(); }
-    if(mAdd) mAdd.onclick=addM;
-    if(mItem) mItem.onkeydown=function(e){ if(e.key==="Enter") addM(); };
-    app.querySelectorAll("[data-meal]").forEach(function(el){ el.onclick=function(){ delMeal(el.dataset.meal); render(); }; });
-    var tn=document.getElementById("todayNote"), nsave=document.getElementById("noteSave");
-    function saveNote(){ if(!tn) return; setNote(who,selDay,tn.value); toast("Note saved"); render(); }
-    if(nsave) nsave.onclick=saveNote;
-    if(tn) tn.addEventListener("keydown",function(e){ if((e.metaKey||e.ctrlKey)&&e.key==="Enter"){ e.preventDefault(); saveNote(); } });
-    var wtI=document.getElementById("wtInput"), wtB=document.getElementById("wtSave");
-    function saveWt(){ if(!wtI)return; var v=wtI.value.trim(); setWeight(who,selDay, v===""?null:parseFloat(v)); render(); toast(v===""?"Weight cleared":"Weight saved"); }
-    if(wtB) wtB.onclick=saveWt;
-    if(wtI) wtI.onkeydown=function(e){ if(e.key==="Enter") saveWt(); };
-    app.querySelectorAll("[data-water]").forEach(function(el){ el.onclick=function(){ addWater(who,selDay, parseInt(el.dataset.water,10)); render(); }; });
-    var wClr=document.getElementById("waterClear"); if(wClr) wClr.onclick=function(){ setWater(who,selDay,0); render(); };
-    var stI=document.getElementById("stInput"), stB=document.getElementById("stSave");
-    function saveSt(){ if(!stI)return; var v=stI.value.trim(); setSteps(who,selDay, v===""?0:parseInt(v,10)); render(); toast(v===""?"Steps cleared":"Steps saved"); }
-    if(stB) stB.onclick=saveSt;
-    if(stI) stI.onkeydown=function(e){ if(e.key==="Enter") saveSt(); };
-    app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
-    app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
-    app.querySelectorAll("[data-pick]").forEach(function(el){el.onclick=function(){var p=el.dataset.pick.split("|"),hb=find(who,p[0]);if(hb){hb.color=p[1];enqueue({k:"habitColor",id:hb.id,color:p[1]});saveCache();render();}};});
-    app.querySelectorAll("[data-freq]").forEach(function(el){el.onclick=function(){var fp=app.querySelector('[data-fqp="'+el.dataset.freq+'"]');if(fp)fp.classList.toggle("open");};});
-    app.querySelectorAll("[data-mmv]").forEach(function(el){el.onclick=function(){var p=el.dataset.mmv.split("|");moveMeal(who,+p[1],p[2],p[0]);};});
-    app.querySelectorAll("[data-fq]").forEach(function(el){el.onclick=function(){var p=el.dataset.fq.split("|"),hb=find(who,p[0]);if(hb){hb.week=+p[1];enqueue({k:"habitFreq",id:hb.id,week:hb.week});saveCache();render();}};});
-    app.querySelectorAll("[data-del]").forEach(function(el){el.onclick=function(){var hb=find(who,el.dataset.del);if(hb&&confirm('Remove "'+hb.label+'"? Its logged days will be cleared.')){state.habits[who]=state.habits[who].filter(function(x){return x.id!==hb.id;});var pre=hb.id+"|";Object.keys(state.logs).forEach(function(k){if(k.indexOf(pre)===0)delete state.logs[k];});enqueue({k:"habitDel",id:hb.id});saveCache();render();}};});
-    var add=document.getElementById("addHabit"),inp=document.getElementById("newHabit");
-    function addH(){var v=(inp.value||"").trim();if(!v)return;var color=PALETTE[state.habits[who].length%PALETTE.length],id=uid(),sort=state.habits[who].length;state.habits[who].push({id:id,label:v,color:color,sort:sort,week:0});enqueue({k:"habitAdd",person:who,id:id,label:v,color:color,sort:sort,week:0});inp.value="";saveCache();render();var n=document.getElementById("newHabit");if(n)n.focus();}
-    if(add)add.onclick=addH; if(inp)inp.onkeydown=function(e){if(e.key==="Enter")addH();};
-    var rp=document.getElementById("renameProfile");
-    if(rp)rp.onclick=function(){var v=prompt("Name for this person:",state.names[who]);if(v&&v.trim()){state.names[who]=v.trim();enqueue({k:"person",person:who,name:v.trim()});saveCache();render();}};
-    var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
-    var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
-  }
-  function find(who,id){return state.habits[who].find(function(x){return x.id===id;});}
-  function moveMeal(who,day,id,dir){
-    var arr=mealsFor(who,day), i=-1;
-    arr.forEach(function(x,k){ if(x.id===id) i=k; });
-    if(i<0) return;
-    var j=dir==="up"?i-1:i+1;
-    if(j<0||j>=arr.length) return;
-    var t=arr[i]; arr[i]=arr[j]; arr[j]=t;
-    arr.forEach(function(m,k){ var srt=k+1; if(state.meals[m.id]&&(state.meals[m.id].sort||0)!==srt){ state.meals[m.id].sort=srt; enqueue({k:"mealSort",id:m.id,sort:srt}); } });
-    saveCache(); render();
-  }
-
-  function doBackup(){var blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="habits-backup.json";document.body.appendChild(a);a.click();a.remove();toast("Backup downloaded");}
-  function doRestore(){var inp=document.createElement("input");inp.type="file";inp.accept=".json,application/json";inp.onchange=function(){var f=inp.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){try{var d=JSON.parse(rd.result);if(!d.habits||!d.logs)throw 0;if(!d.names)d.names={pravin:"Pravin",swetha:"Swetha"};if(!d.notes)d.notes={};if(!d.weights)d.weights={};if(!d.meals)d.meals={};Object.keys(d.logs).forEach(function(k){if(d.logs[k]===true)d.logs[k]="done";});state=d;saveCache();render();toast("Restored");}catch(e){toast("That file isn’t a valid backup");}};rd.readAsText(f);};inp.click();}
-
-  var toastEl=document.getElementById("toast"),tT;
-  function toast(m){toastEl.textContent=m;toastEl.classList.add("show");clearTimeout(tT);tT=setTimeout(function(){toastEl.classList.remove("show");},2000);}
-
-  document.querySelectorAll(".tab").forEach(function(t){t.onclick=function(){current=t.dataset.who;render();};});
-  document.getElementById("prevD").onclick=function(){stepSel(-1);render();if(cloud)pull();};
-  document.getElementById("nextD").onclick=function(){stepSel(1);render();if(cloud)pull();};
-  document.getElementById("datePick").onchange=function(e){var v=e.target.value;if(!v)return;var p=v.split("-");setSelFromDate(new Date(+p[0],+p[1]-1,+p[2]));render();if(cloud)pull();};
-
-  render(); // show cached data instantly
-  (function(){
-    var sb=document.getElementById("syncbar");
-    if(sb) sb.onclick=function(){ if(cloud){ toast("Retrying sync…"); flush(); pull(); } else { location.reload(); } };
-    updateSyncBar();
-    var lb=document.getElementById("lightbox"), lbImg=document.getElementById("lightboxImg");
-    if(lb&&lbImg){
-      app.addEventListener("click",function(e){ var t=e.target; if(t&&t.tagName==="IMG"&&t.dataset&&t.dataset.full){ lbImg.src=t.dataset.full; lb.hidden=false; } });
-      lb.addEventListener("click",function(){ lb.hidden=true; lbImg.src=""; });
-    }
-  })();
-  (function(){
-    var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 32 · timelapse</span>';
-    function force(){
-      toast("Updating to latest…");
-      var steps=Promise.resolve();
-      if(window.caches) steps=steps.then(function(){return caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));});});
-      if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations) steps=steps.then(function(){return navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));});});
-      steps.then(function(){ setTimeout(function(){ location.reload(); },400); });
-    }
-    var chip=b.querySelector(".chip");
-    chip.addEventListener("click",force);
-    chip.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); force(); } });
-  })();
-
-  var decided=false;
-  function decide(){
-    if(decided) return; decided=true;
-    document.getElementById("modeLine").textContent = cloud ? "Synced to your shared database." : (localReason + " · your data is safe on synced devices.");
-    document.querySelector(".foot").style.display = cloud ? "none" : "";
-    if(cloud){
-      setStatus("wait","Connecting…"); pull();
-      try{ supa.channel("habits-sync")
-        .on("postgres_changes",{event:"*",schema:"public",table:"logs"},pull)
-        .on("postgres_changes",{event:"*",schema:"public",table:"habits"},pull)
-        .on("postgres_changes",{event:"*",schema:"public",table:"people"},pull)
-        .subscribe(); }catch(e){}
-      window.addEventListener("online",function(){setStatus("wait","Back online…");flush();pull();});
-      window.addEventListener("offline",function(){setStatus("wait","Offline — will sync");});
-      document.addEventListener("visibilitychange",function(){if(!document.hidden)pull();});
-    } else {
-      setStatus("local", localReason);
-    }
-    updateSyncBar();
-  }
-  function startCloud(){
-    try{ supa=window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY); cloud=true; }
-    catch(e){ cloud=false; localReason="Local only · sync error"; }
-    decide();
-  }
-  function failLib(){ if(decided) return; cloud=false; localReason="Local only · sync engine didn’t load (check supabase.min.js is deployed)"; decide(); }
-  if(!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY){
-    cloud=false; localReason="Local only · no keys in file"; decide();
-  } else {
-    var tries=0;
-    (function waitLib(){
-      if(decided) return;
-      if(window.supabase){ startCloud(); return; }
-      if(++tries>15){   // ~3s — the self-hosted library should be ready well before this
-        // last resort: public CDN (only helps if this network allows it)
-        var fb=document.createElement("script");
-        fb.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
-        fb.onload=function(){ window.supabase?startCloud():failLib(); };
-        fb.onerror=failLib;
-        document.head.appendChild(fb);
-        setTimeout(function(){ if(!decided){ window.supabase?startCloud():failLib(); } },4000);
-        return;
-      }
-      setTimeout(waitLib,200);
-    })();
-  }
-
-  if("serviceWorker" in navigator){
-    var hadController=!!navigator.serviceWorker.controller, swRefreshing=false;
-    navigator.serviceWorker.addEventListener("controllerchange",function(){
-      if(swRefreshing) return;
-      if(!hadController) return;               // first install on a fresh visit — no reload needed
-      swRefreshing=true; location.reload();    // a new version took over — swap in seamlessly
-    });
-    window.addEventListener("load",function(){
-      navigator.serviceWorker.register("./sw.js").then(function(reg){
-        function check(){ try{ reg.update(); }catch(e){} }
-        check();                                                   // on load
-        setInterval(check, 15*60*1000);                            // every 15 min while open
-        document.addEventListener("visibilitychange",function(){ if(!document.hidden) check(); }); // when refocused
-        window.addEventListener("pageshow", check);                // when PWA/tab is resumed from background
-        window.addEventListener("focus", check);
-        window.addEventListener("online", check);                  // when back online
-      }).catch(function(){});
-    });
-  }
-  var deferred=null, installBtn=document.getElementById("installBtn");
-  window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferred=e;installBtn.classList.add("show");});
-  installBtn.onclick=function(){if(!deferred)return;deferred.prompt();deferred.userChoice.then(function(){deferred=null;installBtn.classList.remove("show");});};
-  window.addEventListener("appinstalled",function(){installBtn.classList.remove("show");});
-})();
-</script>
-</body>
-</html>
+    h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up
