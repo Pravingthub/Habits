@@ -265,6 +265,21 @@
   .tl-speed{display:flex;align-items:center;gap:7px;margin-top:11px;font-size:12px;color:var(--muted)}
   .tl-sp{font:inherit;font-size:12px;padding:5px 11px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
   .tl-sp.active{background:var(--accent);color:#fff;border-color:transparent;font-weight:700}
+  .body-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:4px 0 14px}
+  .body-tile{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .bt-label{font-size:11px;color:var(--muted);font-weight:600}
+  .bt-val{font-size:20px;font-weight:800;margin-top:2px;letter-spacing:-.01em}
+  .bt-sub{font-size:12.5px;font-weight:750;margin-top:2px;min-height:15px}
+  .body-form{margin-top:2px}
+  .body-inputs{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px}
+  .bi{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600}
+  .bi input{font:inherit;font-size:15px;font-weight:600;color:var(--ink);padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+  .body-actions{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}
+  .body-tablewrap{overflow-x:auto;margin-top:9px}
+  .body-table{width:100%;border-collapse:collapse;font-size:13.5px}
+  .body-table th{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .body-table td{padding:8px 9px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .body-table tr:last-child td{border-bottom:0}
   .lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
   /* weight */
   .wcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);padding:16px 17px}
@@ -456,6 +471,7 @@
   if(!state.meals) state.meals={};
   if(!state.water) state.water={};
   if(!state.steps) state.steps={};
+  if(!state.body) state.body={};
   if(!state.photos) state.photos={};
   // migrate old boolean logs (true) -> "done"
   Object.keys(state.logs).forEach(function(k){ if(state.logs[k]===true) state.logs[k]="done"; });
@@ -543,11 +559,40 @@
     enqueue({k:"water",person:who,ym:ymKey(),day:day,ml:val}); saveCache();
   }
   function addWater(who,day,delta){ setWater(who,day, getWater(who,day)+delta); }
-  function getSteps(who,day){var v=state.steps[wtk(who,day)];return (v||v===0)?v:0;}
-  function setSteps(who,day,n){
+  function getSteps(who,day){var v=state.steps[wtk(who,day)];return (v||v===0)?v:0;}  function setSteps(who,day,n){
     var key=wtk(who,day), val=Math.max(0,Math.round(n||0));
     if(val<=0) delete state.steps[key]; else state.steps[key]=val;
     enqueue({k:"steps",person:who,ym:ymKey(),day:day,count:val}); saveCache();
+  }
+  // body composition (occasional InBody tests)
+  var BODY_METRICS=[
+    {k:"bf", label:"Body fat", unit:"%", good:"down"},
+    {k:"smm", label:"Skeletal muscle", unit:"kg", good:"up"},
+    {k:"vf", label:"Visceral fat", unit:"", good:"down"},
+    {k:"fm", label:"Fat mass", unit:"kg", good:"down"}
+  ];
+  function bfmt(v){ return v==null||v===""?"—":(+v).toFixed(1).replace(/\.0$/,""); }
+  function bunit(m){ return m.unit==="%"?"%":(m.unit?" "+m.unit:""); }
+  function getBody(who,day){ var v=state.body[wtk(who,day)]; return v||null; }
+  function setBody(who,day,o){
+    var key=wtk(who,day), any=o&&(o.bf!=null||o.smm!=null||o.vf!=null||o.fm!=null);
+    if(any) state.body[key]={bf:o.bf,smm:o.smm,vf:o.vf,fm:o.fm}; else delete state.body[key];
+    enqueue({k:"body",person:who,ym:ymKey(),day:day,bf:any?o.bf:null,smm:any?o.smm:null,vf:any?o.vf:null,fm:any?o.fm:null}); saveCache();
+  }
+  function allBodyFor(who){
+    var a=[]; for(var key in state.body){ var p=key.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],vals:state.body[key]}); }
+    a.sort(function(x,y){ return ymRank(x.ym)-ymRank(y.ym) || x.day-y.day; }); return a;
+  }
+  function bodyTiles(who){
+    var ent=allBodyFor(who); if(!ent.length) return "";
+    var first=ent[0].vals, last=ent[ent.length-1].vals, multi=ent.length>1, h='<div class="body-tiles">';
+    BODY_METRICS.forEach(function(m){
+      var lv=last[m.k], fv=first[m.k];
+      var val = lv!=null ? bfmt(lv)+bunit(m) : "—", sub="";
+      if(multi && lv!=null && fv!=null){ var d=lv-fv, cls=d===0?"flat":((m.good==="down"?d<0:d>0)?"down":"up"); sub='<span class="wm-chg '+cls+'">'+(d>0?"+":"")+bfmt(d)+'</span>'; }
+      h+='<div class="body-tile"><div class="bt-label">'+m.label+'</div><div class="bt-val">'+val+'</div><div class="bt-sub">'+sub+'</div></div>';
+    });
+    return h+'</div>';
   }
 
   // progress photos (stored in Supabase Storage; metadata row syncs like other tables)
@@ -707,6 +752,11 @@
       if(op.count!=null && op.count>0) return supa.from("steps").upsert({person:op.person,ym:op.ym,day:op.day,count:op.count},{onConflict:"person,ym,day"});
       return supa.from("steps").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
+    if(op.k==="body"){
+      var bodyAny = op.bf!=null||op.smm!=null||op.vf!=null||op.fm!=null;
+      if(bodyAny) return supa.from("body").upsert({person:op.person,ym:op.ym,day:op.day,bf:op.bf,smm:op.smm,vf:op.vf,fm:op.fm},{onConflict:"person,ym,day"});
+      return supa.from("body").delete().match({person:op.person,ym:op.ym,day:op.day});
+    }
     if(op.k==="photoAdd") return supa.from("photos").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,path:op.path},{onConflict:"id"});
     if(op.k==="photoDel") return supa.from("photos").delete().eq("id",op.id);
     if(op.k==="mealAdd") return supa.from("meals").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0},{onConflict:"id"});
@@ -741,11 +791,11 @@
   function pull(){
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
-    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps")])
+    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};})])
     .then(function(r){
       if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error);
-      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[];
-      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{}};
+      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[];
+      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{},body:{}};
       ppl.forEach(function(p){ if(fresh.names[p.person]!==undefined) fresh.names[p.person]=p.display_name; });
       hbs.forEach(function(h){ if(fresh.habits[h.person]) fresh.habits[h.person].push({id:h.id,label:h.label,color:h.color||"#888",sort:h.sort||0,week:h.week||0}); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); if(!cloud && !fresh.habits[w].length) fresh.habits[w]=seedHabits(); });
@@ -755,6 +805,7 @@
       mls.forEach(function(m){ fresh.meals[m.id]={person:m.person,ym:m.ym,day:m.day,at:m.at||"",item:m.item,sort:(m.sort||0)}; });
       wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
       stp.forEach(function(x){ fresh.steps[x.person+"|"+x.ym+"|"+x.day]=x.count; });
+      bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={bf:x.bf,smm:x.smm,vf:x.vf,fm:x.fm}; });
       pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
@@ -773,6 +824,7 @@
     else if(op.k==="weight"){var wkey=op.person+"|"+op.ym+"|"+op.day;if(op.kg!=null)s.weights[wkey]=op.kg;else delete s.weights[wkey];}
     else if(op.k==="water"){if(!s.water)s.water={};var wak=op.person+"|"+op.ym+"|"+op.day;if(op.ml!=null&&op.ml>0)s.water[wak]=op.ml;else delete s.water[wak];}
     else if(op.k==="steps"){if(!s.steps)s.steps={};var stk=op.person+"|"+op.ym+"|"+op.day;if(op.count!=null&&op.count>0)s.steps[stk]=op.count;else delete s.steps[stk];}
+    else if(op.k==="body"){if(!s.body)s.body={};var bk=op.person+"|"+op.ym+"|"+op.day;var bany=op.bf!=null||op.smm!=null||op.vf!=null||op.fm!=null;if(bany)s.body[bk]={bf:op.bf,smm:op.smm,vf:op.vf,fm:op.fm};else delete s.body[bk];}
     else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,path:op.path};}
     else if(op.k==="photoDel"){if(s.photos)delete s.photos[op.id];}
     else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
@@ -852,7 +904,7 @@
   }
 
   var app=document.getElementById("app"), current="pravin", section="today";
-  var SECTIONS=[["today","Day"],["habits","Habits"],["weight","Weight"],["food","Food"],["photos","Photos"]];
+  var SECTIONS=[["today","Day"],["habits","Habits"],["weight","Weight"],["food","Food"],["photos","Photos"],["body","Body"]];
   function accentVars(who){return who==="swetha"?"--accent:var(--swetha);--accent-deep:var(--swetha-deep)":"--accent:var(--pravin);--accent-deep:var(--pravin-deep)";}
   function applyAccent(who){document.documentElement.setAttribute("style",accentVars(who));}
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -994,6 +1046,24 @@
     return h;
   }
 
+  function secBody(who){
+    var entries=allBodyFor(who), real=isSelToday(), mon=MONTHS[view.m].slice(0,3), cur=getBody(who,selDay), h="";
+    h+='<section><h2 class="eyebrow">Body composition · '+esc(state.names[who])+'</h2>';
+    h+=bodyTiles(who);
+    h+='<div class="wcard body-form"><div class="qlabel">Add / update InBody test for '+selDay+' '+mon+(real?' (today)':'')+'</div><div class="body-inputs">';
+    BODY_METRICS.forEach(function(m){ var v=(cur&&cur[m.k]!=null)?cur[m.k]:""; h+='<label class="bi"><span>'+m.label+(m.unit?' ('+(m.unit==="%"?"%":m.unit)+')':'')+'</span><input type="number" step="0.1" min="0" inputmode="decimal" data-body="'+m.k+'" value="'+v+'" placeholder="—" /></label>'; });
+    h+='</div><div class="body-actions"><button class="btn accent" id="bodySave">Save test</button>'+(cur?'<button class="btn" id="bodyDel">Delete this day</button>':'')+'</div></div>';
+    if(entries.length){
+      h+='<div class="wcard"><div class="qlabel">History</div><div class="body-tablewrap"><table class="body-table"><thead><tr><th>Date</th><th>Fat&nbsp;%</th><th>Muscle</th><th>Visc.</th><th>Fat&nbsp;kg</th></tr></thead><tbody>';
+      entries.slice().reverse().forEach(function(e){ h+='<tr><td>'+e.day+' '+ymShort(e.ym)+' '+ymParse(e.ym).y+'</td><td>'+bfmt(e.vals.bf)+'</td><td>'+bfmt(e.vals.smm)+'</td><td>'+bfmt(e.vals.vf)+'</td><td>'+bfmt(e.vals.fm)+'</td></tr>'; });
+      h+='</tbody></table></div></div>';
+    } else {
+      h+='<div class="meal-empty" style="padding:14px 2px">No InBody tests logged yet. Add your first above — pick the test date with the date picker at the top.</div>';
+    }
+    h+='</section>';
+    return h;
+  }
+
   function renderProfile(who){
     var h='<div class="subnav">'+SECTIONS.map(function(s){return '<button class="subtab'+(section===s[0]?' active':'')+'" data-sec="'+s[0]+'">'+s[1]+'</button>';}).join("")+'</div>';
     if(section==="today") h+=secToday(who);
@@ -1001,6 +1071,7 @@
     else if(section==="weight") h+=secWeight(who);
     else if(section==="food") h+=secFood(who);
     else if(section==="photos") h+=secPhotos(who);
+    else if(section==="body") h+=secBody(who);
     h+='<div class="toolrow">'+(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>')+'</div>';
     app.innerHTML=h; wireProfile(who);
   }
@@ -1018,6 +1089,7 @@
     for(var k in state.weights) add(k.split("|")[1]);
     for(var k in state.water) add(k.split("|")[1]);
     for(var k in state.steps) add(k.split("|")[1]);
+    for(var k in state.body) add(k.split("|")[1]);
     for(var k in state.notes) add(k.split("|")[1]);
     for(var k in state.logs) add(k.split("|")[1]);
     for(var id in state.meals) add(state.meals[id].ym);
@@ -1074,6 +1146,9 @@
     if(ms.length){ h+='<div class="rp-sec"><div class="rp-lab">Meals</div><div class="rp-meals">'; var last=null; ms.forEach(function(m){ if(m.day!==last){ h+='<div class="rp-mday">'+m.day+' '+ymShort(ym)+'</div>'; last=m.day; } h+='<div class="rp-mrow"><span>'+esc(m.at||"")+'</span> '+esc(m.item)+'</div>'; }); h+='</div></div>'; }
     var days=ymDays(ym), notes=[]; for(var d=1;d<=days;d++){var nb=state.notes[who+"|"+ym+"|"+d]; if(nb) notes.push({d:d,b:nb});}
     if(notes.length){ h+='<div class="rp-sec"><div class="rp-lab">Notes</div>'; notes.forEach(function(n){ h+='<div class="rp-note"><b>'+n.d+' '+ymShort(ym)+':</b> '+esc(n.b)+'</div>'; }); h+='</div>'; }
+    var bodyEnt=[]; for(var bk in state.body){ var bp=bk.split("|"); if(bp[0]===who&&bp[1]===ym) bodyEnt.push({day:+bp[2],vals:state.body[bk]}); }
+    bodyEnt.sort(function(x,y){return x.day-y.day;});
+    if(bodyEnt.length){ h+='<div class="rp-sec"><div class="rp-lab">Body composition (InBody)</div>'; bodyEnt.forEach(function(e){ h+='<div class="rp-mrow"><b>'+e.day+' '+ymShort(ym)+':</b> Fat '+bfmt(e.vals.bf)+'% \u00b7 Muscle '+bfmt(e.vals.smm)+' kg \u00b7 Visceral '+bfmt(e.vals.vf)+' \u00b7 Fat mass '+bfmt(e.vals.fm)+' kg</div>'; }); h+='</div>'; }
     return h+'</div>';
   }
   function repImg(pmap,path){ return '<img src="'+((path&&pmap[path])?pmap[path]:REP_PLACEHOLDER)+'" style="width:100%;border-radius:8px;display:block"/>'; }
@@ -1232,6 +1307,17 @@
       h.push('</div>');
     });
     h.push('</div></section>');
+    h.push('</div></section>');
+    // body composition — both people, read-only for the coach
+    h.push('<section><h2 class="eyebrow">Body composition</h2><div class="duo">');
+    ["pravin","swetha"].forEach(function(who){
+      var pc4=who==="swetha"?"var(--swetha)":"var(--pravin)", ent=allBodyFor(who);
+      h.push('<div class="panel" style="--pc:'+pc4+'"><h3>'+esc(state.names[who])+'</h3>');
+      if(!ent.length){ h.push('<div class="nl-empty">No InBody tests logged</div>'); }
+      else { var le=ent[ent.length-1]; h.push(bodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+le.day+' '+ymShort(le.ym)+' '+ymParse(le.ym).y+(ent.length>1?' · vs first '+ent[0].day+' '+ymShort(ent[0].ym):'')+'</div>'); }
+      h.push('</div>');
+    });
+    h.push('</div></section>');
     h.push(timelapseCard("pravin","tlc-pravin"));
     h.push(timelapseCard("swetha","tlc-swetha"));
     h.push('<div class="toolrow">');
@@ -1308,6 +1394,10 @@
     function saveSt(){ if(!stI)return; var v=stI.value.trim(); setSteps(who,selDay, v===""?0:parseInt(v,10)); render(); toast(v===""?"Steps cleared":"Steps saved"); }
     if(stB) stB.onclick=saveSt;
     if(stI) stI.onkeydown=function(e){ if(e.key==="Enter") saveSt(); };
+    var bSave=document.getElementById("bodySave");
+    if(bSave) bSave.onclick=function(){ var o={}; app.querySelectorAll("[data-body]").forEach(function(el){ var v=el.value.trim(); o[el.dataset.body]= v===""?null:parseFloat(v); }); setBody(who,selDay,o); render(); toast("Body test saved"); };
+    var bDel=document.getElementById("bodyDel");
+    if(bDel) bDel.onclick=function(){ if(confirm("Delete this day’s body test?")){ setBody(who,selDay,{bf:null,smm:null,vf:null,fm:null}); render(); toast("Deleted"); } };
     app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
     app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
     app.querySelectorAll("[data-pick]").forEach(function(el){el.onclick=function(){var p=el.dataset.pick.split("|"),hb=find(who,p[0]);if(hb){hb.color=p[1];enqueue({k:"habitColor",id:hb.id,color:p[1]});saveCache();render();}};});
@@ -1359,7 +1449,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 37 · weight-delta-style</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 38 · body-comp</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
