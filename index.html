@@ -589,7 +589,10 @@
     BODY_METRICS.forEach(function(m){
       var lv=last[m.k], fv=first[m.k];
       var val = lv!=null ? bfmt(lv)+bunit(m) : "—", sub="";
-      if(multi && lv!=null && fv!=null){ var d=lv-fv, cls=d===0?"flat":((m.good==="down"?d<0:d>0)?"down":"up"); sub='<span class="wm-chg '+cls+'">'+(d>0?"+":"")+bfmt(d)+'</span>'; }
+      if(multi && lv!=null && fv!=null){
+        var d=lv-fv, cls=d===0?"flat":((m.good==="down"?d<0:d>0)?"down":"up");
+        sub='<span class="wm-range">'+bfmt(fv)+' \u2192 '+bfmt(lv)+bunit(m)+'</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+(d>0?"+":"")+bfmt(d)+'</span>';
+      } else if(lv!=null){ sub='<span class="wm-range">first test</span>'; }
       h+='<div class="body-tile"><div class="bt-label">'+m.label+'</div><div class="bt-val">'+val+'</div><div class="bt-sub">'+sub+'</div></div>';
     });
     return h+'</div>';
@@ -1449,7 +1452,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 38 · body-comp</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 39 · body-trend</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
