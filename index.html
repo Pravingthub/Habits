@@ -285,7 +285,6 @@
   .wgrid{stroke:var(--line);stroke-width:1}
   .wylab{fill:var(--muted);font-family:"IBM Plex Mono";font-size:9px;text-anchor:end}
   .wxlab{fill:var(--muted);font-family:"IBM Plex Mono";font-size:9px;text-anchor:middle}
-  .wval{font-family:"IBM Plex Mono";font-size:9px;font-weight:700;paint-order:stroke;stroke:var(--surface,#fff);stroke-width:2.6px;stroke-linejoin:round}
   .wempty{color:var(--muted);font-size:13.5px;padding:18px 4px 6px;text-align:center}
   .wduo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .wmini{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-2);padding:14px 15px}
@@ -815,15 +814,7 @@
       if(!s.points.length) return;
       var dstr=s.points.map(function(p,i){return (i?'L':'M')+X(p.x).toFixed(1)+' '+Y(p.y).toFixed(1);}).join(' ');
       svg+='<path d="'+dstr+'" fill="none" stroke="'+s.color+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" class="wline"/>';
-      s.points.forEach(function(p,i){
-        svg+='<circle cx="'+X(p.x).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="3.2" fill="#fff" stroke="'+s.color+'" stroke-width="2"/>';
-        var prev=s.points[i-1], next=s.points[i+1];
-        var isValley = prev && next && p.y<=prev.y && p.y<=next.y;
-        var yp=Y(p.y), ly = isValley ? yp+13 : yp-8;
-        if(ly < mt+8) ly = yp+13;
-        if(ly > H-mb-3) ly = yp-8;
-        svg+='<text x="'+X(p.x).toFixed(1)+'" y="'+ly.toFixed(1)+'" class="wval" text-anchor="middle" fill="'+s.color+'">'+p.y.toFixed(1)+'</text>';
-      });
+      s.points.forEach(function(p){ svg+='<circle cx="'+X(p.x).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="3.2" fill="#fff" stroke="'+s.color+'" stroke-width="2"/>'; });
     });
     svg+='</svg>';
     return svg;
@@ -1239,4 +1230,10 @@
     h.push(timelapseCard("swetha","tlc-swetha"));
     h.push('<div class="toolrow">');
     h.push('<div class="repctl"><select id="repScope" aria-label="Report scope"><option value="pravin">Pravin</option><option value="swetha">Swetha</option><option value="both">Both — comparison</option></select><button class="btn accent" id="repDl">↓ Download report</button></div>');
-    h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up
+    h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>');
+    h.push('</div>');
+    app.innerHTML=h.join("");
+    var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
+    var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
+    var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
+    app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); })
