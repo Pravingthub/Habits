@@ -298,6 +298,12 @@
   .wm-delta.down{color:#1F9D57}
   .wm-delta.up{color:#C0492B}
   .wm-delta.flat{color:var(--muted)}
+  .wm-range{color:var(--muted);font-weight:600}
+  .wm-sep{color:var(--muted);margin:0 8px;opacity:.55}
+  .wm-chg{font-weight:750}
+  .wm-chg.down{color:#1F9D57}
+  .wm-chg.up{color:#C0492B}
+  .wm-chg.flat{color:var(--muted)}
   @media(max-width:640px){.wduo{grid-template-columns:1fr}}
   .wlegend{display:flex;gap:16px;justify-content:center;margin-top:10px;flex-wrap:wrap}
   .wlegend span{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);font-weight:500}
@@ -824,18 +830,18 @@
     var s=weightSeries(who), name=esc(state.names[who]), col=HEX[who], mon=MONTHS[view.m].slice(0,3);
     if(!s.length) return '<div class="wmini"><div class="wm-h"><span class="wm-name" style="color:'+col+'">'+name+'</span><span class="wm-empty">No weight logged</span></div></div>';
     var first=s[0].y, last=s[s.length-1].y, delta=last-first;
-    var dtxt, dcls;
-    if(s.length>1){ dtxt=first.toFixed(1)+' \u2192 '+last.toFixed(1)+' kg \u00b7 '+(delta>0?'+':'')+delta.toFixed(1)+' since '+s[0].x+' '+mon; dcls=delta<0?'down':(delta>0?'up':'flat'); }
-    else { dtxt='first entry ('+s[0].x+' '+mon+')'; dcls='flat'; }
+    var dinner, dcls;
+    if(s.length>1){ dcls=delta<0?'down':(delta>0?'up':'flat'); dinner='<span class="wm-range">'+first.toFixed(1)+' \u2192 '+last.toFixed(1)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+dcls+'">'+(delta>0?'+':'')+delta.toFixed(1)+' kg since '+s[0].x+' '+mon+'</span>'; }
+    else { dcls='flat'; dinner='<span class="wm-range">first entry ('+s[0].x+' '+mon+')</span>'; }
     return '<div class="wmini"><div class="wm-h"><span class="wm-name" style="color:'+col+'">'+name+'</span><span class="wm-val">'+last.toFixed(1)+' <small>kg</small></span></div>'
       + weightChart([{name:name,color:col,points:s}],daysIn(view.y,view.m))
-      + '<div class="wm-delta '+dcls+'">'+dtxt+'</div></div>';
+      + '<div class="wm-delta">'+dinner+'</div></div>';
   }
   function weightBlock(who){
     var s=weightSeries(who), latest=s.length?s[s.length-1]:null, first=s.length?s[0]:null;
     var h='<section><h2 class="eyebrow">Weight</h2><div class="wcard">';
     h+='<div class="whead"><div class="wnow">'+(latest?latest.y.toFixed(1)+'<small>kg</small>':'—')+'</div>';
-    if(s.length>1){ var dlt=latest.y-first.y, cls=dlt<0?'down':(dlt>0?'up':''), sign=dlt>0?'+':(dlt<0?'\u2212':''); h+='<div class="wdelta '+cls+'">'+first.y.toFixed(1)+' \u2192 '+latest.y.toFixed(1)+' kg \u00b7 '+sign+Math.abs(dlt).toFixed(1)+' this month</div>'; }
+    if(s.length>1){ var dlt=latest.y-first.y, cls=dlt<0?'down':(dlt>0?'up':'flat'), sign=dlt>0?'+':(dlt<0?'\u2212':''); h+='<div class="wdelta"><span class="wm-range">'+first.y.toFixed(1)+' \u2192 '+latest.y.toFixed(1)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+sign+Math.abs(dlt).toFixed(1)+' kg this month</span></div>'; }
     h+='</div>';
     var tv=getWeight(who,selDay);
     h+='<div class="winput"><label>'+(isSelToday()?'Today':(selDay+' '+MONTHS[view.m].slice(0,3)))+'</label><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(tv!=null?tv:'')+'" placeholder="0.0" aria-label="Weight in kg" /><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div>';
@@ -1353,7 +1359,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 36 · weight-startend</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 37 · weight-delta-style</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
