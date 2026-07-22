@@ -585,7 +585,7 @@
   }
   function bodyTiles(who){
     var ent=allBodyFor(who); if(!ent.length) return "";
-    var first=ent[0].vals, last=ent[ent.length-1].vals, multi=ent.length>1, h='<div class="body-tiles">';
+    var first=ent[0].vals, last=ent[ent.length-1].vals, multi=ent.length>1, bcol={bf:"#C0492B",smm:"#2FA36B",vf:"#D98A2B",fm:"#7A5AA6"}, h='<div class="body-tiles">';
     BODY_METRICS.forEach(function(m){
       var lv=last[m.k], fv=first[m.k];
       var val = lv!=null ? bfmt(lv)+bunit(m) : "—", sub="";
@@ -593,7 +593,9 @@
         var d=lv-fv, cls=d===0?"flat":((m.good==="down"?d<0:d>0)?"down":"up");
         sub='<span class="wm-range">'+bfmt(fv)+' \u2192 '+bfmt(lv)+bunit(m)+'</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+(d>0?"+":"")+bfmt(d)+'</span>';
       } else if(lv!=null){ sub='<span class="wm-range">first test</span>'; }
-      h+='<div class="body-tile"><div class="bt-label">'+m.label+'</div><div class="bt-val">'+val+'</div><div class="bt-sub">'+sub+'</div></div>';
+      var pts=[]; ent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
+      var spark = multi ? repLine(pts,bcol[m.k]) : "";
+      h+='<div class="body-tile"><div class="bt-label">'+m.label+'</div><div class="bt-val">'+val+'</div><div class="bt-sub">'+sub+'</div>'+spark+'</div>';
     });
     return h+'</div>';
   }
@@ -633,9 +635,10 @@
     delete state.photos[id]; enqueue({k:"photoDel",id:id}); saveCache(); render();
   }
   function weightSeries(who){
-    var dim=daysIn(view.y,view.m),pts=[];
-    for(var d=1;d<=dim;d++){var v=getWeight(who,d);if(v!=null)pts.push({x:d,y:v});}
-    return pts;
+    var a=[];
+    for(var k in state.weights){ var p=k.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],y:+state.weights[k]}); }
+    a.sort(function(x,y){ return ymRank(x.ym)-ymRank(y.ym) || x.day-y.day; });
+    return a.map(function(e,i){ return {x:i, y:e.y, label:e.day+" "+ymShort(e.ym)}; });
   }
   function latestWeight(who){var s=weightSeries(who);return s.length?s[s.length-1]:null;}
 
@@ -860,6 +863,7 @@
     function X(d){return ml+(d-xMin)/(xMax-xMin)*pw;}
     function Y(v){return mt+(yMax-v)/(yMax-yMin)*ph;}
     var mon=MONTHS[view.m].slice(0,3);
+    var labelByX={}; series.forEach(function(s){s.points.forEach(function(p){ if(p.label!=null) labelByX[p.x]=p.label; });});
     var svg='<svg viewBox="0 0 '+W+' '+H+'" class="wchart" preserveAspectRatio="none" role="img">';
     for(var g=0;g<=2;g++){
       var v=yMin+(yMax-yMin)*g/2, y=Y(v);
@@ -868,8 +872,10 @@
     }
     var mid=Math.round((xMin+xMax)/2);
     [xMin,mid,xMax].filter(function(d,i,a){return a.indexOf(d)===i;}).forEach(function(d){
+      var lab=(labelByX[d]!=null)?labelByX[d]:'';
+      if(!lab) return;
       var anc = d===xMin?'start':(d===xMax?'end':'middle');
-      svg+='<text x="'+X(d).toFixed(1)+'" y="'+(H-6)+'" class="wxlab" text-anchor="'+anc+'">'+d+' '+mon+'</text>';
+      svg+='<text x="'+X(d).toFixed(1)+'" y="'+(H-6)+'" class="wxlab" text-anchor="'+anc+'">'+lab+'</text>';
     });
     series.forEach(function(s){
       if(!s.points.length) return;
@@ -882,12 +888,12 @@
   }
   var HEX={pravin:"#E08A1E",swetha:"#DD5A86"};
   function weightMini(who){
-    var s=weightSeries(who), name=esc(state.names[who]), col=HEX[who], mon=MONTHS[view.m].slice(0,3);
+    var s=weightSeries(who), name=esc(state.names[who]), col=HEX[who];
     if(!s.length) return '<div class="wmini"><div class="wm-h"><span class="wm-name" style="color:'+col+'">'+name+'</span><span class="wm-empty">No weight logged</span></div></div>';
     var first=s[0].y, last=s[s.length-1].y, delta=last-first;
     var dinner, dcls;
-    if(s.length>1){ dcls=delta<0?'down':(delta>0?'up':'flat'); dinner='<span class="wm-range">'+first.toFixed(1)+' \u2192 '+last.toFixed(1)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+dcls+'">'+(delta>0?'+':'')+delta.toFixed(1)+' kg since '+s[0].x+' '+mon+'</span>'; }
-    else { dcls='flat'; dinner='<span class="wm-range">first entry ('+s[0].x+' '+mon+')</span>'; }
+    if(s.length>1){ dcls=delta<0?'down':(delta>0?'up':'flat'); dinner='<span class="wm-range">'+first.toFixed(1)+' \u2192 '+last.toFixed(1)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+dcls+'">'+(delta>0?'+':'')+delta.toFixed(1)+' kg since '+s[0].label+'</span>'; }
+    else { dcls='flat'; dinner='<span class="wm-range">first entry ('+s[0].label+')</span>'; }
     return '<div class="wmini"><div class="wm-h"><span class="wm-name" style="color:'+col+'">'+name+'</span><span class="wm-val">'+last.toFixed(1)+' <small>kg</small></span></div>'
       + weightChart([{name:name,color:col,points:s}],daysIn(view.y,view.m))
       + '<div class="wm-delta">'+dinner+'</div></div>';
@@ -896,7 +902,7 @@
     var s=weightSeries(who), latest=s.length?s[s.length-1]:null, first=s.length?s[0]:null;
     var h='<section><h2 class="eyebrow">Weight</h2><div class="wcard">';
     h+='<div class="whead"><div class="wnow">'+(latest?latest.y.toFixed(1)+'<small>kg</small>':'—')+'</div>';
-    if(s.length>1){ var dlt=latest.y-first.y, cls=dlt<0?'down':(dlt>0?'up':'flat'), sign=dlt>0?'+':(dlt<0?'\u2212':''); h+='<div class="wdelta"><span class="wm-range">'+first.y.toFixed(1)+' \u2192 '+latest.y.toFixed(1)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+sign+Math.abs(dlt).toFixed(1)+' kg this month</span></div>'; }
+    if(s.length>1){ var dlt=latest.y-first.y, cls=dlt<0?'down':(dlt>0?'up':'flat'), sign=dlt>0?'+':(dlt<0?'\u2212':''); h+='<div class="wdelta"><span class="wm-range">'+first.y.toFixed(1)+' \u2192 '+latest.y.toFixed(1)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+sign+Math.abs(dlt).toFixed(1)+' kg all time</span></div>'; }
     h+='</div>';
     var tv=getWeight(who,selDay);
     h+='<div class="winput"><label>'+(isSelToday()?'Today':(selDay+' '+MONTHS[view.m].slice(0,3)))+'</label><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(tv!=null?tv:'')+'" placeholder="0.0" aria-label="Weight in kg" /><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div>';
@@ -999,7 +1005,7 @@
     return h;
   }
 
-  function secWeight(who){ return '<section><h2 class="eyebrow">Weight trend · '+MONTHS[view.m]+' '+view.y+'</h2>'+weightBlock(who).replace('<section><h2 class="eyebrow">Weight</h2>','').replace(/<\/section>$/,'')+'</section>'; }
+  function secWeight(who){ return '<section><h2 class="eyebrow">Weight trend · all time</h2>'+weightBlock(who).replace('<section><h2 class="eyebrow">Weight</h2>','').replace(/<\/section>$/,'')+'</section>'; }
 
   function secFood(who){
     var days=mealDays(who), td=selDay, real=isSelToday(), h="";
@@ -1135,23 +1141,36 @@
   }
   function repPersonMonth(who,ym){
     var col=who==="swetha"?"#DD5A86":"#E08A1E", name=esc(state.names[who]||who);
-    var wp=ptsFor(state.weights,who,ym), watp=ptsFor(state.water,who,ym);
     var h='<div class="rp-person"><h4 style="color:'+col+'">'+name+'</h4>';
-    h+='<div class="rp-sec"><div class="rp-lab">Weight</div>';
-    if(wp.length){ var f=wp[0].y,l=wp[wp.length-1].y,dl=l-f; h+='<div class="rp-big">'+l.toFixed(1)+' kg</div><div class="rp-sub">'+(wp.length>1?((dl>0?"+":"")+dl.toFixed(1)+" kg over the month"):"first entry")+'</div>'; }
-    h+=repLine(wp,col)+'</div>';
-    var wavg=watp.length?Math.round(watp.reduce(function(s,p){return s+p.y;},0)/watp.length):0;
-    h+='<div class="rp-sec"><div class="rp-lab">Water</div>'+(watp.length?('<div class="rp-sub">avg '+wavg+' ml/day · '+watp.length+' day(s)</div>'+repLine(watp,"#2E9BD6")):'<div class="rp-sub">No water logged</div>')+'</div>';
-    var stp=ptsFor(state.steps,who,ym), savg=stp.length?Math.round(stp.reduce(function(s,p){return s+p.y;},0)/stp.length):0;
-    h+='<div class="rp-sec"><div class="rp-lab">Steps</div>'+(stp.length?('<div class="rp-sub">avg '+savg.toLocaleString()+'/day · '+stp.length+' day(s)</div>'+repLine(stp,"#7A8B3A")):'<div class="rp-sub">No steps logged</div>')+'</div>';
     h+='<div class="rp-sec"><div class="rp-lab">Habits</div><div style="overflow-x:auto">'+repHabitGrid(who,ym)+'</div></div>';
     var ms=mealsForYM(who,ym);
     if(ms.length){ h+='<div class="rp-sec"><div class="rp-lab">Meals</div><div class="rp-meals">'; var last=null; ms.forEach(function(m){ if(m.day!==last){ h+='<div class="rp-mday">'+m.day+' '+ymShort(ym)+'</div>'; last=m.day; } h+='<div class="rp-mrow"><span>'+esc(m.at||"")+'</span> '+esc(m.item)+'</div>'; }); h+='</div></div>'; }
     var days=ymDays(ym), notes=[]; for(var d=1;d<=days;d++){var nb=state.notes[who+"|"+ym+"|"+d]; if(nb) notes.push({d:d,b:nb});}
     if(notes.length){ h+='<div class="rp-sec"><div class="rp-lab">Notes</div>'; notes.forEach(function(n){ h+='<div class="rp-note"><b>'+n.d+' '+ymShort(ym)+':</b> '+esc(n.b)+'</div>'; }); h+='</div>'; }
-    var bodyEnt=[]; for(var bk in state.body){ var bp=bk.split("|"); if(bp[0]===who&&bp[1]===ym) bodyEnt.push({day:+bp[2],vals:state.body[bk]}); }
-    bodyEnt.sort(function(x,y){return x.day-y.day;});
-    if(bodyEnt.length){ h+='<div class="rp-sec"><div class="rp-lab">Body composition (InBody)</div>'; bodyEnt.forEach(function(e){ h+='<div class="rp-mrow"><b>'+e.day+' '+ymShort(ym)+':</b> Fat '+bfmt(e.vals.bf)+'% \u00b7 Muscle '+bfmt(e.vals.smm)+' kg \u00b7 Visceral '+bfmt(e.vals.vf)+' \u00b7 Fat mass '+bfmt(e.vals.fm)+' kg</div>'; }); h+='</div>'; }
+    return h+'</div>';
+  }
+  function repTrendsPerson(who){
+    var col=who==="swetha"?"#DD5A86":"#E08A1E", name=esc(state.names[who]||who);
+    var ws=[]; for(var k in state.weights){var p=k.split("|"); if(p[0]===who) ws.push({r:ymRank(p[1])*31+(+p[2]),y:+state.weights[k]});}
+    ws.sort(function(a,b){return a.r-b.r;});
+    var wpts=ws.map(function(e,i){return {x:i,y:e.y};});
+    var h='<div class="rp-person"><h4 style="color:'+col+'">'+name+'</h4>';
+    h+='<div class="rp-sec"><div class="rp-lab">Weight · all time</div>';
+    if(wpts.length){ var f=wpts[0].y,l=wpts[wpts.length-1].y,dw=l-f; h+='<div class="rp-big">'+l.toFixed(1)+' kg '+(wpts.length>1?'<span class="rp-bchg '+(dw<0?"good":(dw>0?"bad":""))+'">'+(dw>0?"+":"")+dw.toFixed(1)+'</span>':'')+'</div>'; } else { h+='<div class="rp-sub">No weight logged</div>'; }
+    h+=repLine(wpts,col)+'</div>';
+    var bent=[]; for(var bk in state.body){var bp=bk.split("|"); if(bp[0]===who) bent.push({r:ymRank(bp[1])*31+(+bp[2]),vals:state.body[bk]});}
+    bent.sort(function(a,b){return a.r-b.r;});
+    if(bent.length){
+      var bcol={bf:"#C0492B",smm:"#2FA36B",vf:"#D98A2B",fm:"#7A5AA6"};
+      h+='<div class="rp-sec"><div class="rp-lab">Body composition · all time</div><div class="rp-bodygrid">';
+      BODY_METRICS.forEach(function(m){
+        var pts=[]; bent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
+        var lv=pts.length?pts[pts.length-1].y:null, sub="";
+        if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
+        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+repLine(pts,bcol[m.k])+'</div>';
+      });
+      h+='</div></div>';
+    }
     return h+'</div>';
   }
   function repImg(pmap,path){ return '<img src="'+((path&&pmap[path])?pmap[path]:REP_PLACEHOLDER)+'" style="width:100%;border-radius:8px;display:block"/>'; }
@@ -1182,8 +1201,15 @@
       +".rp-note{font-size:12.5px;background:#FBF4E8;border-left:4px solid #EAD9BC;border-radius:8px;padding:7px 10px;margin-top:5px}"
       +".rp-photos{margin-top:16px}.rp-ptable{width:100%;border-collapse:collapse}.rp-ptable th{font-size:11px;text-align:center;padding:5px}.rp-ptable td{vertical-align:top;padding:5px;width:42%}.rp-pcap{width:16%;font-size:12px;color:#6b655c;font-weight:600}.rp-noimg{background:#efeae2;color:#9a948a;font-size:11px;text-align:center;padding:26px 6px;border-radius:8px}"
       +".rp-pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}.rp-pgrid figure{margin:0}.rp-pgrid figcaption{font-size:11px;color:#6b655c;margin-top:3px}"
+      +".rp-bodygrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}@media(max-width:520px){.rp-bodygrid{grid-template-columns:1fr}}.rp-bodycard{background:#faf7f1;border:1px solid #e7e1d7;border-radius:12px;padding:11px}.rp-bodycard .rp-lab{margin-bottom:2px}.rp-bodycard .rp-big{font-size:19px}.rp-bchg{font-size:13px;font-weight:700}.rp-bchg.good{color:#1f8f5b}.rp-bchg.bad{color:#c0562e}"
       +".rp-f{max-width:900px;margin:10px auto 40px;padding:0 18px;color:#b0a99e;font-size:11px}";
     if(!months.length){ body='<div class="rp-month"><p>No data logged yet.</p></div>'; }
+    else {
+      body+='<section class="rp-month"><h2>Trends · all time</h2>';
+      if(scope==="both") body+='<div class="rp-two">'+repTrendsPerson("pravin")+repTrendsPerson("swetha")+'</div>';
+      else body+=repTrendsPerson(scope);
+      body+='</section>';
+    }
     months.forEach(function(ym){
       body+='<section class="rp-month"><h2>'+ymLabel(ym)+'</h2>';
       if(scope==="both"){
@@ -1452,7 +1478,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 39 · body-trend</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 42 · inapp-alltime</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
