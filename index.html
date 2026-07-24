@@ -634,6 +634,7 @@
     if(supa && cloud){ try{ supa.storage.from(PHOTO_BUCKET).remove([p.path]); }catch(e){} }
     delete state.photos[id]; enqueue({k:"photoDel",id:id}); saveCache(); render();
   }
+  function wfmt(v){ if(v==null) return "—"; var r=Math.round(v*100)/100; return Number.isInteger(r)?r.toFixed(1):(""+r); }
   function weightSeries(who){
     var a=[];
     for(var k in state.weights){ var p=k.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],y:+state.weights[k]}); }
@@ -892,20 +893,20 @@
     if(!s.length) return '<div class="wmini"><div class="wm-h"><span class="wm-name" style="color:'+col+'">'+name+'</span><span class="wm-empty">No weight logged</span></div></div>';
     var first=s[0].y, last=s[s.length-1].y, delta=last-first;
     var dinner, dcls;
-    if(s.length>1){ dcls=delta<0?'down':(delta>0?'up':'flat'); dinner='<span class="wm-range">'+first.toFixed(1)+' \u2192 '+last.toFixed(1)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+dcls+'">'+(delta>0?'+':'')+delta.toFixed(1)+' kg since '+s[0].label+'</span>'; }
+    if(s.length>1){ dcls=delta<0?'down':(delta>0?'up':'flat'); dinner='<span class="wm-range">'+wfmt(first)+' \u2192 '+wfmt(last)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+dcls+'">'+(delta>0?'+':'')+wfmt(delta)+' kg since '+s[0].label+'</span>'; }
     else { dcls='flat'; dinner='<span class="wm-range">first entry ('+s[0].label+')</span>'; }
-    return '<div class="wmini"><div class="wm-h"><span class="wm-name" style="color:'+col+'">'+name+'</span><span class="wm-val">'+last.toFixed(1)+' <small>kg</small></span></div>'
+    return '<div class="wmini"><div class="wm-h"><span class="wm-name" style="color:'+col+'">'+name+'</span><span class="wm-val">'+wfmt(last)+' <small>kg</small></span></div>'
       + weightChart([{name:name,color:col,points:s}],daysIn(view.y,view.m))
       + '<div class="wm-delta">'+dinner+'</div></div>';
   }
   function weightBlock(who){
     var s=weightSeries(who), latest=s.length?s[s.length-1]:null, first=s.length?s[0]:null;
     var h='<section><h2 class="eyebrow">Weight</h2><div class="wcard">';
-    h+='<div class="whead"><div class="wnow">'+(latest?latest.y.toFixed(1)+'<small>kg</small>':'—')+'</div>';
-    if(s.length>1){ var dlt=latest.y-first.y, cls=dlt<0?'down':(dlt>0?'up':'flat'), sign=dlt>0?'+':(dlt<0?'\u2212':''); h+='<div class="wdelta"><span class="wm-range">'+first.y.toFixed(1)+' \u2192 '+latest.y.toFixed(1)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+sign+Math.abs(dlt).toFixed(1)+' kg all time</span></div>'; }
+    h+='<div class="whead"><div class="wnow">'+(latest?wfmt(latest.y)+'<small>kg</small>':'—')+'</div>';
+    if(s.length>1){ var dlt=latest.y-first.y, cls=dlt<0?'down':(dlt>0?'up':'flat'), sign=dlt>0?'+':(dlt<0?'\u2212':''); h+='<div class="wdelta"><span class="wm-range">'+wfmt(first.y)+' \u2192 '+wfmt(latest.y)+' kg</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+sign+wfmt(Math.abs(dlt))+' kg all time</span></div>'; }
     h+='</div>';
     var tv=getWeight(who,selDay);
-    h+='<div class="winput"><label>'+(isSelToday()?'Today':(selDay+' '+MONTHS[view.m].slice(0,3)))+'</label><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(tv!=null?tv:'')+'" placeholder="0.0" aria-label="Weight in kg" /><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div>';
+    h+='<div class="winput"><label>'+(isSelToday()?'Today':(selDay+' '+MONTHS[view.m].slice(0,3)))+'</label><span class="ibox"><input type="number" step="0.01" min="0" inputmode="decimal" id="wtInput" value="'+(tv!=null?tv:'')+'" placeholder="0.0" aria-label="Weight in kg" /><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div>';
     h+= s.length ? weightChart([{name:state.names[who],color:HEX[who],points:s}],daysIn(view.y,view.m))
                  : '<div class="wempty">No weight logged this month yet — add it above.</div>';
     h+='</div></section>';
@@ -963,7 +964,7 @@
     var lw=getWeight(who,td);
     var wtot=getWater(who,td), goal=3000, wpct=Math.min(100,Math.round(wtot/goal*100));
     var stot=getSteps(who,td), sgoal=8000, spct=Math.min(100,Math.round(stot/sgoal*100));
-    h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Weight'+(real?' today':' this day')+'</div><div class="winput"><span class="ibox"><input type="number" step="0.1" min="0" inputmode="decimal" id="wtInput" value="'+(lw!=null?lw:'')+'" placeholder="0.0" aria-label="Weight kg"/><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div></div>';
+    h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Weight'+(real?' today':' this day')+'</div><div class="winput"><span class="ibox"><input type="number" step="0.01" min="0" inputmode="decimal" id="wtInput" value="'+(lw!=null?lw:'')+'" placeholder="0.0" aria-label="Weight kg"/><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div></div>';
     h+='<div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
     h+='<div class="qcard"><div class="qlabel">Steps'+(real?' today':' this day')+'</div><div class="water-total"><b>'+stot.toLocaleString()+'</b> <span class="water-goal">/ '+sgoal.toLocaleString()+'</span></div><div class="water-bar"><i style="width:'+spct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="winput" style="margin-top:11px"><span class="ibox"><input type="number" step="100" min="0" inputmode="numeric" id="stInput" value="'+(stot>0?stot:'')+'" placeholder="0" aria-label="Steps"/><span class="kg">steps</span></span><button class="btn accent" id="stSave">Save</button></div></div>';
     h+='<div class="qcard qspan"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
@@ -1156,7 +1157,7 @@
     var wpts=ws.map(function(e,i){return {x:i,y:e.y};});
     var h='<div class="rp-person"><h4 style="color:'+col+'">'+name+'</h4>';
     h+='<div class="rp-sec"><div class="rp-lab">Weight · all time</div>';
-    if(wpts.length){ var f=wpts[0].y,l=wpts[wpts.length-1].y,dw=l-f; h+='<div class="rp-big">'+l.toFixed(1)+' kg '+(wpts.length>1?'<span class="rp-bchg '+(dw<0?"good":(dw>0?"bad":""))+'">'+(dw>0?"+":"")+dw.toFixed(1)+'</span>':'')+'</div>'; } else { h+='<div class="rp-sub">No weight logged</div>'; }
+    if(wpts.length){ var f=wpts[0].y,l=wpts[wpts.length-1].y,dw=l-f; h+='<div class="rp-big">'+wfmt(l)+' kg '+(wpts.length>1?'<span class="rp-bchg '+(dw<0?"good":(dw>0?"bad":""))+'">'+(dw>0?"+":"")+wfmt(dw)+'</span>':'')+'</div>'; } else { h+='<div class="rp-sub">No weight logged</div>'; }
     h+=repLine(wpts,col)+'</div>';
     var bent=[]; for(var bk in state.body){var bp=bk.split("|"); if(bp[0]===who) bent.push({r:ymRank(bp[1])*31+(+bp[2]),vals:state.body[bk]});}
     bent.sort(function(a,b){return a.r-b.r;});
@@ -1478,7 +1479,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 42 · inapp-alltime</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 43 · weight-precision</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
