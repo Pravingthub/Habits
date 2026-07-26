@@ -1155,6 +1155,17 @@
     var dots=pts.map(function(p){return '<circle cx="'+X(p.x)+'" cy="'+Y(p.y)+'" r="2.4" fill="#fff" stroke="'+color+'" stroke-width="1.6"/>';}).join('');
     return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:340px;height:auto;margin-top:4px"><path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linejoin="round"/>'+dots+'</svg>';
   }
+  function repHabitConsistency(who,ym){
+    var hs=state.habits[who]||[], days=ymDays(ym);
+    if(!hs.length) return '<div class="rp-sub">No habits</div>';
+    var h='<div class="rp-hcon">';
+    hs.forEach(function(hb){
+      var done=0; for(var d=1;d<=days;d++){ if(state.logs[hb.id+"|"+ym+"|"+d]==="done") done++; }
+      var pct=Math.round(done/days*100);
+      h+='<div class="rp-hrow"><span class="rp-hdot" style="background:'+hb.color+'"></span><span class="rp-hname">'+esc(hb.label)+'</span><span class="rp-hbar"><span style="width:'+pct+'%;background:'+hb.color+'"></span></span><span class="rp-hval">'+done+'/'+days+' · '+pct+'%</span></div>';
+    });
+    return h+'</div>';
+  }
   function repHabitGrid(who,ym){
     var days=ymDays(ym), hs=state.habits[who]||[];
     if(!hs.length) return '<div style="color:#9a948a;font-size:12px">No habits</div>';
@@ -1171,7 +1182,7 @@
   function repPersonMonth(who,ym){
     var col=who==="swetha"?"#DD5A86":"#E08A1E", name=esc(state.names[who]||who);
     var h='<div class="rp-person"><h4 style="color:'+col+'">'+name+'</h4>';
-    h+='<div class="rp-sec"><div class="rp-lab">Habits</div><div style="overflow-x:auto">'+repHabitGrid(who,ym)+'</div></div>';
+    h+='<div class="rp-sec"><div class="rp-lab">Habits</div>'+repHabitConsistency(who,ym)+'</div>';
     var days=ymDays(ym), notes=[]; for(var d=1;d<=days;d++){var nb=state.notes[who+"|"+ym+"|"+d]; if(nb) notes.push({d:d,b:nb});}
     if(notes.length){ h+='<div class="rp-sec"><div class="rp-lab">Notes</div>'; notes.forEach(function(n){ h+='<div class="rp-note"><b>'+n.d+' '+ymShort(ym)+':</b> '+esc(n.b)+'</div>'; }); h+='</div>'; }
     return h+'</div>';
@@ -1193,7 +1204,7 @@
         var pts=[]; bent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
         var lv=pts.length?pts[pts.length-1].y:null, sub="";
         if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
-        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+repLine(pts,BODY_COLORS[m.k])+'</div>';
+        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+(pts.length>1?repLine(pts,BODY_COLORS[m.k]):"")+'</div>';
       });
       h+='</div></div>';
     }
@@ -1233,7 +1244,8 @@
       +".rp-photos{margin-top:18px}"
       +".rp-ptable{width:100%;border-collapse:separate;border-spacing:0 6px}.rp-ptable th{font-size:12px;text-align:center;padding:4px 6px}.rp-ptable td{vertical-align:top;padding:5px;width:38%}.rp-ptable img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;display:block;border:1px solid #e7e1d7}.rp-pcap{width:24%;font-size:12px;color:#3a352e;font-weight:600;vertical-align:middle;text-align:left;line-height:1.35}.rp-pcap b{color:#2A2A28}.rp-noimg{background:#efeae2;color:#b0a99e;font-size:20px;text-align:center;padding:34px 6px;border-radius:10px}"
       +".rp-pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.rp-pgrid figure{margin:0}.rp-pgrid img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;display:block;border:1px solid #e7e1d7}.rp-pgrid figcaption{font-size:11px;color:#6b655c;margin-top:4px;text-align:center;font-weight:600}"
-      +".rp-bodygrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}@media(max-width:520px){.rp-bodygrid{grid-template-columns:1fr}}.rp-bodycard{background:#faf7f1;border:1px solid #e7e1d7;border-radius:12px;padding:11px;min-width:0;overflow:hidden}.rp-bodycard .rp-lab{margin-bottom:2px}.rp-bodycard .rp-big{font-size:18px}.rp-bchg{font-size:13px;font-weight:700}.rp-bchg.good{color:#1f8f5b}.rp-bchg.bad{color:#c0562e}"
+      +".rp-bodygrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}@media(max-width:520px){.rp-bodygrid{grid-template-columns:1fr}}.rp-bodycard{background:#faf7f1;border:1px solid #e7e1d7;border-radius:12px;padding:12px 13px;min-width:0;overflow:hidden}.rp-bodycard .rp-lab{margin-bottom:3px}.rp-bodycard .rp-big{font-size:18px}.rp-bodycard svg{max-height:52px;margin-top:6px}.rp-bchg{font-size:13px;font-weight:700}.rp-bchg.good{color:#1f8f5b}.rp-bchg.bad{color:#c0562e}"
+      +".rp-hcon{display:flex;flex-direction:column;gap:9px}.rp-hrow{display:flex;align-items:center;gap:9px;font-size:12.5px}.rp-hdot{width:9px;height:9px;border-radius:50%;flex:none}.rp-hname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rp-hbar{flex:none;width:56px;height:6px;background:#efeae2;border-radius:3px;overflow:hidden}.rp-hbar span{display:block;height:100%}.rp-hval{flex:none;font-size:11px;color:#6b655c;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}"
       +".rp-f{max-width:920px;margin:14px auto 40px;padding:0 16px;color:#b0a99e;font-size:11px}";
     if(!months.length){ body='<div class="rp-month"><p>No data logged yet.</p></div>'; }
     else {
@@ -1520,7 +1532,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 47 · report-cleanup</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 48 · report-habits-consistency</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
