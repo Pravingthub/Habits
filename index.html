@@ -265,6 +265,23 @@
   .tl-speed{display:flex;align-items:center;gap:7px;margin-top:11px;font-size:12px;color:var(--muted)}
   .tl-sp{font:inherit;font-size:12px;padding:5px 11px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
   .tl-sp.active{background:var(--accent);color:#fff;border-color:transparent;font-weight:700}
+  .tlp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .tlp-label{font-size:11px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+  .tlp-stage{max-width:none;aspect-ratio:3/4}
+  .tlp-date{position:static;color:var(--ink);background:none;text-align:center;font-size:14px;font-weight:750;padding:12px 0 0}
+  .pose-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:12px}
+  .pose-cell{position:relative;margin:0;border-radius:12px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line)}
+  .pose-cell img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;cursor:zoom-in}
+  .pose-lab{position:absolute;top:0;left:0;right:0;z-index:1;font-size:11px;font-weight:700;color:#fff;background:linear-gradient(rgba(0,0,0,.55),transparent);padding:6px 8px 14px;text-transform:uppercase;letter-spacing:.05em;pointer-events:none}
+  .pose-cell .photo-del{z-index:2}
+  .pose-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:3/4;cursor:pointer;border-style:dashed}
+  .pose-empty .pose-lab{position:static;color:var(--muted);background:none;padding:0 0 7px}
+  .pose-add{color:var(--accent);font-weight:750;font-size:13px;text-align:center}
+  .pose-empty:hover{border-color:var(--accent)}
+  .cmp-poses{margin-top:14px;display:flex;flex-direction:column;gap:14px}
+  .cmp-poselab{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .cmp-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .cmp-pair img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;display:block}
   .body-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:4px 0 14px}
   .body-tile{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
   .bt-label{font-size:11px;color:var(--muted);font-weight:600}
@@ -564,20 +581,21 @@
     if(val<=0) delete state.steps[key]; else state.steps[key]=val;
     enqueue({k:"steps",person:who,ym:ymKey(),day:day,count:val}); saveCache();
   }
-  // body composition (occasional InBody tests)
-  var BODY_METRICS=[
-    {k:"bf", label:"Body fat", unit:"%", good:"down"},
-    {k:"smm", label:"Skeletal muscle", unit:"kg", good:"up"},
-    {k:"vf", label:"Visceral fat", unit:"", good:"down"},
-    {k:"fm", label:"Fat mass", unit:"kg", good:"down"}
-  ];
+  // skinfold caliper + body fat % (weekly readings)
+  var BODY_COLORS={site1:"#C0492B",site2:"#D98A2B",site3:"#7A5AA6",bodyfat:"#2FA36B"};
+  function bodySites(who){ return [
+    {k:"site1", label:(who==="swetha"?"Triceps":"Chest"), unit:"mm", good:"down"},
+    {k:"site2", label:"Abdomen", unit:"mm", good:"down"},
+    {k:"site3", label:"Thigh", unit:"mm", good:"down"},
+    {k:"bodyfat", label:"Body fat", unit:"%", good:"down"}
+  ]; }
   function bfmt(v){ return v==null||v===""?"—":(+v).toFixed(1).replace(/\.0$/,""); }
   function bunit(m){ return m.unit==="%"?"%":(m.unit?" "+m.unit:""); }
   function getBody(who,day){ var v=state.body[wtk(who,day)]; return v||null; }
   function setBody(who,day,o){
-    var key=wtk(who,day), any=o&&(o.bf!=null||o.smm!=null||o.vf!=null||o.fm!=null);
-    if(any) state.body[key]={bf:o.bf,smm:o.smm,vf:o.vf,fm:o.fm}; else delete state.body[key];
-    enqueue({k:"body",person:who,ym:ymKey(),day:day,bf:any?o.bf:null,smm:any?o.smm:null,vf:any?o.vf:null,fm:any?o.fm:null}); saveCache();
+    var key=wtk(who,day), any=o&&(o.site1!=null||o.site2!=null||o.site3!=null||o.bodyfat!=null);
+    if(any) state.body[key]={site1:o.site1,site2:o.site2,site3:o.site3,bodyfat:o.bodyfat}; else delete state.body[key];
+    enqueue({k:"body",person:who,ym:ymKey(),day:day,site1:any?o.site1:null,site2:any?o.site2:null,site3:any?o.site3:null,bodyfat:any?o.bodyfat:null}); saveCache();
   }
   function allBodyFor(who){
     var a=[]; for(var key in state.body){ var p=key.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],vals:state.body[key]}); }
@@ -585,16 +603,16 @@
   }
   function bodyTiles(who){
     var ent=allBodyFor(who); if(!ent.length) return "";
-    var first=ent[0].vals, last=ent[ent.length-1].vals, multi=ent.length>1, bcol={bf:"#C0492B",smm:"#2FA36B",vf:"#D98A2B",fm:"#7A5AA6"}, h='<div class="body-tiles">';
-    BODY_METRICS.forEach(function(m){
+    var first=ent[0].vals, last=ent[ent.length-1].vals, multi=ent.length>1, h='<div class="body-tiles">';
+    bodySites(who).forEach(function(m){
       var lv=last[m.k], fv=first[m.k];
       var val = lv!=null ? bfmt(lv)+bunit(m) : "—", sub="";
       if(multi && lv!=null && fv!=null){
         var d=lv-fv, cls=d===0?"flat":((m.good==="down"?d<0:d>0)?"down":"up");
         sub='<span class="wm-range">'+bfmt(fv)+' \u2192 '+bfmt(lv)+bunit(m)+'</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+(d>0?"+":"")+bfmt(d)+'</span>';
-      } else if(lv!=null){ sub='<span class="wm-range">first test</span>'; }
+      } else if(lv!=null){ sub='<span class="wm-range">first reading</span>'; }
       var pts=[]; ent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
-      var spark = multi ? repLine(pts,bcol[m.k]) : "";
+      var spark = multi ? repLine(pts,BODY_COLORS[m.k]) : "";
       h+='<div class="body-tile"><div class="bt-label">'+m.label+'</div><div class="bt-val">'+val+'</div><div class="bt-sub">'+sub+'</div>'+spark+'</div>';
     });
     return h+'</div>';
@@ -602,9 +620,14 @@
 
   // progress photos (stored in Supabase Storage; metadata row syncs like other tables)
   var PHOTO_BUCKET="progress";
+  var POSES=[{k:"front",label:"Front"},{k:"back",label:"Back"},{k:"left",label:"Left"},{k:"right",label:"Right"}];
+  function pPose(p){ return p.pose||"front"; }
+  function poseLabel(k){ for(var i=0;i<POSES.length;i++) if(POSES[i].k===k) return POSES[i].label; return "Front"; }
   function dowOf(day){ return new Date(view.y,view.m,day).getDay(); }
   function photosFor(who){ var a=[]; for(var id in state.photos){var p=state.photos[id]; if(p.person===who&&p.ym===ymKey()) a.push({id:id,day:p.day,path:p.path});} a.sort(function(x,y){return y.day-x.day;}); return a; }
   function photoUrl(path){ try{ return supa? supa.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl : ""; }catch(e){ return ""; } }
+  function photoAt(who,ym,day,pose){ for(var id in state.photos){var p=state.photos[id]; if(p.person===who&&p.ym===ym&&p.day===day&&pPose(p)===pose) return {id:id,path:p.path};} return null; }
+  function allPhotoDates(who){ var seen={},out=[]; for(var id in state.photos){var p=state.photos[id]; if(p.person===who){var key=p.ym+"|"+p.day; if(!seen[key]){seen[key]=1; out.push({ym:p.ym,day:p.day});}}} out.sort(function(a,b){return ymRank(a.ym)-ymRank(b.ym)||a.day-b.day;}); return out; }
   function compressImage(file){ return new Promise(function(resolve,reject){
     var url=URL.createObjectURL(file), img=new Image();
     img.onload=function(){ var max=1280,w=img.width,h=img.height;
@@ -615,17 +638,19 @@
     img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("that file isn't a readable image")); };
     img.src=url;
   });}
-  function uploadPhoto(who,file){
+  function uploadPhoto(who,file,pose){
     if(!cloud||!supa){ toast("Connect to the shared database to add photos"); return; }
     if(!file || !/^image\//.test(file.type)){ toast("Please choose an image"); return; }
-    toast("Processing photo…");
+    pose=pose||"front"; toast("Processing "+poseLabel(pose)+" photo…");
     compressImage(file).then(function(blob){
-      var id=uid(), ym=ymKey(), day=selDay, path=who+"/"+ym+"/"+day+"_"+id+".jpg";
+      var id=uid(), ym=ymKey(), day=selDay, path=who+"/"+ym+"/"+day+"_"+pose+"_"+id+".jpg";
       return supa.storage.from(PHOTO_BUCKET).upload(path, blob, {contentType:"image/jpeg",upsert:true}).then(function(res){
         if(res.error) throw res.error;
-        state.photos[id]={person:who,ym:ym,day:day,path:path};
-        enqueue({k:"photoAdd",id:id,person:who,ym:ym,day:day,path:path}); saveCache();
-        toast("Photo added"); render();
+        var existing=photoAt(who,ym,day,pose);
+        state.photos[id]={person:who,ym:ym,day:day,pose:pose,path:path};
+        enqueue({k:"photoAdd",id:id,person:who,ym:ym,day:day,pose:pose,path:path});
+        if(existing){ delete state.photos[existing.id]; enqueue({k:"photoDel",id:existing.id}); if(supa&&cloud){try{supa.storage.from(PHOTO_BUCKET).remove([existing.path]);}catch(e){}} }
+        saveCache(); toast(poseLabel(pose)+" photo added"); render();
       });
     }).catch(function(e){ toast("Upload failed: "+((e&&e.message)||e)); });
   }
@@ -760,11 +785,11 @@
       return supa.from("steps").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
     if(op.k==="body"){
-      var bodyAny = op.bf!=null||op.smm!=null||op.vf!=null||op.fm!=null;
-      if(bodyAny) return supa.from("body").upsert({person:op.person,ym:op.ym,day:op.day,bf:op.bf,smm:op.smm,vf:op.vf,fm:op.fm},{onConflict:"person,ym,day"});
+      var bodyAny = op.site1!=null||op.site2!=null||op.site3!=null||op.bodyfat!=null;
+      if(bodyAny) return supa.from("body").upsert({person:op.person,ym:op.ym,day:op.day,site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat},{onConflict:"person,ym,day"});
       return supa.from("body").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
-    if(op.k==="photoAdd") return supa.from("photos").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,path:op.path},{onConflict:"id"});
+    if(op.k==="photoAdd") return supa.from("photos").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,pose:op.pose||"front",path:op.path},{onConflict:"id"});
     if(op.k==="photoDel") return supa.from("photos").delete().eq("id",op.id);
     if(op.k==="mealAdd") return supa.from("meals").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0},{onConflict:"id"});
     if(op.k==="mealDel") return supa.from("meals").delete().eq("id",op.id);
@@ -812,8 +837,8 @@
       mls.forEach(function(m){ fresh.meals[m.id]={person:m.person,ym:m.ym,day:m.day,at:m.at||"",item:m.item,sort:(m.sort||0)}; });
       wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
       stp.forEach(function(x){ fresh.steps[x.person+"|"+x.ym+"|"+x.day]=x.count; });
-      bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={bf:x.bf,smm:x.smm,vf:x.vf,fm:x.fm}; });
-      pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,path:p.path}; });
+      bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={site1:x.site1,site2:x.site2,site3:x.site3,bodyfat:x.bodyfat}; });
+      pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,pose:p.pose||"front",path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
       state=fresh; saveCache(); render();
@@ -831,8 +856,8 @@
     else if(op.k==="weight"){var wkey=op.person+"|"+op.ym+"|"+op.day;if(op.kg!=null)s.weights[wkey]=op.kg;else delete s.weights[wkey];}
     else if(op.k==="water"){if(!s.water)s.water={};var wak=op.person+"|"+op.ym+"|"+op.day;if(op.ml!=null&&op.ml>0)s.water[wak]=op.ml;else delete s.water[wak];}
     else if(op.k==="steps"){if(!s.steps)s.steps={};var stk=op.person+"|"+op.ym+"|"+op.day;if(op.count!=null&&op.count>0)s.steps[stk]=op.count;else delete s.steps[stk];}
-    else if(op.k==="body"){if(!s.body)s.body={};var bk=op.person+"|"+op.ym+"|"+op.day;var bany=op.bf!=null||op.smm!=null||op.vf!=null||op.fm!=null;if(bany)s.body[bk]={bf:op.bf,smm:op.smm,vf:op.vf,fm:op.fm};else delete s.body[bk];}
-    else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,path:op.path};}
+    else if(op.k==="body"){if(!s.body)s.body={};var bk=op.person+"|"+op.ym+"|"+op.day;var bany=op.site1!=null||op.site2!=null||op.site3!=null||op.bodyfat!=null;if(bany)s.body[bk]={site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat};else delete s.body[bk];}
+    else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,pose:op.pose||"front",path:op.path};}
     else if(op.k==="photoDel"){if(s.photos)delete s.photos[op.id];}
     else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
     else if(op.k==="mealDel"){ if(s.meals) delete s.meals[op.id]; }
@@ -1021,54 +1046,57 @@
   }
 
   function secPhotos(who){
-    var real=isSelToday(), ps=photosFor(who), mon=MONTHS[view.m].slice(0,3), h="";
-    h+='<section><h2 class="eyebrow">Progress photos · '+MONTHS[view.m]+' '+view.y+'</h2><div class="wcard">';
-    h+='<div class="qlabel">Add photo for '+selDay+' '+mon+(real?' (today)':'')+(selDate().getDay()===0?' · Sunday':'')+'</div>';
-    if(cloud){
-      h+='<label class="photo-add"><input type="file" accept="image/*" id="photoInput" hidden />+ Add / take photo</label>';
-      h+='<div class="photo-hint">Tip: take one every Sunday, same pose & lighting, to see the change over weeks.</div>';
-    } else {
-      h+='<div class="wempty">Connect to the shared database to add photos.</div>';
-    }
-    if(!ps.length){ h+='<div class="meal-empty" style="padding:14px 2px">No photos this month yet.</div>'; }
-    else {
-      h+='<div class="photo-grid">';
-      ps.forEach(function(p){
-        var u=photoUrl(p.path);
-        h+='<figure class="photo-cell"><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="progress '+p.day+' '+mon+'"/><figcaption>'+p.day+' '+mon+(dowOf(p.day)===0?' · Sun':'')+'</figcaption><button class="photo-del" data-photo="'+p.id+'" aria-label="Delete photo">✕</button></figure>';
-      });
-      h+='</div>';
-    }
-    h+='</div></section>';
-    // side-by-side compare (all-time photos for this person)
-    var allp=allPhotosFor(who);
-    if(allp.length>=2){
-      if(!cmpA || !state.photos[cmpA] || state.photos[cmpA].person!==who) cmpA=allp[0].id;
-      if(!cmpB || !state.photos[cmpB] || state.photos[cmpB].person!==who) cmpB=allp[allp.length-1].id;
-      function optList(sel){ return allp.map(function(p){ return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+p.day+' '+ymShort(p.ym)+' '+ymParse(p.ym).y+(ymDow(p.ym,p.day)===0?' (Sun)':'')+'</option>'; }).join(''); }
-      function cmpFig(id){ var p=state.photos[id]; if(!p) return '<figure class="cmp-fig"><div class="cmp-none">—</div></figure>'; var u=photoUrl(p.path); return '<figure class="cmp-fig"><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="progress"/><figcaption>'+p.day+' '+ymShort(p.ym)+' '+ymParse(p.ym).y+(ymDow(p.ym,p.day)===0?' · Sun':'')+'</figcaption></figure>'; }
-      h+='<section><h2 class="eyebrow">Compare progress</h2><div class="wcard cmp-wrap">';
-      h+='<div class="cmp-sels"><select data-cmp="a">'+optList(cmpA)+'</select><span class="cmp-vs">vs</span><select data-cmp="b">'+optList(cmpB)+'</select></div>';
-      h+='<div class="cmp-imgs">'+cmpFig(cmpA)+cmpFig(cmpB)+'</div>';
-      h+='</div></section>';
-    }
+    var real=isSelToday(), mon=MONTHS[view.m].slice(0,3), ym=ymKey(), h="";
+    h+='<section><h2 class="eyebrow">Progress photos · '+esc(state.names[who])+'</h2>';
+    h+='<div class="wcard"><div class="qlabel">Photos for '+selDay+' '+mon+(real?' (today)':'')+(selDate().getDay()===0?' · Sunday':'')+'</div>';
+    if(!cloud){ h+='<div class="wempty">Connect to the shared database to add photos.</div>'; }
+    h+='<div class="pose-grid">';
+    POSES.forEach(function(ps){
+      var ph=photoAt(who,ym,selDay,ps.k);
+      if(ph){ var u=photoUrl(ph.path);
+        h+='<figure class="pose-cell"><div class="pose-lab">'+ps.label+'</div><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="'+ps.label+'"/>'+(cloud?'<button class="photo-del" data-photo="'+ph.id+'" aria-label="Delete '+ps.label+'">✕</button>':'')+'</figure>';
+      } else if(cloud){
+        h+='<label class="pose-cell pose-empty"><div class="pose-lab">'+ps.label+'</div><input type="file" accept="image/*" data-pose="'+ps.k+'" hidden /><span class="pose-add">+ '+ps.label+'</span></label>';
+      } else {
+        h+='<figure class="pose-cell pose-empty"><div class="pose-lab">'+ps.label+'</div><span class="pose-add">—</span></figure>';
+      }
+    });
+    h+='</div><div class="photo-hint">Front, Back, Left &amp; Right — same spot &amp; lighting each time. Use the date picker up top to log another day.</div>';
+    h+='</div>';
+    h+=compareCard(who);
     h+=timelapseCard(who,"tl-"+who);
+    return h;
+  }
+  function compareCard(who){
+    var dates=allPhotoDates(who); if(dates.length<2) return "";
+    function dkey(dt){return dt.ym+"|"+dt.day;}
+    function dlabel(dt){return dt.day+" "+ymShort(dt.ym)+" "+ymParse(dt.ym).y+(ymDow(dt.ym,dt.day)===0?" (Sun)":"");}
+    var keys=dates.map(dkey);
+    if(!cmpA || keys.indexOf(cmpA)<0) cmpA=keys[0];
+    if(!cmpB || keys.indexOf(cmpB)<0) cmpB=keys[keys.length-1];
+    function opts(sel){ return dates.map(function(dt){var k=dkey(dt); return '<option value="'+k+'"'+(k===sel?' selected':'')+'>'+dlabel(dt)+'</option>';}).join(''); }
+    function cell(k,pose){ var pp=k.split("|"), ph=photoAt(who,pp[0],+pp[1],pose); if(!ph) return '<div class="cmp-none">—</div>'; var u=photoUrl(ph.path); return '<img loading="lazy" src="'+u+'" data-full="'+u+'" alt="'+pose+'"/>'; }
+    var h='<section><h2 class="eyebrow">Compare progress</h2><div class="wcard cmp-wrap">';
+    h+='<div class="cmp-sels"><select data-cmp="a">'+opts(cmpA)+'</select><span class="cmp-vs">vs</span><select data-cmp="b">'+opts(cmpB)+'</select></div>';
+    h+='<div class="cmp-poses">';
+    POSES.forEach(function(ps){ h+='<div class="cmp-poserow"><div class="cmp-poselab">'+ps.label+'</div><div class="cmp-pair"><figure class="cmp-fig">'+cell(cmpA,ps.k)+'</figure><figure class="cmp-fig">'+cell(cmpB,ps.k)+'</figure></div></div>'; });
+    h+='</div></div></section>';
     return h;
   }
 
   function secBody(who){
-    var entries=allBodyFor(who), real=isSelToday(), mon=MONTHS[view.m].slice(0,3), cur=getBody(who,selDay), h="";
-    h+='<section><h2 class="eyebrow">Body composition · '+esc(state.names[who])+'</h2>';
+    var entries=allBodyFor(who), real=isSelToday(), mon=MONTHS[view.m].slice(0,3), cur=getBody(who,selDay), sites=bodySites(who), h="";
+    h+='<section><h2 class="eyebrow">Skinfold &amp; body fat · '+esc(state.names[who])+'</h2>';
     h+=bodyTiles(who);
-    h+='<div class="wcard body-form"><div class="qlabel">Add / update InBody test for '+selDay+' '+mon+(real?' (today)':'')+'</div><div class="body-inputs">';
-    BODY_METRICS.forEach(function(m){ var v=(cur&&cur[m.k]!=null)?cur[m.k]:""; h+='<label class="bi"><span>'+m.label+(m.unit?' ('+(m.unit==="%"?"%":m.unit)+')':'')+'</span><input type="number" step="0.1" min="0" inputmode="decimal" data-body="'+m.k+'" value="'+v+'" placeholder="—" /></label>'; });
-    h+='</div><div class="body-actions"><button class="btn accent" id="bodySave">Save test</button>'+(cur?'<button class="btn" id="bodyDel">Delete this day</button>':'')+'</div></div>';
+    h+='<div class="wcard body-form"><div class="qlabel">Add / update reading for '+selDay+' '+mon+(real?' (today)':'')+'</div><div class="body-inputs">';
+    sites.forEach(function(m){ var v=(cur&&cur[m.k]!=null)?cur[m.k]:""; h+='<label class="bi"><span>'+m.label+(m.unit?' ('+(m.unit==="%"?"%":m.unit)+')':'')+'</span><input type="number" step="0.1" min="0" inputmode="decimal" data-body="'+m.k+'" value="'+v+'" placeholder="—" /></label>'; });
+    h+='</div><div class="body-actions"><button class="btn accent" id="bodySave">Save reading</button>'+(cur?'<button class="btn" id="bodyDel">Delete this day</button>':'')+'</div></div>';
     if(entries.length){
-      h+='<div class="wcard"><div class="qlabel">History</div><div class="body-tablewrap"><table class="body-table"><thead><tr><th>Date</th><th>Fat&nbsp;%</th><th>Muscle</th><th>Visc.</th><th>Fat&nbsp;kg</th></tr></thead><tbody>';
-      entries.slice().reverse().forEach(function(e){ h+='<tr><td>'+e.day+' '+ymShort(e.ym)+' '+ymParse(e.ym).y+'</td><td>'+bfmt(e.vals.bf)+'</td><td>'+bfmt(e.vals.smm)+'</td><td>'+bfmt(e.vals.vf)+'</td><td>'+bfmt(e.vals.fm)+'</td></tr>'; });
+      h+='<div class="wcard"><div class="qlabel">History</div><div class="body-tablewrap"><table class="body-table"><thead><tr><th>Date</th><th>'+(who==="swetha"?"Tri":"Chest")+'</th><th>Abd</th><th>Thigh</th><th>Fat&nbsp;%</th></tr></thead><tbody>';
+      entries.slice().reverse().forEach(function(e){ h+='<tr><td>'+e.day+' '+ymShort(e.ym)+' '+ymParse(e.ym).y+'</td><td>'+bfmt(e.vals.site1)+'</td><td>'+bfmt(e.vals.site2)+'</td><td>'+bfmt(e.vals.site3)+'</td><td>'+bfmt(e.vals.bodyfat)+'</td></tr>'; });
       h+='</tbody></table></div></div>';
     } else {
-      h+='<div class="meal-empty" style="padding:14px 2px">No InBody tests logged yet. Add your first above — pick the test date with the date picker at the top.</div>';
+      h+='<div class="meal-empty" style="padding:14px 2px">No readings logged yet. Add your first above — pick the date with the date picker at the top.</div>';
     }
     h+='</section>';
     return h;
@@ -1162,13 +1190,12 @@
     var bent=[]; for(var bk in state.body){var bp=bk.split("|"); if(bp[0]===who) bent.push({r:ymRank(bp[1])*31+(+bp[2]),vals:state.body[bk]});}
     bent.sort(function(a,b){return a.r-b.r;});
     if(bent.length){
-      var bcol={bf:"#C0492B",smm:"#2FA36B",vf:"#D98A2B",fm:"#7A5AA6"};
-      h+='<div class="rp-sec"><div class="rp-lab">Body composition · all time</div><div class="rp-bodygrid">';
-      BODY_METRICS.forEach(function(m){
+      h+='<div class="rp-sec"><div class="rp-lab">Skinfold &amp; body fat · all time</div><div class="rp-bodygrid">';
+      bodySites(who).forEach(function(m){
         var pts=[]; bent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
         var lv=pts.length?pts[pts.length-1].y:null, sub="";
         if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
-        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+repLine(pts,bcol[m.k])+'</div>';
+        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+repLine(pts,BODY_COLORS[m.k])+'</div>';
       });
       h+='</div></div>';
     }
@@ -1176,16 +1203,22 @@
   }
   function repImg(pmap,path){ return '<img src="'+((path&&pmap[path])?pmap[path]:REP_PLACEHOLDER)+'" style="width:100%;border-radius:8px;display:block"/>'; }
   function repPhotosBoth(ym,pmap){
-    var pP={},pS={}; photosForYM("pravin",ym).forEach(function(p){pP[p.day]=p.path;}); photosForYM("swetha",ym).forEach(function(p){pS[p.day]=p.path;});
-    var dset={}; Object.keys(pP).forEach(function(d){dset[d]=1;}); Object.keys(pS).forEach(function(d){dset[d]=1;});
+    var RP=[{k:"front",label:"Front"},{k:"back",label:"Back"}], dset={};
+    ["pravin","swetha"].forEach(function(who){ RP.forEach(function(psx){ for(var id in state.photos){var p=state.photos[id]; if(p.person===who&&p.ym===ym&&pPose(p)===psx.k) dset[p.day]=1;} }); });
     var dl=Object.keys(dset).map(Number).sort(function(a,b){return a-b;});
     if(!dl.length) return '';
-    var rows=dl.map(function(d){ return '<tr><td class="rp-pcap">'+d+' '+ymShort(ym)+(ymDow(ym,d)===0?' (Sun)':'')+'</td><td>'+(pP[d]?repImg(pmap,pP[d]):'<div class="rp-noimg">no photo</div>')+'</td><td>'+(pS[d]?repImg(pmap,pS[d]):'<div class="rp-noimg">no photo</div>')+'</td></tr>'; }).join('');
-    return '<div class="rp-sec rp-photos"><div class="rp-lab">Progress photos — same day, side by side</div><table class="rp-ptable"><tr><th></th><th style="color:#E08A1E">Pravin</th><th style="color:#DD5A86">Swetha</th></tr>'+rows+'</table></div>';
+    var rows="";
+    dl.forEach(function(d){ RP.forEach(function(psx){
+      var pp=photoAt("pravin",ym,d,psx.k), sp=photoAt("swetha",ym,d,psx.k);
+      if(!pp && !sp) return;
+      rows+='<tr><td class="rp-pcap">'+d+' '+ymShort(ym)+(ymDow(ym,d)===0?' (Sun)':'')+' · '+psx.label+'</td><td>'+(pp?repImg(pmap,pp.path):'<div class="rp-noimg">no photo</div>')+'</td><td>'+(sp?repImg(pmap,sp.path):'<div class="rp-noimg">no photo</div>')+'</td></tr>';
+    }); });
+    if(!rows) return '';
+    return '<div class="rp-sec rp-photos"><div class="rp-lab">Progress photos — same session (front &amp; back)</div><table class="rp-ptable"><tr><th></th><th style="color:#E08A1E">Pravin</th><th style="color:#DD5A86">Swetha</th></tr>'+rows+'</table></div>';
   }
   function collectPhotoPaths(scope){
     var persons=scope==="both"?["pravin","swetha"]:[scope], seen={}, out=[];
-    for(var id in state.photos){var p=state.photos[id]; if(persons.indexOf(p.person)>=0 && !seen[p.path]){seen[p.path]=1; out.push(p.path);}}
+    for(var id in state.photos){var p=state.photos[id]; var po=pPose(p); if(persons.indexOf(p.person)>=0 && (po==="front"||po==="back") && !seen[p.path]){seen[p.path]=1; out.push(p.path);}}
     return out;
   }
   function buildReportHTML(scope,pmap){
@@ -1217,8 +1250,11 @@
         body+='<div class="rp-two">'+repPersonMonth("pravin",ym)+repPersonMonth("swetha",ym)+'</div>'+repPhotosBoth(ym,pmap);
       } else {
         body+=repPersonMonth(scope,ym);
-        var ph=photosForYM(scope,ym);
-        if(ph.length) body+='<div class="rp-sec rp-photos"><div class="rp-lab">Progress photos</div><div class="rp-pgrid">'+ph.map(function(p){return '<figure>'+repImg(pmap,p.path)+'<figcaption>'+p.day+' '+ymShort(ym)+(ymDow(ym,p.day)===0?' (Sun)':'')+'</figcaption></figure>';}).join('')+'</div></div>';
+        var RP=[{k:"front",label:"Front"},{k:"back",label:"Back"}], rpDs={};
+        RP.forEach(function(psx){ for(var id in state.photos){var p=state.photos[id]; if(p.person===scope&&p.ym===ym&&pPose(p)===psx.k) rpDs[p.day]=1;} });
+        var rpDl=Object.keys(rpDs).map(Number).sort(function(a,b){return a-b;}), cells="";
+        rpDl.forEach(function(d){ RP.forEach(function(psx){ var ph=photoAt(scope,ym,d,psx.k); if(ph) cells+='<figure>'+repImg(pmap,ph.path)+'<figcaption>'+d+' '+ymShort(ym)+(ymDow(ym,d)===0?' (Sun)':'')+' · '+psx.label+'</figcaption></figure>'; }); });
+        if(cells) body+='<div class="rp-sec rp-photos"><div class="rp-lab">Progress photos (front &amp; back)</div><div class="rp-pgrid">'+cells+'</div></div>';
       }
       body+='</section>';
     });
@@ -1244,26 +1280,31 @@
     }).catch(function(e){ toast("Report failed: "+((e&&e.message)||e)); });
   }
 
-  // ───────── progress timelapse (in-app player) ─────────
+  // ───────── progress timelapse (4-pane tandem player) ─────────
   function timelapseCard(who,key){
-    var ps=allPhotosFor(who);
-    if(ps.length<2) return "";
-    var frames=ps.map(function(p,i){ var u=photoUrl(p.path); return '<img class="tl-frame" src="'+u+'" data-full="'+u+'" data-date="'+esc(p.day+' '+ymShort(p.ym)+' '+ymParse(p.ym).y+(ymDow(p.ym,p.day)===0?' · Sun':''))+'" style="opacity:'+(i===0?1:0)+'" alt="progress"/>'; }).join("");
-    var first=ps[0];
-    return '<section><h2 class="eyebrow">Progress timelapse · '+esc(state.names[who]||who)+'</h2><div class="wcard tl-wrap" data-tl="'+key+'">'
-      +'<div class="tl-stage">'+frames+'<div class="tl-date">'+esc(first.day+' '+ymShort(first.ym)+' '+ymParse(first.ym).y)+'</div></div>'
-      +'<div class="tl-row"><button class="btn accent tl-play" type="button">▶ Play</button><input type="range" class="tl-scrub" min="0" max="'+(ps.length-1)+'" value="0" step="1" aria-label="Scrub timelapse" /></div>'
+    var dates=allPhotoDates(who);
+    if(dates.length<2) return "";
+    var dateLabels=dates.map(function(dt){ return dt.day+" "+ymShort(dt.ym)+" "+ymParse(dt.ym).y+(ymDow(dt.ym,dt.day)===0?" · Sun":""); });
+    var panes=POSES.map(function(ps){
+      var frames=dates.map(function(dt,i){ var ph=photoAt(who,dt.ym,dt.day,ps.k); var u=ph?photoUrl(ph.path):""; return '<img class="tl-frame" src="'+(u||REP_PLACEHOLDER)+'" data-full="'+u+'" style="opacity:'+(i===0?1:0)+'" alt="'+ps.label+'"/>'; }).join("");
+      return '<div class="tlp-pane"><div class="tlp-label">'+ps.label+'</div><div class="tl-stage tlp-stage">'+frames+'</div></div>';
+    }).join("");
+    return '<section><h2 class="eyebrow">Progress timelapse · '+esc(state.names[who]||who)+'</h2><div class="wcard tl-wrap" data-tl="'+key+'" data-dates="'+esc(dateLabels.join("||"))+'">'
+      +'<div class="tlp-grid">'+panes+'</div>'
+      +'<div class="tl-date tlp-date">'+esc(dateLabels[0])+'</div>'
+      +'<div class="tl-row"><button class="btn accent tl-play" type="button">▶ Play</button><input type="range" class="tl-scrub" min="0" max="'+(dates.length-1)+'" value="0" step="1" aria-label="Scrub timelapse" /></div>'
       +'<div class="tl-speed"><span>Speed</span><button class="tl-sp" data-sp="1400" type="button">Slow</button><button class="tl-sp active" data-sp="800" type="button">Medium</button><button class="tl-sp" data-sp="400" type="button">Fast</button></div>'
-      +'<div class="photo-hint">'+ps.length+' photos · '+esc(state.names[who]||who)+'\u2019s journey, oldest to newest</div>'
+      +'<div class="photo-hint">'+dates.length+' sessions · all four angles play together, oldest to newest</div>'
       +'</div></section>';
   }
   function wireTimelapse(root){
     var key=root.getAttribute("data-tl");
-    var frames=root.querySelectorAll(".tl-frame"), n=frames.length;
-    if(!n) return;
-    var stageDate=root.querySelector(".tl-date"), scrub=root.querySelector(".tl-scrub"), playBtn=root.querySelector(".tl-play");
+    var panes=root.querySelectorAll(".tlp-stage");
+    var dateLabels=(root.getAttribute("data-dates")||"").split("||"), n=dateLabels.length;
+    if(!n || !panes.length) return;
+    var dateEl=root.querySelector(".tl-date"), scrub=root.querySelector(".tl-scrub"), playBtn=root.querySelector(".tl-play");
     var idx=0, playing=false, speed=800;
-    function show(i){ idx=((i%n)+n)%n; for(var f=0;f<n;f++) frames[f].style.opacity=(f===idx?1:0); if(stageDate) stageDate.textContent=frames[idx].getAttribute("data-date")||""; if(scrub) scrub.value=idx; }
+    function show(i){ idx=((i%n)+n)%n; panes.forEach(function(pane){ var fr=pane.querySelectorAll(".tl-frame"); for(var f=0;f<fr.length;f++) fr[f].style.opacity=(f===idx?1:0); }); if(dateEl) dateEl.textContent=dateLabels[idx]||""; if(scrub) scrub.value=idx; }
     function stop(){ playing=false; if(tlTimers[key]){clearInterval(tlTimers[key]); tlTimers[key]=null;} if(playBtn) playBtn.innerHTML="\u25B6 Play"; }
     function play(){ playing=true; if(playBtn) playBtn.innerHTML="\u23F8 Pause"; if(tlTimers[key]) clearInterval(tlTimers[key]); tlTimers[key]=setInterval(function(){ show(idx+1); }, speed); }
     if(playBtn) playBtn.onclick=function(){ playing?stop():play(); };
@@ -1326,24 +1367,27 @@
     h.push('</div></section>');
     // progress photos — both people, read-only for the coach
     var monP=MONTHS[view.m].slice(0,3);
-    h.push('<section><h2 class="eyebrow">Progress photos · '+MONTHS[view.m]+' '+view.y+'</h2><div class="duo">');
+    h.push('<section><h2 class="eyebrow">Progress photos · latest</h2><div class="duo">');
     ["pravin","swetha"].forEach(function(who){
-      var pc3=who==="swetha"?"var(--swetha)":"var(--pravin)", ps=photosFor(who);
+      var pc3=who==="swetha"?"var(--swetha)":"var(--pravin)", dates=allPhotoDates(who);
       h.push('<div class="panel" style="--pc:'+pc3+'"><h3>'+esc(state.names[who])+'</h3>');
-      if(!ps.length){ h.push('<div class="nl-empty">No photos this month</div>'); }
+      if(!dates.length){ h.push('<div class="nl-empty">No photos yet</div>'); }
       else {
-        h.push('<div class="photo-grid">'+ps.map(function(p){var u=photoUrl(p.path);return '<figure class="photo-cell"><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="progress '+p.day+'"/><figcaption>'+p.day+' '+monP+(dowOf(p.day)===0?' · Sun':'')+'</figcaption></figure>';}).join("")+'</div>');
+        var ld=dates[dates.length-1];
+        h.push('<div class="sub" style="margin-bottom:7px">latest: '+ld.day+' '+ymShort(ld.ym)+' '+ymParse(ld.ym).y+'</div><div class="pose-grid">');
+        POSES.forEach(function(psx){ var ph=photoAt(who,ld.ym,ld.day,psx.k); if(ph){var u=photoUrl(ph.path); h.push('<figure class="pose-cell"><div class="pose-lab">'+psx.label+'</div><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="'+psx.label+'"/></figure>');} else { h.push('<figure class="pose-cell pose-empty"><div class="pose-lab">'+psx.label+'</div><span class="pose-add">—</span></figure>'); } });
+        h.push('</div>');
       }
       h.push('</div>');
     });
     h.push('</div></section>');
     h.push('</div></section>');
     // body composition — both people, read-only for the coach
-    h.push('<section><h2 class="eyebrow">Body composition</h2><div class="duo">');
+    h.push('<section><h2 class="eyebrow">Skinfold &amp; body fat</h2><div class="duo">');
     ["pravin","swetha"].forEach(function(who){
       var pc4=who==="swetha"?"var(--swetha)":"var(--pravin)", ent=allBodyFor(who);
       h.push('<div class="panel" style="--pc:'+pc4+'"><h3>'+esc(state.names[who])+'</h3>');
-      if(!ent.length){ h.push('<div class="nl-empty">No InBody tests logged</div>'); }
+      if(!ent.length){ h.push('<div class="nl-empty">No readings logged</div>'); }
       else { var le=ent[ent.length-1]; h.push(bodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+le.day+' '+ymShort(le.ym)+' '+ymParse(le.ym).y+(ent.length>1?' · vs first '+ent[0].day+' '+ymShort(ent[0].ym):'')+'</div>'); }
       h.push('</div>');
     });
@@ -1399,8 +1443,7 @@
     });
     app.querySelectorAll("[data-note]").forEach(function(el){ el.onclick=function(){ openNote(who,+el.dataset.note); }; });
     // photos
-    var pin=document.getElementById("photoInput");
-    if(pin) pin.onchange=function(){ if(pin.files&&pin.files[0]) uploadPhoto(who,pin.files[0]); pin.value=""; };
+    app.querySelectorAll("[data-pose]").forEach(function(el){ el.onchange=function(){ if(el.files&&el.files[0]) uploadPhoto(who,el.files[0],el.getAttribute("data-pose")); el.value=""; }; });
     app.querySelectorAll("[data-photo]").forEach(function(el){ el.onclick=function(ev){ ev.stopPropagation(); if(confirm("Delete this photo?")) delPhoto(el.dataset.photo); }; });
     app.querySelectorAll("[data-cmp]").forEach(function(el){ el.onchange=function(){ if(el.dataset.cmp==="a") cmpA=el.value; else cmpB=el.value; render(); }; });
     app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
@@ -1427,7 +1470,7 @@
     var bSave=document.getElementById("bodySave");
     if(bSave) bSave.onclick=function(){ var o={}; app.querySelectorAll("[data-body]").forEach(function(el){ var v=el.value.trim(); o[el.dataset.body]= v===""?null:parseFloat(v); }); setBody(who,selDay,o); render(); toast("Body test saved"); };
     var bDel=document.getElementById("bodyDel");
-    if(bDel) bDel.onclick=function(){ if(confirm("Delete this day’s body test?")){ setBody(who,selDay,{bf:null,smm:null,vf:null,fm:null}); render(); toast("Deleted"); } };
+    if(bDel) bDel.onclick=function(){ if(confirm("Delete this day’s reading?")){ setBody(who,selDay,{site1:null,site2:null,site3:null,bodyfat:null}); render(); toast("Deleted"); } };
     app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
     app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
     app.querySelectorAll("[data-pick]").forEach(function(el){el.onclick=function(){var p=el.dataset.pick.split("|"),hb=find(who,p[0]);if(hb){hb.color=p[1];enqueue({k:"habitColor",id:hb.id,color:p[1]});saveCache();render();}};});
@@ -1479,7 +1522,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 43 · weight-precision</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 45 · skinfold</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
