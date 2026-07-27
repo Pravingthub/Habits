@@ -283,6 +283,9 @@
   .cmp-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .cmp-pair img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;display:block}
   .body-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:4px 0 14px}
+  .bodytoggle{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
+  .bt-seg{flex:1;font:inherit;font-size:14px;font-weight:700;padding:9px 12px;border-radius:9px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+  .bt-seg.active{background:var(--accent);color:#fff}
   .body-tile{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;min-width:0;overflow:hidden}
   .bt-label{font-size:11px;color:var(--muted);font-weight:600}
   .bt-val{font-size:20px;font-weight:800;margin-top:2px;letter-spacing:-.01em}
@@ -489,6 +492,7 @@
   if(!state.water) state.water={};
   if(!state.steps) state.steps={};
   if(!state.body) state.body={};
+  if(!state.tape) state.tape={};
   if(!state.photos) state.photos={};
   // migrate old boolean logs (true) -> "done"
   Object.keys(state.logs).forEach(function(k){ if(state.logs[k]===true) state.logs[k]="done"; });
@@ -527,6 +531,7 @@
   var selDay=now.getDate();  // selected day-of-month; the daily views operate on this
   var cmpA=null, cmpB=null;  // photo ids selected in the Photos compare picker
   var tlTimers={};           // running timelapse interval handles, keyed by widget
+  var bodyView="skinfold";   // Body tab sub-view: "skinfold" | "tape"
   var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
   var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   function ymKey(){return view.y+"-"+(view.m+1);}
@@ -601,10 +606,10 @@
     var a=[]; for(var key in state.body){ var p=key.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],vals:state.body[key]}); }
     a.sort(function(x,y){ return ymRank(x.ym)-ymRank(y.ym) || x.day-y.day; }); return a;
   }
-  function bodyTiles(who){
-    var ent=allBodyFor(who); if(!ent.length) return "";
+  function groupTiles(who,metrics,ent,colors){
+    if(!ent.length) return "";
     var first=ent[0].vals, last=ent[ent.length-1].vals, multi=ent.length>1, h='<div class="body-tiles">';
-    bodySites(who).forEach(function(m){
+    metrics.forEach(function(m){
       var lv=last[m.k], fv=first[m.k];
       var val = lv!=null ? bfmt(lv)+bunit(m) : "—", sub="";
       if(multi && lv!=null && fv!=null){
@@ -612,11 +617,31 @@
         sub='<span class="wm-range">'+bfmt(fv)+' \u2192 '+bfmt(lv)+bunit(m)+'</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+(d>0?"+":"")+bfmt(d)+'</span>';
       } else if(lv!=null){ sub='<span class="wm-range">first reading</span>'; }
       var pts=[]; ent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
-      var spark = multi ? repLine(pts,BODY_COLORS[m.k]) : "";
+      var spark = multi ? repLine(pts,colors[m.k]) : "";
       h+='<div class="body-tile"><div class="bt-label">'+m.label+'</div><div class="bt-val">'+val+'</div><div class="bt-sub">'+sub+'</div>'+spark+'</div>';
     });
     return h+'</div>';
   }
+  function bodyTiles(who){ return groupTiles(who,bodySites(who),allBodyFor(who),BODY_COLORS); }
+
+  // tape measurements (weekly): thigh, hip, waist
+  var TAPE_COLORS={thigh:"#7A5AA6",hip:"#2E9BD6",waist:"#C0492B"};
+  function tapeMetrics(){ return [
+    {k:"thigh", label:"Thigh", unit:"cm", good:"down"},
+    {k:"hip",   label:"Hip",   unit:"cm", good:"down"},
+    {k:"waist", label:"Waist", unit:"cm", good:"down"}
+  ]; }
+  function getTape(who,day){ var v=state.tape[wtk(who,day)]; return v||null; }
+  function setTape(who,day,o){
+    var key=wtk(who,day), any=o&&(o.thigh!=null||o.hip!=null||o.waist!=null);
+    if(any) state.tape[key]={thigh:o.thigh,hip:o.hip,waist:o.waist}; else delete state.tape[key];
+    enqueue({k:"tape",person:who,ym:ymKey(),day:day,thigh:any?o.thigh:null,hip:any?o.hip:null,waist:any?o.waist:null}); saveCache();
+  }
+  function allTapeFor(who){
+    var a=[]; for(var key in state.tape){ var p=key.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],vals:state.tape[key]}); }
+    a.sort(function(x,y){ return ymRank(x.ym)-ymRank(y.ym) || x.day-y.day; }); return a;
+  }
+  function tapeTiles(who){ return groupTiles(who,tapeMetrics(),allTapeFor(who),TAPE_COLORS); }
 
   // progress photos (stored in Supabase Storage; metadata row syncs like other tables)
   var PHOTO_BUCKET="progress";
@@ -789,6 +814,11 @@
       if(bodyAny) return supa.from("body").upsert({person:op.person,ym:op.ym,day:op.day,site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat},{onConflict:"person,ym,day"});
       return supa.from("body").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
+    if(op.k==="tape"){
+      var tapeAny = op.thigh!=null||op.hip!=null||op.waist!=null;
+      if(tapeAny) return supa.from("tape").upsert({person:op.person,ym:op.ym,day:op.day,thigh:op.thigh,hip:op.hip,waist:op.waist},{onConflict:"person,ym,day"});
+      return supa.from("tape").delete().match({person:op.person,ym:op.ym,day:op.day});
+    }
     if(op.k==="photoAdd") return supa.from("photos").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,pose:op.pose||"front",path:op.path},{onConflict:"id"});
     if(op.k==="photoDel") return supa.from("photos").delete().eq("id",op.id);
     if(op.k==="mealAdd") return supa.from("meals").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0},{onConflict:"id"});
@@ -823,11 +853,11 @@
   function pull(){
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
-    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};})])
+    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};}),fetchAllRows("tape").catch(function(){return {data:[],error:null};})])
     .then(function(r){
       if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error);
-      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[];
-      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{},body:{}};
+      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[], tap=(r[10]&&r[10].data)||[];
+      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{},body:{},tape:{}};
       ppl.forEach(function(p){ if(fresh.names[p.person]!==undefined) fresh.names[p.person]=p.display_name; });
       hbs.forEach(function(h){ if(fresh.habits[h.person]) fresh.habits[h.person].push({id:h.id,label:h.label,color:h.color||"#888",sort:h.sort||0,week:h.week||0}); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); if(!cloud && !fresh.habits[w].length) fresh.habits[w]=seedHabits(); });
@@ -838,6 +868,7 @@
       wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
       stp.forEach(function(x){ fresh.steps[x.person+"|"+x.ym+"|"+x.day]=x.count; });
       bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={site1:x.site1,site2:x.site2,site3:x.site3,bodyfat:x.bodyfat}; });
+      tap.forEach(function(x){ fresh.tape[x.person+"|"+x.ym+"|"+x.day]={thigh:x.thigh,hip:x.hip,waist:x.waist}; });
       pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,pose:p.pose||"front",path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
@@ -857,6 +888,7 @@
     else if(op.k==="water"){if(!s.water)s.water={};var wak=op.person+"|"+op.ym+"|"+op.day;if(op.ml!=null&&op.ml>0)s.water[wak]=op.ml;else delete s.water[wak];}
     else if(op.k==="steps"){if(!s.steps)s.steps={};var stk=op.person+"|"+op.ym+"|"+op.day;if(op.count!=null&&op.count>0)s.steps[stk]=op.count;else delete s.steps[stk];}
     else if(op.k==="body"){if(!s.body)s.body={};var bk=op.person+"|"+op.ym+"|"+op.day;var bany=op.site1!=null||op.site2!=null||op.site3!=null||op.bodyfat!=null;if(bany)s.body[bk]={site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat};else delete s.body[bk];}
+    else if(op.k==="tape"){if(!s.tape)s.tape={};var tk=op.person+"|"+op.ym+"|"+op.day;var tany=op.thigh!=null||op.hip!=null||op.waist!=null;if(tany)s.tape[tk]={thigh:op.thigh,hip:op.hip,waist:op.waist};else delete s.tape[tk];}
     else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,pose:op.pose||"front",path:op.path};}
     else if(op.k==="photoDel"){if(s.photos)delete s.photos[op.id];}
     else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
@@ -1085,6 +1117,13 @@
   }
 
   function secBody(who){
+    var mon=MONTHS[view.m].slice(0,3), real=isSelToday(), h="";
+    h+='<div class="bodytoggle"><button class="bt-seg'+(bodyView==="skinfold"?" active":"")+'" data-bodyview="skinfold" type="button">Skinfold</button><button class="bt-seg'+(bodyView==="tape"?" active":"")+'" data-bodyview="tape" type="button">Tape</button></div>';
+    if(bodyView==="tape") h+=secTape(who);
+    else h+=secSkinfold(who);
+    return h;
+  }
+  function secSkinfold(who){
     var entries=allBodyFor(who), real=isSelToday(), mon=MONTHS[view.m].slice(0,3), cur=getBody(who,selDay), sites=bodySites(who), h="";
     h+='<section><h2 class="eyebrow">Skinfold &amp; body fat · '+esc(state.names[who])+'</h2>';
     h+=bodyTiles(who);
@@ -1097,6 +1136,23 @@
       h+='</tbody></table></div></div>';
     } else {
       h+='<div class="meal-empty" style="padding:14px 2px">No readings logged yet. Add your first above — pick the date with the date picker at the top.</div>';
+    }
+    h+='</section>';
+    return h;
+  }
+  function secTape(who){
+    var entries=allTapeFor(who), real=isSelToday(), mon=MONTHS[view.m].slice(0,3), cur=getTape(who,selDay), mets=tapeMetrics(), h="";
+    h+='<section><h2 class="eyebrow">Tape measurements · '+esc(state.names[who])+'</h2>';
+    h+=tapeTiles(who);
+    h+='<div class="wcard body-form"><div class="qlabel">Add / update measurement for '+selDay+' '+mon+(real?' (today)':'')+'</div><div class="body-inputs">';
+    mets.forEach(function(m){ var v=(cur&&cur[m.k]!=null)?cur[m.k]:""; h+='<label class="bi"><span>'+m.label+' ('+m.unit+')</span><input type="number" step="0.1" min="0" inputmode="decimal" data-tape="'+m.k+'" value="'+v+'" placeholder="—" /></label>'; });
+    h+='</div><div class="body-actions"><button class="btn accent" id="tapeSave">Save measurement</button>'+(cur?'<button class="btn" id="tapeDel">Delete this day</button>':'')+'</div></div>';
+    if(entries.length){
+      h+='<div class="wcard"><div class="qlabel">History</div><div class="body-tablewrap"><table class="body-table"><thead><tr><th>Date</th><th>Thigh</th><th>Hip</th><th>Waist</th></tr></thead><tbody>';
+      entries.slice().reverse().forEach(function(e){ h+='<tr><td>'+e.day+' '+ymShort(e.ym)+' '+ymParse(e.ym).y+'</td><td>'+bfmt(e.vals.thigh)+'</td><td>'+bfmt(e.vals.hip)+'</td><td>'+bfmt(e.vals.waist)+'</td></tr>'; });
+      h+='</tbody></table></div></div>';
+    } else {
+      h+='<div class="meal-empty" style="padding:14px 2px">No measurements logged yet. Add your first above — pick the date with the date picker at the top.</div>';
     }
     h+='</section>';
     return h;
@@ -1128,6 +1184,7 @@
     for(var k in state.water) add(k.split("|")[1]);
     for(var k in state.steps) add(k.split("|")[1]);
     for(var k in state.body) add(k.split("|")[1]);
+    for(var k in state.tape) add(k.split("|")[1]);
     for(var k in state.notes) add(k.split("|")[1]);
     for(var k in state.logs) add(k.split("|")[1]);
     for(var id in state.meals) add(state.meals[id].ym);
@@ -1207,6 +1264,18 @@
         var lv=pts.length?pts[pts.length-1].y:null, sub="";
         if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
         h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+(pts.length>1?repLine(pts,BODY_COLORS[m.k]):"")+'</div>';
+      });
+      h+='</div></div>';
+    }
+    var tent=[]; for(var tk in state.tape){var tp=tk.split("|"); if(tp[0]===who) tent.push({r:ymRank(tp[1])*31+(+tp[2]),vals:state.tape[tk]});}
+    tent.sort(function(a,b){return a.r-b.r;});
+    if(tent.length){
+      h+='<div class="rp-sec"><div class="rp-lab">Tape measurements · all time</div><div class="rp-bodygrid">';
+      tapeMetrics().forEach(function(m){
+        var pts=[]; tent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
+        var lv=pts.length?pts[pts.length-1].y:null, sub="";
+        if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
+        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+(pts.length>1?repLine(pts,TAPE_COLORS[m.k]):"")+'</div>';
       });
       h+='</div></div>';
     }
@@ -1404,6 +1473,15 @@
       h.push('</div>');
     });
     h.push('</div></section>');
+    h.push('<section><h2 class="eyebrow">Tape measurements</h2><div class="duo">');
+    ["pravin","swetha"].forEach(function(who){
+      var pc5=who==="swetha"?"var(--swetha)":"var(--pravin)", tent=allTapeFor(who);
+      h.push('<div class="panel" style="--pc:'+pc5+'"><h3>'+esc(state.names[who])+'</h3>');
+      if(!tent.length){ h.push('<div class="nl-empty">No measurements logged</div>'); }
+      else { var tle=tent[tent.length-1]; h.push(tapeTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+tle.day+' '+ymShort(tle.ym)+' '+ymParse(tle.ym).y+(tent.length>1?' · vs first '+tent[0].day+' '+ymShort(tent[0].ym):'')+'</div>'); }
+      h.push('</div>');
+    });
+    h.push('</div></section>');
     h.push(timelapseCard("pravin","tlc-pravin"));
     h.push(timelapseCard("swetha","tlc-swetha"));
     h.push('<div class="toolrow">');
@@ -1480,9 +1558,14 @@
     if(stB) stB.onclick=saveSt;
     if(stI) stI.onkeydown=function(e){ if(e.key==="Enter") saveSt(); };
     var bSave=document.getElementById("bodySave");
-    if(bSave) bSave.onclick=function(){ var o={}; app.querySelectorAll("[data-body]").forEach(function(el){ var v=el.value.trim(); o[el.dataset.body]= v===""?null:parseFloat(v); }); setBody(who,selDay,o); render(); toast("Body test saved"); };
+    if(bSave) bSave.onclick=function(){ var o={}; app.querySelectorAll("[data-body]").forEach(function(el){ var v=el.value.trim(); o[el.dataset.body]= v===""?null:parseFloat(v); }); setBody(who,selDay,o); render(); toast("Reading saved"); };
     var bDel=document.getElementById("bodyDel");
     if(bDel) bDel.onclick=function(){ if(confirm("Delete this day’s reading?")){ setBody(who,selDay,{site1:null,site2:null,site3:null,bodyfat:null}); render(); toast("Deleted"); } };
+    var tSave=document.getElementById("tapeSave");
+    if(tSave) tSave.onclick=function(){ var o={}; app.querySelectorAll("[data-tape]").forEach(function(el){ var v=el.value.trim(); o[el.dataset.tape]= v===""?null:parseFloat(v); }); setTape(who,selDay,o); render(); toast("Measurement saved"); };
+    var tDel=document.getElementById("tapeDel");
+    if(tDel) tDel.onclick=function(){ if(confirm("Delete this day’s measurement?")){ setTape(who,selDay,{thigh:null,hip:null,waist:null}); render(); toast("Deleted"); } };
+    app.querySelectorAll("[data-bodyview]").forEach(function(el){ el.onclick=function(){ bodyView=el.getAttribute("data-bodyview"); render(); }; });
     app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
     app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
     app.querySelectorAll("[data-pick]").forEach(function(el){el.onclick=function(){var p=el.dataset.pick.split("|"),hb=find(who,p[0]);if(hb){hb.color=p[1];enqueue({k:"habitColor",id:hb.id,color:p[1]});saveCache();render();}};});
@@ -1534,7 +1617,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 49 · habit-target-pct</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 50 · tape-measurements</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
