@@ -606,7 +606,7 @@
     enqueue({k:"body",person:who,ym:ymKey(),day:day,site1:any?o.site1:null,site2:any?o.site2:null,site3:any?o.site3:null,bodyfat:any?o.bodyfat:null}); saveCache();
   }
   function allBodyFor(who){
-    var a=[]; for(var key in state.body){ var p=key.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],vals:state.body[key]}); }
+    var a=[]; for(var key in state.body){ var p=key.split("|"); if(p[0]===who){ var v=state.body[key]; if(v && (v.site1!=null||v.site2!=null||v.site3!=null||v.bodyfat!=null)) a.push({ym:p[1],day:+p[2],vals:v}); } }
     a.sort(function(x,y){ return ymRank(x.ym)-ymRank(y.ym) || x.day-y.day; }); return a;
   }
   function groupTiles(who,metrics,ent,colors){
@@ -643,7 +643,7 @@
     enqueue({k:"tape",person:who,ym:ymKey(),day:day,thigh:any?o.thigh:null,triceps:any?o.triceps:null,hip:any?o.hip:null,waist:any?o.waist:null,abdomen:any?o.abdomen:null}); saveCache();
   }
   function allTapeFor(who){
-    var a=[]; for(var key in state.tape){ var p=key.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],vals:state.tape[key]}); }
+    var a=[]; for(var key in state.tape){ var p=key.split("|"); if(p[0]===who){ var v=state.tape[key]; if(v && (v.thigh!=null||v.triceps!=null||v.hip!=null||v.waist!=null||v.abdomen!=null)) a.push({ym:p[1],day:+p[2],vals:v}); } }
     a.sort(function(x,y){ return ymRank(x.ym)-ymRank(y.ym) || x.day-y.day; }); return a;
   }
   function tapeTiles(who){ return groupTiles(who,tapeMetrics(),allTapeFor(who),TAPE_COLORS); }
@@ -1260,7 +1260,7 @@
     h+='<div class="rp-sec"><div class="rp-lab">Weight · all time</div>';
     if(wpts.length){ var f=wpts[0].y,l=wpts[wpts.length-1].y,dw=l-f; h+='<div class="rp-big">'+wfmt(l)+' kg '+(wpts.length>1?'<span class="rp-bchg '+(dw<0?"good":(dw>0?"bad":""))+'">'+(dw>0?"+":"")+wfmt(dw)+'</span>':'')+'</div>'; } else { h+='<div class="rp-sub">No weight logged</div>'; }
     h+=repLine(wpts,col)+'</div>';
-    var bent=[]; for(var bk in state.body){var bp=bk.split("|"); if(bp[0]===who) bent.push({r:ymRank(bp[1])*31+(+bp[2]),vals:state.body[bk]});}
+    var bent=[]; for(var bk in state.body){var bp=bk.split("|"); if(bp[0]===who){var bv=state.body[bk]; if(bv&&(bv.site1!=null||bv.site2!=null||bv.site3!=null||bv.bodyfat!=null)) bent.push({r:ymRank(bp[1])*31+(+bp[2]),vals:bv});}}
     bent.sort(function(a,b){return a.r-b.r;});
     if(bent.length){
       h+='<div class="rp-sec"><div class="rp-lab">Skinfold &amp; body fat · all time</div><div class="rp-bodygrid">';
@@ -1272,7 +1272,7 @@
       });
       h+='</div></div>';
     }
-    var tent=[]; for(var tk in state.tape){var tp=tk.split("|"); if(tp[0]===who) tent.push({r:ymRank(tp[1])*31+(+tp[2]),vals:state.tape[tk]});}
+    var tent=[]; for(var tk in state.tape){var tp=tk.split("|"); if(tp[0]===who){var tv=state.tape[tk]; if(tv&&(tv.thigh!=null||tv.triceps!=null||tv.hip!=null||tv.waist!=null||tv.abdomen!=null)) tent.push({r:ymRank(tp[1])*31+(+tp[2]),vals:tv});}}
     tent.sort(function(a,b){return a.r-b.r;});
     if(tent.length){
       h+='<div class="rp-sec"><div class="rp-lab">Tape measurements · all time</div><div class="rp-bodygrid">';
@@ -1622,7 +1622,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 52 · trends-neat</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 53 · skip-empty-readings</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
