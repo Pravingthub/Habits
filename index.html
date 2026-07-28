@@ -615,7 +615,7 @@
       if(multi && lv!=null && fv!=null){
         var d=lv-fv, cls=d===0?"flat":((m.good==="down"?d<0:d>0)?"down":"up");
         sub='<span class="wm-range">'+bfmt(fv)+' \u2192 '+bfmt(lv)+bunit(m)+'</span><span class="wm-sep">|</span><span class="wm-chg '+cls+'">'+(d>0?"+":"")+bfmt(d)+'</span>';
-      } else if(lv!=null){ sub='<span class="wm-range">first reading</span>'; }
+      } else if(lv!=null){ sub=""; }
       var pts=[]; ent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
       var spark = multi ? repLine(pts,colors[m.k]) : "";
       h+='<div class="body-tile"><div class="bt-label">'+m.label+'</div><div class="bt-val">'+val+'</div><div class="bt-sub">'+sub+'</div>'+spark+'</div>';
@@ -625,17 +625,19 @@
   function bodyTiles(who){ return groupTiles(who,bodySites(who),allBodyFor(who),BODY_COLORS); }
 
   // tape measurements (weekly): thigh, hip, waist
-  var TAPE_COLORS={thigh:"#7A5AA6",hip:"#2E9BD6",waist:"#C0492B"};
+  var TAPE_COLORS={thigh:"#7A5AA6",triceps:"#2FA36B",hip:"#2E9BD6",waist:"#C0492B",abdomen:"#D98A2B"};
   function tapeMetrics(){ return [
-    {k:"thigh", label:"Thigh", unit:"cm", good:"down"},
-    {k:"hip",   label:"Hip",   unit:"cm", good:"down"},
-    {k:"waist", label:"Waist", unit:"cm", good:"down"}
+    {k:"thigh",   label:"Thighs",  unit:"cm", good:"down"},
+    {k:"triceps", label:"Triceps", unit:"cm", good:"down"},
+    {k:"hip",     label:"Hip",     unit:"cm", good:"down"},
+    {k:"waist",   label:"Waist",   unit:"cm", good:"down"},
+    {k:"abdomen", label:"Abdomen", unit:"cm", good:"down"}
   ]; }
   function getTape(who,day){ var v=state.tape[wtk(who,day)]; return v||null; }
   function setTape(who,day,o){
-    var key=wtk(who,day), any=o&&(o.thigh!=null||o.hip!=null||o.waist!=null);
-    if(any) state.tape[key]={thigh:o.thigh,hip:o.hip,waist:o.waist}; else delete state.tape[key];
-    enqueue({k:"tape",person:who,ym:ymKey(),day:day,thigh:any?o.thigh:null,hip:any?o.hip:null,waist:any?o.waist:null}); saveCache();
+    var key=wtk(who,day), any=o&&(o.thigh!=null||o.triceps!=null||o.hip!=null||o.waist!=null||o.abdomen!=null);
+    if(any) state.tape[key]={thigh:o.thigh,triceps:o.triceps,hip:o.hip,waist:o.waist,abdomen:o.abdomen}; else delete state.tape[key];
+    enqueue({k:"tape",person:who,ym:ymKey(),day:day,thigh:any?o.thigh:null,triceps:any?o.triceps:null,hip:any?o.hip:null,waist:any?o.waist:null,abdomen:any?o.abdomen:null}); saveCache();
   }
   function allTapeFor(who){
     var a=[]; for(var key in state.tape){ var p=key.split("|"); if(p[0]===who) a.push({ym:p[1],day:+p[2],vals:state.tape[key]}); }
@@ -815,8 +817,8 @@
       return supa.from("body").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
     if(op.k==="tape"){
-      var tapeAny = op.thigh!=null||op.hip!=null||op.waist!=null;
-      if(tapeAny) return supa.from("tape").upsert({person:op.person,ym:op.ym,day:op.day,thigh:op.thigh,hip:op.hip,waist:op.waist},{onConflict:"person,ym,day"});
+      var tapeAny = op.thigh!=null||op.triceps!=null||op.hip!=null||op.waist!=null||op.abdomen!=null;
+      if(tapeAny) return supa.from("tape").upsert({person:op.person,ym:op.ym,day:op.day,thigh:op.thigh,triceps:op.triceps,hip:op.hip,waist:op.waist,abdomen:op.abdomen},{onConflict:"person,ym,day"});
       return supa.from("tape").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
     if(op.k==="photoAdd") return supa.from("photos").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,pose:op.pose||"front",path:op.path},{onConflict:"id"});
@@ -868,7 +870,7 @@
       wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
       stp.forEach(function(x){ fresh.steps[x.person+"|"+x.ym+"|"+x.day]=x.count; });
       bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={site1:x.site1,site2:x.site2,site3:x.site3,bodyfat:x.bodyfat}; });
-      tap.forEach(function(x){ fresh.tape[x.person+"|"+x.ym+"|"+x.day]={thigh:x.thigh,hip:x.hip,waist:x.waist}; });
+      tap.forEach(function(x){ fresh.tape[x.person+"|"+x.ym+"|"+x.day]={thigh:x.thigh,triceps:x.triceps,hip:x.hip,waist:x.waist,abdomen:x.abdomen}; });
       pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,pose:p.pose||"front",path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
@@ -888,7 +890,7 @@
     else if(op.k==="water"){if(!s.water)s.water={};var wak=op.person+"|"+op.ym+"|"+op.day;if(op.ml!=null&&op.ml>0)s.water[wak]=op.ml;else delete s.water[wak];}
     else if(op.k==="steps"){if(!s.steps)s.steps={};var stk=op.person+"|"+op.ym+"|"+op.day;if(op.count!=null&&op.count>0)s.steps[stk]=op.count;else delete s.steps[stk];}
     else if(op.k==="body"){if(!s.body)s.body={};var bk=op.person+"|"+op.ym+"|"+op.day;var bany=op.site1!=null||op.site2!=null||op.site3!=null||op.bodyfat!=null;if(bany)s.body[bk]={site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat};else delete s.body[bk];}
-    else if(op.k==="tape"){if(!s.tape)s.tape={};var tk=op.person+"|"+op.ym+"|"+op.day;var tany=op.thigh!=null||op.hip!=null||op.waist!=null;if(tany)s.tape[tk]={thigh:op.thigh,hip:op.hip,waist:op.waist};else delete s.tape[tk];}
+    else if(op.k==="tape"){if(!s.tape)s.tape={};var tk=op.person+"|"+op.ym+"|"+op.day;var tany=op.thigh!=null||op.triceps!=null||op.hip!=null||op.waist!=null||op.abdomen!=null;if(tany)s.tape[tk]={thigh:op.thigh,triceps:op.triceps,hip:op.hip,waist:op.waist,abdomen:op.abdomen};else delete s.tape[tk];}
     else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,pose:op.pose||"front",path:op.path};}
     else if(op.k==="photoDel"){if(s.photos)delete s.photos[op.id];}
     else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
@@ -1148,8 +1150,8 @@
     mets.forEach(function(m){ var v=(cur&&cur[m.k]!=null)?cur[m.k]:""; h+='<label class="bi"><span>'+m.label+' ('+m.unit+')</span><input type="number" step="0.1" min="0" inputmode="decimal" data-tape="'+m.k+'" value="'+v+'" placeholder="—" /></label>'; });
     h+='</div><div class="body-actions"><button class="btn accent" id="tapeSave">Save measurement</button>'+(cur?'<button class="btn" id="tapeDel">Delete this day</button>':'')+'</div></div>';
     if(entries.length){
-      h+='<div class="wcard"><div class="qlabel">History</div><div class="body-tablewrap"><table class="body-table"><thead><tr><th>Date</th><th>Thigh</th><th>Hip</th><th>Waist</th></tr></thead><tbody>';
-      entries.slice().reverse().forEach(function(e){ h+='<tr><td>'+e.day+' '+ymShort(e.ym)+' '+ymParse(e.ym).y+'</td><td>'+bfmt(e.vals.thigh)+'</td><td>'+bfmt(e.vals.hip)+'</td><td>'+bfmt(e.vals.waist)+'</td></tr>'; });
+      h+='<div class="wcard"><div class="qlabel">History</div><div class="body-tablewrap"><table class="body-table"><thead><tr><th>Date</th><th>Thighs</th><th>Tri</th><th>Hip</th><th>Waist</th><th>Abd</th></tr></thead><tbody>';
+      entries.slice().reverse().forEach(function(e){ h+='<tr><td>'+e.day+' '+ymShort(e.ym)+' '+ymParse(e.ym).y+'</td><td>'+bfmt(e.vals.thigh)+'</td><td>'+bfmt(e.vals.triceps)+'</td><td>'+bfmt(e.vals.hip)+'</td><td>'+bfmt(e.vals.waist)+'</td><td>'+bfmt(e.vals.abdomen)+'</td></tr>'; });
       h+='</tbody></table></div></div>';
     } else {
       h+='<div class="meal-empty" style="padding:14px 2px">No measurements logged yet. Add your first above — pick the date with the date picker at the top.</div>';
@@ -1564,7 +1566,7 @@
     var tSave=document.getElementById("tapeSave");
     if(tSave) tSave.onclick=function(){ var o={}; app.querySelectorAll("[data-tape]").forEach(function(el){ var v=el.value.trim(); o[el.dataset.tape]= v===""?null:parseFloat(v); }); setTape(who,selDay,o); render(); toast("Measurement saved"); };
     var tDel=document.getElementById("tapeDel");
-    if(tDel) tDel.onclick=function(){ if(confirm("Delete this day’s measurement?")){ setTape(who,selDay,{thigh:null,hip:null,waist:null}); render(); toast("Deleted"); } };
+    if(tDel) tDel.onclick=function(){ if(confirm("Delete this day’s measurement?")){ setTape(who,selDay,{thigh:null,triceps:null,hip:null,waist:null,abdomen:null}); render(); toast("Deleted"); } };
     app.querySelectorAll("[data-bodyview]").forEach(function(el){ el.onclick=function(){ bodyView=el.getAttribute("data-bodyview"); render(); }; });
     app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
     app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
@@ -1617,7 +1619,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 50 · tape-measurements</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 51 · tape-5-sites</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
