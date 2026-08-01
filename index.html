@@ -1132,16 +1132,9 @@
     var habits=state.habits[who], td=selDay, real=isSelToday(), h="";
     var done=habits.filter(function(x){return isDone(x.id,td);}).length;
     var dateLabel=(real?'Today · ':'')+DOW[selDate().getDay()]+' '+td+' '+MONTHS[view.m].slice(0,3)+' '+view.y;
-    var pct=habits.length?Math.round(done/habits.length*100):0;
-    var accent=who==="swetha"?"var(--swetha)":"var(--pravin)";
-    var wtotH=getWater(who,td), stotH=getSteps(who,td), wGoalH=getWaterGoal(who), sGoalH=getStepsGoal(who);
+    var wGoalH=getWaterGoal(who), sGoalH=getStepsGoal(who);
     h+='<section>';
     h+=weightRing(who,true);
-    h+='<div class="today-chips">';
-    h+='<div class="tchip"><div class="cl">Consistency</div><div class="cv">'+pct+'<u>%</u></div><div class="ct"><i style="width:'+pct+'%;background:'+accent+'"></i></div></div>';
-    h+='<div class="tchip"><div class="cl">Water</div><div class="cv">'+(wtotH/1000).toFixed(1)+'<u> / '+(wGoalH/1000)+'L</u></div><div class="ct"><i style="width:'+Math.min(100,Math.round(wtotH/wGoalH*100))+'%;background:var(--brand)"></i></div></div>';
-    h+='<div class="tchip"><div class="cl">Steps</div><div class="cv">'+(stotH>=1000?(stotH/1000).toFixed(1)+'k':stotH)+'<u> / '+(sGoalH/1000)+'k</u></div><div class="ct"><i style="width:'+Math.min(100,Math.round(stotH/sGoalH*100))+'%;background:var(--warn)"></i></div></div>';
-    h+='</div>';
     h+='<div class="today-head"><div class="date display">'+dateLabel+'</div><div class="prog mono">'+done+' / '+habits.length+' habits</div></div><div class="cards">';
     if(!habits.length) h+='<div class="empty-note">No habits yet. Add some in the Habits tab.</div>';
     habits.forEach(function(hb){
@@ -1805,7 +1798,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 63 · timelapse-angle</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 64 · today-declutter</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
