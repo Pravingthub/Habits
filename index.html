@@ -93,8 +93,15 @@
   .tr-wrap{position:relative;width:212px;height:212px}
   .tr-wrap svg{transform:rotate(-90deg)}
   .tr-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  .tr-v{font-family:"Space Grotesk";font-weight:600;font-size:60px;letter-spacing:-.03em;line-height:.9}
-  .tr-v span{font-size:24px;color:var(--muted)}
+  .tr-v{font-family:"Space Grotesk";font-weight:600;font-size:52px;letter-spacing:-.03em;line-height:.9}
+  .tr-v span{font-size:20px;color:var(--muted);font-weight:500}
+  .tr-wt{display:flex;align-items:baseline;justify-content:center;gap:3px}
+  .tr-wt input{font-family:"Space Grotesk";font-weight:600;font-size:52px;letter-spacing:-.03em;line-height:.9;width:150px;max-width:60vw;text-align:center;background:transparent;border:0;border-bottom:2px solid var(--line);color:var(--ink);padding:0 0 2px}
+  .tr-wt input:focus{outline:none;border-bottom-color:var(--accent)}
+  .tr-wt input::-webkit-outer-spin-button,.tr-wt input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .tr-kg{font-family:"Space Grotesk";font-size:20px;color:var(--muted);font-weight:500}
+  .tr-goal{background:transparent;border:0;cursor:pointer;font-family:"Space Grotesk";font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-top:12px;padding:3px 7px;border-radius:7px;transition:.15s}
+  .tr-goal:hover{background:var(--surface-2)}
   .tr-l{font-family:"Space Grotesk";font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-top:12px}
   .tr-s{font-size:13px;color:var(--muted);margin-top:3px}
   .today-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin:18px 0 20px}
@@ -519,6 +526,7 @@
   if(!state.body) state.body={};
   if(!state.tape) state.tape={};
   if(!state.inbody) state.inbody={};
+  if(!state.goals) state.goals={};
   if(!state.photos) state.photos={};
   // migrate old boolean logs (true) -> "done"
   Object.keys(state.logs).forEach(function(k){ if(state.logs[k]===true) state.logs[k]="done"; });
@@ -745,6 +753,31 @@
   }
   function latestWeight(who){var s=weightSeries(who);return s.length?s[s.length-1]:null;}
 
+  // goal weight (per person, synced; default 75)
+  function getGoal(who){ var g=state.goals&&state.goals[who]; return (g||g===0)?g:75; }
+  function setGoal(who,val){ if(!state.goals)state.goals={}; state.goals[who]=+val; enqueue({k:"goals",person:who,target:+val}); saveCache(); }
+
+  // weight ring: arc = progress from starting weight toward goal; centre = latest weight (editable on Today)
+  function weightRing(who, editable){
+    var accent=who==="swetha"?"var(--swetha)":"var(--pravin)", circ=565.48;
+    var ser=weightSeries(who), latest=ser.length?ser[ser.length-1].y:null, start=ser.length?ser[0].y:null, goal=getGoal(who);
+    var pct;
+    if(latest==null||start==null) pct=0;
+    else if(start<=goal) pct=(latest<=goal?100:0);
+    else pct=Math.max(0,Math.min(100, Math.round((start-latest)/(start-goal)*100)));
+    var off=(circ*(1-pct/100)).toFixed(1);
+    var remain = latest!=null ? (latest-goal) : null;
+    var subTxt = latest==null ? (editable?'Tap the number to log today':'No weight logged')
+               : (remain>0.0001 ? wfmt(Math.abs(remain))+' kg to goal' : (remain<-0.0001 ? wfmt(Math.abs(remain))+' kg under goal' : 'Goal reached \u2713'));
+    var center = editable
+      ? '<div class="tr-wt"><input id="ringWt" type="number" step="0.01" min="0" inputmode="decimal" value="'+(latest!=null?wfmt(latest):'')+'" placeholder="—" aria-label="Weight in kg"/><span class="tr-kg">kg</span></div>'
+      : '<div class="tr-v">'+(latest!=null?wfmt(latest):'\u2014')+'<span> kg</span></div>';
+    var goalLabel = editable
+      ? '<button class="tr-goal" id="ringGoal" type="button">toward '+wfmt(goal)+' kg goal</button>'
+      : '<div class="tr-l">toward '+wfmt(goal)+' kg</div>';
+    return '<div class="today-ring"><div class="tr-wrap"><svg width="212" height="212" viewBox="0 0 212 212"><circle cx="106" cy="106" r="90" fill="none" stroke="var(--surface-2)" stroke-width="14"/><circle cx="106" cy="106" r="90" fill="none" stroke="'+accent+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'"/></svg><div class="tr-mid">'+center+goalLabel+'<div class="tr-s">'+subTxt+'</div></div></div></div>';
+  }
+
   // meals (food log): flat store keyed by id
   function nowHM(){var d=new Date();return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);}
   function mealsFor(who,day){
@@ -871,6 +904,9 @@
       if(tapeAny) return supa.from("tape").upsert({person:op.person,ym:op.ym,day:op.day,thigh:op.thigh,triceps:op.triceps,hip:op.hip,waist:op.waist,abdomen:op.abdomen},{onConflict:"person,ym,day"});
       return supa.from("tape").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
+    if(op.k==="goals"){
+      return supa.from("goals").upsert({person:op.person,target:op.target},{onConflict:"person"});
+    }
     if(op.k==="inbody"){
       var inbAny = op.smm!=null||op.bfm!=null||op.bmi!=null||op.bfp!=null||op.vfa!=null||op.whr!=null;
       if(inbAny) return supa.from("inbody").upsert({person:op.person,ym:op.ym,day:op.day,smm:op.smm,bfm:op.bfm,bmi:op.bmi,bfp:op.bfp,vfa:op.vfa,whr:op.whr},{onConflict:"person,ym,day"});
@@ -910,11 +946,11 @@
   function pull(){
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
-    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};}),fetchAllRows("tape").catch(function(){return {data:[],error:null};}),fetchAllRows("inbody").catch(function(){return {data:[],error:null};})])
+    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};}),fetchAllRows("tape").catch(function(){return {data:[],error:null};}),fetchAllRows("inbody").catch(function(){return {data:[],error:null};}),fetchAllRows("goals").catch(function(){return {data:[],error:null};})])
     .then(function(r){
       if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error);
-      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[], tap=(r[10]&&r[10].data)||[], inb=(r[11]&&r[11].data)||[];
-      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{},body:{},tape:{},inbody:{}};
+      var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[], tap=(r[10]&&r[10].data)||[], inb=(r[11]&&r[11].data)||[], gol=(r[12]&&r[12].data)||[];
+      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{},body:{},tape:{},inbody:{},goals:{}};
       ppl.forEach(function(p){ if(fresh.names[p.person]!==undefined) fresh.names[p.person]=p.display_name; });
       hbs.forEach(function(h){ if(fresh.habits[h.person]) fresh.habits[h.person].push({id:h.id,label:h.label,color:h.color||"#888",sort:h.sort||0,week:h.week||0}); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); if(!cloud && !fresh.habits[w].length) fresh.habits[w]=seedHabits(); });
@@ -927,6 +963,7 @@
       bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={site1:x.site1,site2:x.site2,site3:x.site3,bodyfat:x.bodyfat}; });
       tap.forEach(function(x){ fresh.tape[x.person+"|"+x.ym+"|"+x.day]={thigh:x.thigh,triceps:x.triceps,hip:x.hip,waist:x.waist,abdomen:x.abdomen}; });
       inb.forEach(function(x){ fresh.inbody[x.person+"|"+x.ym+"|"+x.day]={smm:x.smm,bfm:x.bfm,bmi:x.bmi,bfp:x.bfp,vfa:x.vfa,whr:x.whr}; });
+      gol.forEach(function(x){ fresh.goals[x.person]=x.target; });
       pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,pose:p.pose||"front",path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
@@ -947,6 +984,7 @@
     else if(op.k==="steps"){if(!s.steps)s.steps={};var stk=op.person+"|"+op.ym+"|"+op.day;if(op.count!=null&&op.count>0)s.steps[stk]=op.count;else delete s.steps[stk];}
     else if(op.k==="body"){if(!s.body)s.body={};var bk=op.person+"|"+op.ym+"|"+op.day;var bany=op.site1!=null||op.site2!=null||op.site3!=null||op.bodyfat!=null;if(bany)s.body[bk]={site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat};else delete s.body[bk];}
     else if(op.k==="tape"){if(!s.tape)s.tape={};var tk=op.person+"|"+op.ym+"|"+op.day;var tany=op.thigh!=null||op.triceps!=null||op.hip!=null||op.waist!=null||op.abdomen!=null;if(tany)s.tape[tk]={thigh:op.thigh,triceps:op.triceps,hip:op.hip,waist:op.waist,abdomen:op.abdomen};else delete s.tape[tk];}
+    else if(op.k==="goals"){if(!s.goals)s.goals={};s.goals[op.person]=op.target;}
     else if(op.k==="inbody"){if(!s.inbody)s.inbody={};var ik=op.person+"|"+op.ym+"|"+op.day;var iany=op.smm!=null||op.bfm!=null||op.bmi!=null||op.bfp!=null||op.vfa!=null||op.whr!=null;if(iany)s.inbody[ik]={smm:op.smm,bfm:op.bfm,bmi:op.bmi,bfp:op.bfp,vfa:op.vfa,whr:op.whr};else delete s.inbody[ik];}
     else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,pose:op.pose||"front",path:op.path};}
     else if(op.k==="photoDel"){if(s.photos)delete s.photos[op.id];}
@@ -1071,9 +1109,9 @@
     var lwLatest=latestWeight(who), ws=weightSeries(who), wdelta=ws.length>1?(ws[ws.length-1].y-ws[0].y):null;
     var wtotH=getWater(who,td), stotH=getSteps(who,td);
     h+='<section>';
-    h+='<div class="today-ring"><div class="tr-wrap"><svg width="212" height="212" viewBox="0 0 212 212"><circle cx="106" cy="106" r="90" fill="none" stroke="var(--surface-2)" stroke-width="14"/><circle cx="106" cy="106" r="90" fill="none" stroke="'+accent+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'"/></svg><div class="tr-mid"><div class="tr-v">'+pct+'<span>%</span></div><div class="tr-l">Consistency</div><div class="tr-s">'+done+' of '+habits.length+' habits'+(real?' today':'')+'</div></div></div></div>';
+    h+=weightRing(who,true);
     h+='<div class="today-chips">';
-    h+='<div class="tchip"><div class="cl">Weight</div><div class="cv">'+(lwLatest?wfmt(lwLatest.y):'—')+'<u> kg</u></div>'+(wdelta!=null?'<div class="cd wm-chg '+(wdelta<0?'down':(wdelta>0?'up':'flat'))+'">'+(wdelta<0?'\u2193 ':(wdelta>0?'\u2191 ':''))+wfmt(Math.abs(wdelta))+'</div>':'<div class="cd" style="color:var(--muted)">log below</div>')+'</div>';
+    h+='<div class="tchip"><div class="cl">Consistency</div><div class="cv">'+pct+'<u>%</u></div><div class="ct"><i style="width:'+pct+'%;background:'+accent+'"></i></div></div>';
     h+='<div class="tchip"><div class="cl">Water</div><div class="cv">'+(wtotH/1000).toFixed(1)+'<u> / 3L</u></div><div class="ct"><i style="width:'+Math.min(100,Math.round(wtotH/3000*100))+'%;background:var(--brand)"></i></div></div>';
     h+='<div class="tchip"><div class="cl">Steps</div><div class="cv">'+(stotH>=1000?(stotH/1000).toFixed(1)+'k':stotH)+'<u> / 8k</u></div><div class="ct"><i style="width:'+Math.min(100,Math.round(stotH/8000*100))+'%;background:var(--warn)"></i></div></div>';
     h+='</div>';
@@ -1088,11 +1126,9 @@
       h+='<button class="card'+(on?' done':'')+(sk?' skip':'')+'" style="--c:'+hb.color+'" data-today="'+hb.id+'"><span class="check">'+icon+'</span><span class="body"><span class="name">'+esc(hb.label)+(hb.week>0?' · '+hb.week+'×/wk':'')+'</span><span class="streak'+srest+'">'+sub+'</span></span></button>';
     });
     h+='</div>';
-    var lw=getWeight(who,td);
     var wtot=getWater(who,td), goal=3000, wpct=Math.min(100,Math.round(wtot/goal*100));
     var stot=getSteps(who,td), sgoal=8000, spct=Math.min(100,Math.round(stot/sgoal*100));
-    h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Weight'+(real?' today':' this day')+'</div><div class="winput"><span class="ibox"><input type="number" step="0.01" min="0" inputmode="decimal" id="wtInput" value="'+(lw!=null?lw:'')+'" placeholder="0.0" aria-label="Weight kg"/><span class="kg">kg</span></span><button class="btn accent" id="wtSave">Save</button></div></div>';
-    h+='<div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
+    h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
     h+='<div class="qcard"><div class="qlabel">Steps'+(real?' today':' this day')+'</div><div class="water-total"><b>'+stot.toLocaleString()+'</b> <span class="water-goal">/ '+sgoal.toLocaleString()+'</span></div><div class="water-bar"><i style="width:'+spct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="winput" style="margin-top:11px"><span class="ibox"><input type="number" step="100" min="0" inputmode="numeric" id="stInput" value="'+(stot>0?stot:'')+'" placeholder="0" aria-label="Steps"/><span class="kg">steps</span></span><button class="btn accent" id="stSave">Save</button></div></div>';
     h+='<div class="qcard qspan"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
     h+='<div class="noterow"><div class="nlabel">Note for '+td+' '+MONTHS[view.m].slice(0,3)+(real?' · today':'')+' (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea><div class="noterowbtn"><button class="btn accent" id="noteSave">Save note</button></div></div>';
@@ -1509,10 +1545,8 @@
 
     // habits + notes (this month)
     var habits=state.habits[who]||[];
-    if(habits.length){
-      var csR=0; habits.forEach(function(x){csR+=habitConsistency(who,x,elapsed);});
-      var pctR=Math.round(csR/habits.length*100), accR=who==="swetha"?"var(--swetha)":"var(--pravin)", offR=(565.48*(1-pctR/100)).toFixed(1);
-      h.push('<div class="today-ring"><div class="tr-wrap"><svg width="212" height="212" viewBox="0 0 212 212"><circle cx="106" cy="106" r="90" fill="none" stroke="var(--surface-2)" stroke-width="14"/><circle cx="106" cy="106" r="90" fill="none" stroke="'+accR+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="'+offR+'"/></svg><div class="tr-mid"><div class="tr-v">'+pctR+'<span>%</span></div><div class="tr-l">'+MONTHS[view.m].slice(0,3)+' consistency</div><div class="tr-s">'+activeDays(who)+' active days · of '+elapsed+'</div></div></div></div>');
+    if(weightSeries(who).length || habits.length){
+      h.push(weightRing(who,false));
     }
     h.push('<section><h2 class="eyebrow">'+esc(state.names[who])+' · '+MONTHS[view.m]+' '+view.y+'</h2>');
     if(!habits.length){ h.push('<div class="panel empty-p">No habits yet.</div>'); }
@@ -1624,6 +1658,10 @@
 
   function wireProfile(who){
     app.querySelectorAll("[data-sec]").forEach(function(el){ el.onclick=function(){ section=el.dataset.sec; render(); window.scrollTo(0,0); }; });
+    var rw=document.getElementById("ringWt");
+    if(rw) rw.addEventListener("change",function(){ var v=rw.value.trim(); if(v===""){ setWeight(who,selDay,null); } else { var n=parseFloat(v); if(isNaN(n)||n<0){ toast("Enter a valid weight"); return; } setWeight(who,selDay,n); } render(); toast("Weight saved"); });
+    var rg=document.getElementById("ringGoal");
+    if(rg) rg.onclick=function(){ var cur=getGoal(who); var v=prompt("Goal weight for "+state.names[who]+" (kg)", cur); if(v==null) return; var n=parseFloat(v); if(isNaN(n)||n<=0){ toast("Enter a valid goal"); return; } setGoal(who,n); render(); toast("Goal set to "+wfmt(n)+" kg"); };
     app.querySelectorAll("[data-today]").forEach(function(el){
       press(el, function(){ tapCell(who,el.dataset.today,selDay); render(); },
                 function(){ skipCell(who,el.dataset.today,selDay); render(); });
@@ -1723,7 +1761,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 59 · card-text-fix</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 60 · weight-ring-goal</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
