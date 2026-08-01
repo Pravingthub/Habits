@@ -284,6 +284,9 @@
   .cmp-pair img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;display:block}
   .body-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:4px 0 14px}
   .bodytoggle{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
+  .coachtabs{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:16px}
+  .ct-seg{flex:1;font:inherit;font-size:15px;font-weight:700;padding:11px 12px;border-radius:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+  .ct-seg.active{background:var(--accent);color:#fff}
   .bt-seg{flex:1;font:inherit;font-size:14px;font-weight:700;padding:9px 12px;border-radius:9px;border:0;background:transparent;color:var(--muted);cursor:pointer}
   .bt-seg.active{background:var(--accent);color:#fff}
   .body-tile{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;min-width:0;overflow:hidden}
@@ -536,6 +539,7 @@
   var cmpA=null, cmpB=null;  // photo ids selected in the Photos compare picker
   var tlTimers={};           // running timelapse interval handles, keyed by widget
   var bodyView="skinfold";   // Body tab sub-view: "skinfold" | "tape"
+  var coachWho="pravin";     // Coach view sub-tab: "pravin" | "swetha"
   var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
   var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   function ymKey(){return view.y+"-"+(view.m+1);}
@@ -1470,111 +1474,91 @@
 
   function renderBoth(){
     var dim=daysIn(view.y,view.m), showToday=isThisMonth(), elapsed=showToday?todayDate():dim;
-    var h=['<section><h2 class="eyebrow">Coach Hari · both of you this month</h2><div class="duo">'];
-    ["pravin","swetha"].forEach(function(who){
-      var pc=who==="swetha"?"var(--swetha)":"var(--pravin)", habits=state.habits[who];
-      if(!habits.length){h.push('<div class="panel empty-p">'+esc(state.names[who])+' has no habits yet.</div>');return;}
+    var who=coachWho, pc=who==="swetha"?"var(--swetha)":"var(--pravin)";
+    var h=['<div class="coachtabs"><button class="ct-seg'+(who==="pravin"?" active":"")+'" data-coachwho="pravin" type="button">Pravin</button><button class="ct-seg'+(who==="swetha"?" active":"")+'" data-coachwho="swetha" type="button">Swetha</button></div>'];
+
+    // habits + notes (this month)
+    var habits=state.habits[who]||[];
+    h.push('<section><h2 class="eyebrow">'+esc(state.names[who])+' · '+MONTHS[view.m]+' '+view.y+'</h2>');
+    if(!habits.length){ h.push('<div class="panel empty-p">No habits yet.</div>'); }
+    else {
       var cs=0; habits.forEach(function(x){cs+=habitConsistency(who,x,elapsed);});
-      var pct=habits.length?Math.round(cs/habits.length*100):0;
-      var ad=activeDays(who), strip="", lw=latestWeight(who);
-      for(var sd=1;sd<=dim;sd++){ strip+='<span class="d'+(dayTotal(who,sd)>0?' on':'')+'" title="Day '+sd+'"></span>'; }
-      h.push('<div class="panel" style="--pc:'+pc+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+MONTHS[view.m]+' '+view.y+' · '+pct+'% consistent'+(lw?' · '+lw.y.toFixed(1)+' kg':'')+'</div><div class="bignum">'+ad+' <small>active days · of '+elapsed+'</small></div><div class="daystrip">'+strip+'</div><div class="hlist">');
+      var pct=Math.round(cs/habits.length*100), ad=activeDays(who), strip="", lw=latestWeight(who);
+      for(var sd=1;sd<=dim;sd++){ strip+='<span class="d'+(dayTotal(who,sd)>0?' on':'')+'"></span>'; }
+      h.push('<div class="panel" style="--pc:'+pc+'"><div class="sub">'+pct+'% consistent'+(lw?' \u00b7 '+wfmt(lw.y)+' kg':'')+'</div><div class="bignum">'+ad+' <small>active days · of '+elapsed+'</small></div><div class="daystrip">'+strip+'</div><div class="hlist">');
       habits.forEach(function(hb){
         var w=Math.round(habitConsistency(who,hb,elapsed)*100), label, st=currentStreak(who,hb.id);
-        if(hb.week>0){ var wd=thisWeekDone(hb.id); label=wd+'/'+hb.week+' this wk'+(wd>=hb.week?' ✓':''); }
-        else { label=habitCount(hb.id)+'/'+elapsed+(st>1?' · '+st+' 🔥':''); }
+        if(hb.week>0){ var wd=thisWeekDone(hb.id); label=wd+'/'+hb.week+' this wk'+(wd>=hb.week?' \u2713':''); }
+        else { label=habitCount(hb.id)+'/'+elapsed+(st>1?' \u00b7 '+st+' \ud83d\udd25':''); }
         h.push('<div class="hitem"><div class="row1"><b><span class="sw" style="background:'+hb.color+'"></span><span>'+esc(hb.label)+'</span></b><span class="v">'+label+'</span></div><div class="bar"><i style="width:'+w+'%;background:'+hb.color+'"></i></div></div>');
       });
-      // recent notes for this person, this month
       var nkeys=[]; for(var k in state.notes){ var pr=who+"|"+ymKey()+"|"; if(k.indexOf(pr)===0) nkeys.push(+k.slice(pr.length)); }
       nkeys.sort(function(a,b){return b-a;});
       h.push('<div class="noteslist"><div class="nl-h">Notes</div>');
       if(!nkeys.length) h.push('<div class="nl-empty">No notes yet this month.</div>');
       nkeys.slice(0,5).forEach(function(d){ h.push('<div class="nl"><span class="dd">'+d+' '+MONTHS[view.m].slice(0,3)+'</span><span class="bd">'+esc(getNote(who,d))+'</span></div>'); });
-      h.push('</div>');
-      h.push('</div>');
-    });
-    h.push('</div></section>');
-    // combined weight chart
-    var sp=weightSeries("pravin"), ss=weightSeries("swetha");
-    var lp=sp.length?sp[sp.length-1]:null, ls=ss.length?ss[ss.length-1]:null;
-    h.push('<section><h2 class="eyebrow">Weight · both of you</h2>');
-    if(sp.length||ss.length){
-      h.push('<div class="wduo">'+weightMini("pravin")+weightMini("swetha")+'</div>');
-    } else {
-      h.push('<div class="wcard"><div class="wempty">No weight logged yet this month.</div></div>');
+      h.push('</div></div>');
     }
     h.push('</section>');
-    // selected-day snapshot for both
-    var selL=DOW[selDate().getDay()]+' '+selDay+' '+MONTHS[view.m].slice(0,3)+' '+view.y+(isSelToday()?' · today':'');
-    h.push('<section><h2 class="eyebrow">Selected day · '+selL+'</h2><div class="duo">');
-    ["pravin","swetha"].forEach(function(who){
-      var pc2=who==="swetha"?"var(--swetha)":"var(--pravin)", hbs=state.habits[who];
-      var doneN=hbs.filter(function(x){return isDone(x.id,selDay);}).length;
-      var wt=getWeight(who,selDay), note=getNote(who,selDay), wtr=getWater(who,selDay), stp=getSteps(who,selDay);
-      var chips=hbs.length?hbs.map(function(hb){var stt=isDone(hb.id,selDay)?'done':(isSkip(hb.id,selDay)?'skip':'miss');return '<span class="dchip '+stt+'" style="--c:'+hb.color+'">'+esc(hb.label)+'</span>';}).join(""):'<span class="nl-empty">No habits</span>';
-      h.push('<div class="panel" style="--pc:'+pc2+'"><h3>'+esc(state.names[who])+'</h3><div class="sub">'+doneN+'/'+hbs.length+' habits · '+(wt!=null?wt.toFixed(1)+' kg':'no weight')+' · '+(wtr>0?wtr+' ml water':'no water')+' · '+(stp>0?stp.toLocaleString()+' steps':'no steps')+'</div>');
-      h.push('<div class="dchips">'+chips+'</div>');
-      h.push('<div class="nl-h" style="margin-top:15px">Meals</div><div class="meals">'+mealItems(who,selDay,false)+'</div>');
-      if(note) h.push('<div class="notecallout"><div class="nc-h">Note for this day</div><div class="nc-body">'+esc(note)+'</div></div>');
+
+    // weight all-time
+    h.push('<section><h2 class="eyebrow">Weight · all time</h2>');
+    if(weightSeries(who).length){ h.push('<div class="wduo">'+weightMini(who)+'</div>'); }
+    else { h.push('<div class="wcard"><div class="wempty">No weight logged yet.</div></div>'); }
+    h.push('</section>');
+
+    // selected-day snapshot
+    var selL=DOW[selDate().getDay()]+' '+selDay+' '+MONTHS[view.m].slice(0,3)+' '+view.y+(isSelToday()?' \u00b7 today':'');
+    var hbs=state.habits[who]||[], doneN=hbs.filter(function(x){return isDone(x.id,selDay);}).length;
+    var wt=getWeight(who,selDay), note=getNote(who,selDay), wtr=getWater(who,selDay), stp=getSteps(who,selDay);
+    var chips=hbs.length?hbs.map(function(hb){var stt=isDone(hb.id,selDay)?'done':(isSkip(hb.id,selDay)?'skip':'miss');return '<span class="dchip '+stt+'" style="--c:'+hb.color+'">'+esc(hb.label)+'</span>';}).join(""):'<span class="nl-empty">No habits</span>';
+    h.push('<section><h2 class="eyebrow">Selected day · '+selL+'</h2><div class="panel" style="--pc:'+pc+'"><div class="sub">'+doneN+'/'+hbs.length+' habits \u00b7 '+(wt!=null?wfmt(wt)+' kg':'no weight')+' \u00b7 '+(wtr>0?wtr+' ml water':'no water')+' \u00b7 '+(stp>0?stp.toLocaleString()+' steps':'no steps')+'</div><div class="dchips">'+chips+'</div><div class="nl-h" style="margin-top:15px">Meals</div><div class="meals">'+mealItems(who,selDay,false)+'</div>'+(note?'<div class="notecallout"><div class="nc-h">Note for this day</div><div class="nc-body">'+esc(note)+'</div></div>':'')+'</div></section>');
+
+    // progress photos — latest
+    h.push('<section><h2 class="eyebrow">Progress photos · latest</h2><div class="panel" style="--pc:'+pc+'">');
+    var dates=allPhotoDates(who);
+    if(!dates.length){ h.push('<div class="nl-empty">No photos yet</div>'); }
+    else { var ld=dates[dates.length-1];
+      h.push('<div class="sub" style="margin-bottom:7px">latest: '+ld.day+' '+ymShort(ld.ym)+' '+ymParse(ld.ym).y+'</div><div class="pose-grid">');
+      POSES.forEach(function(psx){ var ph=photoAt(who,ld.ym,ld.day,psx.k); if(ph){var u=photoUrl(ph.path); h.push('<figure class="pose-cell"><div class="pose-lab">'+psx.label+'</div><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="'+psx.label+'"/></figure>');} else { h.push('<figure class="pose-cell pose-empty"><div class="pose-lab">'+psx.label+'</div><span class="pose-add">\u2014</span></figure>'); } });
       h.push('</div>');
-    });
+    }
     h.push('</div></section>');
-    // progress photos — both people, read-only for the coach
-    var monP=MONTHS[view.m].slice(0,3);
-    h.push('<section><h2 class="eyebrow">Progress photos · latest</h2><div class="duo">');
-    ["pravin","swetha"].forEach(function(who){
-      var pc3=who==="swetha"?"var(--swetha)":"var(--pravin)", dates=allPhotoDates(who);
-      h.push('<div class="panel" style="--pc:'+pc3+'"><h3>'+esc(state.names[who])+'</h3>');
-      if(!dates.length){ h.push('<div class="nl-empty">No photos yet</div>'); }
-      else {
-        var ld=dates[dates.length-1];
-        h.push('<div class="sub" style="margin-bottom:7px">latest: '+ld.day+' '+ymShort(ld.ym)+' '+ymParse(ld.ym).y+'</div><div class="pose-grid">');
-        POSES.forEach(function(psx){ var ph=photoAt(who,ld.ym,ld.day,psx.k); if(ph){var u=photoUrl(ph.path); h.push('<figure class="pose-cell"><div class="pose-lab">'+psx.label+'</div><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="'+psx.label+'"/></figure>');} else { h.push('<figure class="pose-cell pose-empty"><div class="pose-lab">'+psx.label+'</div><span class="pose-add">—</span></figure>'); } });
-        h.push('</div>');
-      }
-      h.push('</div>');
-    });
+
+    // skinfold
+    h.push('<section><h2 class="eyebrow">Skinfold &amp; body fat</h2><div class="panel" style="--pc:'+pc+'">');
+    var ent=allBodyFor(who);
+    if(!ent.length){ h.push('<div class="nl-empty">No readings logged</div>'); }
+    else { var le=ent[ent.length-1]; h.push(bodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+le.day+' '+ymShort(le.ym)+' '+ymParse(le.ym).y+(ent.length>1?' \u00b7 vs first '+ent[0].day+' '+ymShort(ent[0].ym):'')+'</div>'); }
     h.push('</div></section>');
+
+    // tape
+    h.push('<section><h2 class="eyebrow">Tape measurements</h2><div class="panel" style="--pc:'+pc+'">');
+    var tent=allTapeFor(who);
+    if(!tent.length){ h.push('<div class="nl-empty">No measurements logged</div>'); }
+    else { var tle=tent[tent.length-1]; h.push(tapeTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+tle.day+' '+ymShort(tle.ym)+' '+ymParse(tle.ym).y+(tent.length>1?' \u00b7 vs first '+tent[0].day+' '+ymShort(tent[0].ym):'')+'</div>'); }
     h.push('</div></section>');
-    // body composition — both people, read-only for the coach
-    h.push('<section><h2 class="eyebrow">Skinfold &amp; body fat</h2><div class="duo">');
-    ["pravin","swetha"].forEach(function(who){
-      var pc4=who==="swetha"?"var(--swetha)":"var(--pravin)", ent=allBodyFor(who);
-      h.push('<div class="panel" style="--pc:'+pc4+'"><h3>'+esc(state.names[who])+'</h3>');
-      if(!ent.length){ h.push('<div class="nl-empty">No readings logged</div>'); }
-      else { var le=ent[ent.length-1]; h.push(bodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+le.day+' '+ymShort(le.ym)+' '+ymParse(le.ym).y+(ent.length>1?' · vs first '+ent[0].day+' '+ymShort(ent[0].ym):'')+'</div>'); }
-      h.push('</div>');
-    });
+
+    // inbody
+    h.push('<section><h2 class="eyebrow">InBody data</h2><div class="panel" style="--pc:'+pc+'">');
+    var ient=allInbodyFor(who);
+    if(!ient.length){ h.push('<div class="nl-empty">No InBody scans logged</div>'); }
+    else { var ile=ient[ient.length-1]; h.push(inbodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+ile.day+' '+ymShort(ile.ym)+' '+ymParse(ile.ym).y+(ient.length>1?' \u00b7 vs first '+ient[0].day+' '+ymShort(ient[0].ym):'')+'</div>'); }
     h.push('</div></section>');
-    h.push('<section><h2 class="eyebrow">Tape measurements</h2><div class="duo">');
-    ["pravin","swetha"].forEach(function(who){
-      var pc5=who==="swetha"?"var(--swetha)":"var(--pravin)", tent=allTapeFor(who);
-      h.push('<div class="panel" style="--pc:'+pc5+'"><h3>'+esc(state.names[who])+'</h3>');
-      if(!tent.length){ h.push('<div class="nl-empty">No measurements logged</div>'); }
-      else { var tle=tent[tent.length-1]; h.push(tapeTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+tle.day+' '+ymShort(tle.ym)+' '+ymParse(tle.ym).y+(tent.length>1?' · vs first '+tent[0].day+' '+ymShort(tent[0].ym):'')+'</div>'); }
-      h.push('</div>');
-    });
-    h.push('</div></section>');
-    h.push('<section><h2 class="eyebrow">InBody data</h2><div class="duo">');
-    ["pravin","swetha"].forEach(function(who){
-      var pc6=who==="swetha"?"var(--swetha)":"var(--pravin)", ient=allInbodyFor(who);
-      h.push('<div class="panel" style="--pc:'+pc6+'"><h3>'+esc(state.names[who])+'</h3>');
-      if(!ient.length){ h.push('<div class="nl-empty">No InBody scans logged</div>'); }
-      else { var ile=ient[ient.length-1]; h.push(inbodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+ile.day+' '+ymShort(ile.ym)+' '+ymParse(ile.ym).y+(ient.length>1?' · vs first '+ient[0].day+' '+ymShort(ient[0].ym):'')+'</div>'); }
-      h.push('</div>');
-    });
-    h.push('</div></section>');
-    h.push(timelapseCard("pravin","tlc-pravin"));
-    h.push(timelapseCard("swetha","tlc-swetha"));
+
+    // timelapse
+    h.push(timelapseCard(who,"tlc-"+who));
+
+    // report controls (shared)
     h.push('<div class="toolrow">');
-    h.push('<div class="repctl"><select id="repScope" aria-label="Report scope"><option value="both" selected>Both — full report</option><option value="pravin">Pravin only</option><option value="swetha">Swetha only</option></select><button class="btn accent" id="repDl">↓ Download report</button></div>');
-    h.push(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>');
+    h.push('<div class="repctl"><select id="repScope" aria-label="Report scope"><option value="both" selected>Both — full report</option><option value="pravin">Pravin only</option><option value="swetha">Swetha only</option></select><button class="btn accent" id="repDl">\u2193 Download report</button></div>');
+    h.push(cloud?'<button class="btn" id="refresh">\u21bb Refresh</button>':'<button class="btn" id="backup">\u2193 Back up</button><button class="btn" id="restore">\u2191 Restore</button>');
     h.push('</div>');
     app.innerHTML=h.join("");
     var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
     var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
     var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
+    app.querySelectorAll("[data-coachwho]").forEach(function(el){ el.onclick=function(){ coachWho=el.getAttribute("data-coachwho"); renderBoth(); }; });
     app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
   }
 
@@ -1704,7 +1688,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 55 · report-person-first</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 56 · coach-tabs</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
