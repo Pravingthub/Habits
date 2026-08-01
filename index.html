@@ -20,7 +20,7 @@
     --surface-2:#1C1F26;
     --ink:#ECEEF2;
     --ink-2:#C3C8D0;
-    --muted:#9AA0AB;
+    --muted:#A2A8B3;
     --line:#282C34;
     --line-2:#20242B;
     --brand:#7C8CFF;
@@ -104,6 +104,17 @@
   .tr-goal:hover{background:var(--surface-2)}
   .tr-l{font-family:"Space Grotesk";font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-top:12px}
   .tr-s{font-size:13px;color:var(--muted);margin-top:3px}
+  .tr-chg{font-weight:600}
+  .tr-chg.good{color:var(--good)} .tr-chg.up{color:var(--bad)}
+  .goalgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:2px}
+  .glab{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .glab>span:first-child{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+  .gin{display:flex;align-items:baseline;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+  .gin:focus-within{border-color:var(--accent)}
+  .gin input{font-family:"Space Grotesk";font-weight:600;font-size:17px;width:100%;min-width:0;background:transparent;border:0;color:var(--ink);padding:0}
+  .gin input:focus{outline:none}
+  .gin input::-webkit-outer-spin-button,.gin input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .gin u{font-style:normal;font-size:12px;color:var(--muted);font-weight:500;flex:none}
   .today-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin:18px 0 20px}
   .tchip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:13px 13px 12px;box-shadow:var(--sh-1);min-width:0;overflow:hidden}
   .tchip .cl{font-family:"Space Grotesk";font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
@@ -753,9 +764,18 @@
   }
   function latestWeight(who){var s=weightSeries(who);return s.length?s[s.length-1]:null;}
 
-  // goal weight (per person, synced; default 75)
-  function getGoal(who){ var g=state.goals&&state.goals[who]; return (g||g===0)?g:75; }
-  function setGoal(who,val){ if(!state.goals)state.goals={}; state.goals[who]=+val; enqueue({k:"goals",person:who,target:+val}); saveCache(); }
+  // goal targets (per person, synced): {weight, water, steps}
+  function goalRow(who){ var g=state.goals&&state.goals[who]; return (g&&typeof g==="object")?g:{}; }
+  function getGoal(who){ var v=goalRow(who).weight; return (v||v===0)?v:75; }
+  function getWaterGoal(who){ var v=goalRow(who).water; return (v||v===0)?v:3000; }
+  function getStepsGoal(who){ var v=goalRow(who).steps; return (v||v===0)?v:8000; }
+  function setGoal(who,patch){
+    if(!state.goals)state.goals={};
+    var row={weight:getGoal(who),water:getWaterGoal(who),steps:getStepsGoal(who)};
+    for(var k in patch){ if(patch[k]!=null && !isNaN(+patch[k])) row[k]=+patch[k]; }
+    state.goals[who]=row;
+    enqueue({k:"goals",person:who,weight:row.weight,water:row.water,steps:row.steps}); saveCache();
+  }
 
   // weight ring: arc = progress from starting weight toward goal; centre = latest weight (editable on Today)
   function weightRing(who, editable){
@@ -768,8 +788,11 @@
     else pct=Math.max(0,Math.min(100, Math.round((start-latest)/(start-goal)*100)));
     var off=(circ*(1-pct/100)).toFixed(1);
     var remain = latest!=null ? (latest-goal) : null;
+    var prevY = ser.length>1 ? ser[ser.length-2].y : null;
+    var chg = (prevY!=null && latestAll!=null) ? (latestAll-prevY) : null;
+    var chgTxt = (chg!=null && Math.abs(chg)>0.0001) ? ' <span class="tr-chg '+(chg<0?'good':'up')+'">'+(chg<0?'\u2193':'\u2191')+bfmt(Math.abs(chg))+'</span>' : '';
     var subTxt = latest==null ? (editable?'Tap the number to log today':'No weight logged')
-               : (remain>0.0001 ? bfmt(Math.abs(remain))+' kg to goal' : (remain<-0.0001 ? bfmt(Math.abs(remain))+' kg under goal' : 'Goal reached \u2713'));
+               : ((remain>0.0001 ? bfmt(Math.abs(remain))+' kg to goal' : (remain<-0.0001 ? bfmt(Math.abs(remain))+' kg under goal' : 'Goal reached \u2713'))+chgTxt);
     var center = editable
       ? '<div class="tr-wt"><input id="ringWt" type="number" step="0.01" min="0" inputmode="decimal" value="'+(latest!=null?wfmt(latest):'')+'" placeholder="—" aria-label="Weight in kg"/><span class="tr-kg">kg</span></div>'
       : '<div class="tr-v">'+(latest!=null?wfmt(latest):'\u2014')+'<span> kg</span></div>';
@@ -906,7 +929,7 @@
       return supa.from("tape").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
     if(op.k==="goals"){
-      return supa.from("goals").upsert({person:op.person,target:op.target},{onConflict:"person"});
+      return supa.from("goals").upsert({person:op.person,target:op.weight,water:op.water,steps:op.steps},{onConflict:"person"});
     }
     if(op.k==="inbody"){
       var inbAny = op.smm!=null||op.bfm!=null||op.bmi!=null||op.bfp!=null||op.vfa!=null||op.whr!=null;
@@ -964,7 +987,7 @@
       bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={site1:x.site1,site2:x.site2,site3:x.site3,bodyfat:x.bodyfat}; });
       tap.forEach(function(x){ fresh.tape[x.person+"|"+x.ym+"|"+x.day]={thigh:x.thigh,triceps:x.triceps,hip:x.hip,waist:x.waist,abdomen:x.abdomen}; });
       inb.forEach(function(x){ fresh.inbody[x.person+"|"+x.ym+"|"+x.day]={smm:x.smm,bfm:x.bfm,bmi:x.bmi,bfp:x.bfp,vfa:x.vfa,whr:x.whr}; });
-      gol.forEach(function(x){ fresh.goals[x.person]=x.target; });
+      gol.forEach(function(x){ fresh.goals[x.person]={weight:x.target,water:x.water,steps:x.steps}; });
       pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,pose:p.pose||"front",path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
@@ -985,7 +1008,7 @@
     else if(op.k==="steps"){if(!s.steps)s.steps={};var stk=op.person+"|"+op.ym+"|"+op.day;if(op.count!=null&&op.count>0)s.steps[stk]=op.count;else delete s.steps[stk];}
     else if(op.k==="body"){if(!s.body)s.body={};var bk=op.person+"|"+op.ym+"|"+op.day;var bany=op.site1!=null||op.site2!=null||op.site3!=null||op.bodyfat!=null;if(bany)s.body[bk]={site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat};else delete s.body[bk];}
     else if(op.k==="tape"){if(!s.tape)s.tape={};var tk=op.person+"|"+op.ym+"|"+op.day;var tany=op.thigh!=null||op.triceps!=null||op.hip!=null||op.waist!=null||op.abdomen!=null;if(tany)s.tape[tk]={thigh:op.thigh,triceps:op.triceps,hip:op.hip,waist:op.waist,abdomen:op.abdomen};else delete s.tape[tk];}
-    else if(op.k==="goals"){if(!s.goals)s.goals={};s.goals[op.person]=op.target;}
+    else if(op.k==="goals"){if(!s.goals)s.goals={};s.goals[op.person]={weight:op.weight,water:op.water,steps:op.steps};}
     else if(op.k==="inbody"){if(!s.inbody)s.inbody={};var ik=op.person+"|"+op.ym+"|"+op.day;var iany=op.smm!=null||op.bfm!=null||op.bmi!=null||op.bfp!=null||op.vfa!=null||op.whr!=null;if(iany)s.inbody[ik]={smm:op.smm,bfm:op.bfm,bmi:op.bmi,bfp:op.bfp,vfa:op.vfa,whr:op.whr};else delete s.inbody[ik];}
     else if(op.k==="photoAdd"){if(!s.photos)s.photos={};s.photos[op.id]={person:op.person,ym:op.ym,day:op.day,pose:op.pose||"front",path:op.path};}
     else if(op.k==="photoDel"){if(s.photos)delete s.photos[op.id];}
@@ -1105,16 +1128,15 @@
     var habits=state.habits[who], td=selDay, real=isSelToday(), h="";
     var done=habits.filter(function(x){return isDone(x.id,td);}).length;
     var dateLabel=(real?'Today · ':'')+DOW[selDate().getDay()]+' '+td+' '+MONTHS[view.m].slice(0,3)+' '+view.y;
-    var pct=habits.length?Math.round(done/habits.length*100):0, circ=565.48, off=(circ*(1-pct/100)).toFixed(1);
+    var pct=habits.length?Math.round(done/habits.length*100):0;
     var accent=who==="swetha"?"var(--swetha)":"var(--pravin)";
-    var lwLatest=latestWeight(who), ws=weightSeries(who), wdelta=ws.length>1?(ws[ws.length-1].y-ws[0].y):null;
-    var wtotH=getWater(who,td), stotH=getSteps(who,td);
+    var wtotH=getWater(who,td), stotH=getSteps(who,td), wGoalH=getWaterGoal(who), sGoalH=getStepsGoal(who);
     h+='<section>';
     h+=weightRing(who,true);
     h+='<div class="today-chips">';
     h+='<div class="tchip"><div class="cl">Consistency</div><div class="cv">'+pct+'<u>%</u></div><div class="ct"><i style="width:'+pct+'%;background:'+accent+'"></i></div></div>';
-    h+='<div class="tchip"><div class="cl">Water</div><div class="cv">'+(wtotH/1000).toFixed(1)+'<u> / 3L</u></div><div class="ct"><i style="width:'+Math.min(100,Math.round(wtotH/3000*100))+'%;background:var(--brand)"></i></div></div>';
-    h+='<div class="tchip"><div class="cl">Steps</div><div class="cv">'+(stotH>=1000?(stotH/1000).toFixed(1)+'k':stotH)+'<u> / 8k</u></div><div class="ct"><i style="width:'+Math.min(100,Math.round(stotH/8000*100))+'%;background:var(--warn)"></i></div></div>';
+    h+='<div class="tchip"><div class="cl">Water</div><div class="cv">'+(wtotH/1000).toFixed(1)+'<u> / '+(wGoalH/1000)+'L</u></div><div class="ct"><i style="width:'+Math.min(100,Math.round(wtotH/wGoalH*100))+'%;background:var(--brand)"></i></div></div>';
+    h+='<div class="tchip"><div class="cl">Steps</div><div class="cv">'+(stotH>=1000?(stotH/1000).toFixed(1)+'k':stotH)+'<u> / '+(sGoalH/1000)+'k</u></div><div class="ct"><i style="width:'+Math.min(100,Math.round(stotH/sGoalH*100))+'%;background:var(--warn)"></i></div></div>';
     h+='</div>';
     h+='<div class="today-head"><div class="date display">'+dateLabel+'</div><div class="prog mono">'+done+' / '+habits.length+' habits</div></div><div class="cards">';
     if(!habits.length) h+='<div class="empty-note">No habits yet. Add some in the Habits tab.</div>';
@@ -1127,10 +1149,15 @@
       h+='<button class="card'+(on?' done':'')+(sk?' skip':'')+'" style="--c:'+hb.color+'" data-today="'+hb.id+'"><span class="check">'+icon+'</span><span class="body"><span class="name">'+esc(hb.label)+(hb.week>0?' · '+hb.week+'×/wk':'')+'</span><span class="streak'+srest+'">'+sub+'</span></span></button>';
     });
     h+='</div>';
-    var wtot=getWater(who,td), goal=3000, wpct=Math.min(100,Math.round(wtot/goal*100));
-    var stot=getSteps(who,td), sgoal=8000, spct=Math.min(100,Math.round(stot/sgoal*100));
+    var wtot=getWater(who,td), goal=wGoalH, wpct=Math.min(100,Math.round(wtot/goal*100));
+    var stot=getSteps(who,td), sgoal=sGoalH, spct=Math.min(100,Math.round(stot/sgoal*100));
     h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
     h+='<div class="qcard"><div class="qlabel">Steps'+(real?' today':' this day')+'</div><div class="water-total"><b>'+stot.toLocaleString()+'</b> <span class="water-goal">/ '+sgoal.toLocaleString()+'</span></div><div class="water-bar"><i style="width:'+spct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="winput" style="margin-top:11px"><span class="ibox"><input type="number" step="100" min="0" inputmode="numeric" id="stInput" value="'+(stot>0?stot:'')+'" placeholder="0" aria-label="Steps"/><span class="kg">steps</span></span><button class="btn accent" id="stSave">Save</button></div></div>';
+    h+='<div class="qcard qspan"><div class="qlabel">Targets</div><div class="goalgrid">'
+      +'<label class="glab"><span>Weight</span><span class="gin"><input type="number" step="0.5" min="0" inputmode="decimal" id="goalWt" data-goal="weight" value="'+getGoal(who)+'" aria-label="Weight goal kg"/><u>kg</u></span></label>'
+      +'<label class="glab"><span>Water</span><span class="gin"><input type="number" step="250" min="0" inputmode="numeric" data-goal="water" value="'+wGoalH+'" aria-label="Water goal ml"/><u>ml</u></span></label>'
+      +'<label class="glab"><span>Steps</span><span class="gin"><input type="number" step="500" min="0" inputmode="numeric" data-goal="steps" value="'+sGoalH+'" aria-label="Steps goal"/></span></label>'
+      +'</div></div>';
     h+='<div class="qcard qspan"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
     h+='<div class="noterow"><div class="nlabel">Note for '+td+' '+MONTHS[view.m].slice(0,3)+(real?' · today':'')+' (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea><div class="noterowbtn"><button class="btn accent" id="noteSave">Save note</button></div></div>';
     h+='</section>';
@@ -1392,7 +1419,7 @@
     var wpts=ws.map(function(e,i){return {x:i,y:e.y};});
     var h='<div class="rp-person"><h4 class="rp-cardh">Trends · all time</h4>';
     h+='<div class="rp-sec"><div class="rp-lab">Weight · all time</div>';
-    if(wpts.length){ var f=wpts[0].y,l=wpts[wpts.length-1].y,dw=l-f; h+='<div class="rp-big">'+wfmt(l)+' kg '+(wpts.length>1?'<span class="rp-bchg '+(dw<0?"good":(dw>0?"bad":""))+'">'+(dw>0?"+":"")+wfmt(dw)+'</span>':'')+'</div>'; } else { h+='<div class="rp-sub">No weight logged</div>'; }
+    if(wpts.length){ var f=wpts[0].y,l=wpts[wpts.length-1].y,dw=l-f; h+='<div class="rp-big">'+wfmt(l)+' kg '+(wpts.length>1?'<span class="rp-bchg '+(dw<0?"good":(dw>0?"bad":""))+'">'+(dw>0?"+":"")+wfmt(dw)+'</span>':'')+'</div>'; var g=getGoal(who),rem=l-g; h+='<div class="rp-sub">Target '+bfmt(g)+' kg'+(rem>0.05?' \u00b7 '+bfmt(rem)+' to go':(rem<-0.05?' \u00b7 '+bfmt(Math.abs(rem))+' under':' \u00b7 reached'))+'</div>'; } else { h+='<div class="rp-sub">No weight logged</div>'; }
     h+=repLine(wpts,col)+'</div>';
     var bent=[]; for(var bk in state.body){var bp=bk.split("|"); if(bp[0]===who){var bv=state.body[bk]; if(bv&&(bv.site1!=null||bv.site2!=null||bv.site3!=null||bv.bodyfat!=null)) bent.push({r:ymRank(bp[1])*31+(+bp[2]),vals:bv});}}
     bent.sort(function(a,b){return a.r-b.r;});
@@ -1662,7 +1689,10 @@
     var rw=document.getElementById("ringWt");
     if(rw) rw.addEventListener("change",function(){ var v=rw.value.trim(); if(v===""){ setWeight(who,selDay,null); } else { var n=parseFloat(v); if(isNaN(n)||n<0){ toast("Enter a valid weight"); return; } setWeight(who,selDay,n); } render(); toast("Weight saved"); });
     var rg=document.getElementById("ringGoal");
-    if(rg) rg.onclick=function(){ var cur=getGoal(who); var v=prompt("Goal weight for "+state.names[who]+" (kg)", cur); if(v==null) return; var n=parseFloat(v); if(isNaN(n)||n<=0){ toast("Enter a valid goal"); return; } setGoal(who,n); render(); toast("Goal set to "+wfmt(n)+" kg"); };
+    if(rg) rg.onclick=function(){ var g=document.getElementById("goalWt"); if(g){ g.scrollIntoView({behavior:"smooth",block:"center"}); setTimeout(function(){ g.focus(); g.select&&g.select(); },300); } };
+    app.querySelectorAll("[data-goal]").forEach(function(el){
+      el.addEventListener("change",function(){ var v=parseFloat(el.value); if(isNaN(v)||v<0){ toast("Enter a valid target"); return; } var patch={}; patch[el.dataset.goal]=v; setGoal(who,patch); render(); toast("Target updated"); });
+    });
     app.querySelectorAll("[data-today]").forEach(function(el){
       press(el, function(){ tapCell(who,el.dataset.today,selDay); render(); },
                 function(){ skipCell(who,el.dataset.today,selDay); render(); });
@@ -1762,7 +1792,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 61 · ring-align</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 62 · review-pass</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
