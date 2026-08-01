@@ -92,14 +92,14 @@
   .today-ring{display:flex;flex-direction:column;align-items:center;padding:8px 0 2px}
   .tr-wrap{position:relative;width:212px;height:212px}
   .tr-wrap svg{transform:rotate(-90deg)}
-  .tr-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  .tr-v{font-family:"Space Grotesk";font-weight:600;font-size:52px;letter-spacing:-.03em;line-height:.9}
-  .tr-v span{font-size:20px;color:var(--muted);font-weight:500}
-  .tr-wt{display:flex;align-items:baseline;justify-content:center;gap:3px}
-  .tr-wt input{font-family:"Space Grotesk";font-weight:600;font-size:52px;letter-spacing:-.03em;line-height:.9;width:150px;max-width:60vw;text-align:center;background:transparent;border:0;border-bottom:2px solid var(--line);color:var(--ink);padding:0 0 2px}
+  .tr-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 22px;text-align:center}
+  .tr-v{font-family:"Space Grotesk";font-weight:600;font-size:42px;letter-spacing:-.03em;line-height:.95;white-space:nowrap}
+  .tr-v span{font-size:16px;color:var(--muted);font-weight:500}
+  .tr-wt{display:flex;align-items:baseline;justify-content:center;gap:2px;max-width:100%}
+  .tr-wt input{font-family:"Space Grotesk";font-weight:600;font-size:42px;letter-spacing:-.03em;line-height:.95;width:132px;max-width:100%;text-align:center;background:transparent;border:0;border-bottom:2px solid var(--line);color:var(--ink);padding:0 0 2px}
   .tr-wt input:focus{outline:none;border-bottom-color:var(--accent)}
   .tr-wt input::-webkit-outer-spin-button,.tr-wt input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-  .tr-kg{font-family:"Space Grotesk";font-size:20px;color:var(--muted);font-weight:500}
+  .tr-kg{font-family:"Space Grotesk";font-size:16px;color:var(--muted);font-weight:500}
   .tr-goal{background:transparent;border:0;cursor:pointer;font-family:"Space Grotesk";font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-top:12px;padding:3px 7px;border-radius:7px;transition:.15s}
   .tr-goal:hover{background:var(--surface-2)}
   .tr-l{font-family:"Space Grotesk";font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-top:12px}
@@ -760,7 +760,8 @@
   // weight ring: arc = progress from starting weight toward goal; centre = latest weight (editable on Today)
   function weightRing(who, editable){
     var accent=who==="swetha"?"var(--swetha)":"var(--pravin)", circ=565.48;
-    var ser=weightSeries(who), latest=ser.length?ser[ser.length-1].y:null, start=ser.length?ser[0].y:null, goal=getGoal(who);
+    var ser=weightSeries(who), latestAll=ser.length?ser[ser.length-1].y:null, start=ser.length?ser[0].y:null, goal=getGoal(who);
+    var sel=getWeight(who,selDay), latest=(sel!=null?sel:latestAll);
     var pct;
     if(latest==null||start==null) pct=0;
     else if(start<=goal) pct=(latest<=goal?100:0);
@@ -768,13 +769,13 @@
     var off=(circ*(1-pct/100)).toFixed(1);
     var remain = latest!=null ? (latest-goal) : null;
     var subTxt = latest==null ? (editable?'Tap the number to log today':'No weight logged')
-               : (remain>0.0001 ? wfmt(Math.abs(remain))+' kg to goal' : (remain<-0.0001 ? wfmt(Math.abs(remain))+' kg under goal' : 'Goal reached \u2713'));
+               : (remain>0.0001 ? bfmt(Math.abs(remain))+' kg to goal' : (remain<-0.0001 ? bfmt(Math.abs(remain))+' kg under goal' : 'Goal reached \u2713'));
     var center = editable
       ? '<div class="tr-wt"><input id="ringWt" type="number" step="0.01" min="0" inputmode="decimal" value="'+(latest!=null?wfmt(latest):'')+'" placeholder="—" aria-label="Weight in kg"/><span class="tr-kg">kg</span></div>'
       : '<div class="tr-v">'+(latest!=null?wfmt(latest):'\u2014')+'<span> kg</span></div>';
     var goalLabel = editable
-      ? '<button class="tr-goal" id="ringGoal" type="button">toward '+wfmt(goal)+' kg goal</button>'
-      : '<div class="tr-l">toward '+wfmt(goal)+' kg</div>';
+      ? '<button class="tr-goal" id="ringGoal" type="button">toward '+bfmt(goal)+' kg goal</button>'
+      : '<div class="tr-l">toward '+bfmt(goal)+' kg</div>';
     return '<div class="today-ring"><div class="tr-wrap"><svg width="212" height="212" viewBox="0 0 212 212"><circle cx="106" cy="106" r="90" fill="none" stroke="var(--surface-2)" stroke-width="14"/><circle cx="106" cy="106" r="90" fill="none" stroke="'+accent+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'"/></svg><div class="tr-mid">'+center+goalLabel+'<div class="tr-s">'+subTxt+'</div></div></div></div>';
   }
 
@@ -1761,7 +1762,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 60 · weight-ring-goal</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 61 · ring-align</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
