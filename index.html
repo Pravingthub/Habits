@@ -1294,19 +1294,32 @@
     return h+'</table>';
   }
   function repPersonMonth(who,ym){
-    var col=who==="swetha"?"#DD5A86":"#E08A1E", name=esc(state.names[who]||who);
-    var h='<div class="rp-person"><h4 style="color:'+col+'">'+name+'</h4>';
+    var h='<div class="rp-person"><h4 class="rp-cardh">'+ymLabel(ym)+'</h4>';
     h+='<div class="rp-sec"><div class="rp-lab">Habits</div>'+repHabitConsistency(who,ym)+'</div>';
     var days=ymDays(ym), notes=[]; for(var d=1;d<=days;d++){var nb=state.notes[who+"|"+ym+"|"+d]; if(nb) notes.push({d:d,b:nb});}
     if(notes.length){ h+='<div class="rp-sec"><div class="rp-lab">Notes</div>'; notes.forEach(function(n){ h+='<div class="rp-note"><b>'+n.d+' '+ymShort(ym)+':</b> '+esc(n.b)+'</div>'; }); h+='</div>'; }
     return h+'</div>';
+  }
+  function repPersonPhotos(who,ym,pmap){
+    var rpDs={};
+    POSES.forEach(function(psx){ for(var id in state.photos){var p=state.photos[id]; if(p.person===who&&p.ym===ym&&pPose(p)===psx.k) rpDs[p.day]=1;} });
+    var rpDl=Object.keys(rpDs).map(Number).sort(function(a,b){return a-b;}), cells="";
+    rpDl.forEach(function(d){ POSES.forEach(function(psx){ var ph=photoAt(who,ym,d,psx.k); if(ph) cells+='<figure>'+repImg(pmap,ph.path)+'<figcaption>'+d+' '+ymShort(ym)+(ymDow(ym,d)===0?' (Sun)':'')+' · '+psx.label+'</figcaption></figure>'; }); });
+    return cells ? '<div class="rp-person"><h4 class="rp-cardh">'+ymLabel(ym)+' · photos</h4><div class="rp-pgrid">'+cells+'</div></div>' : "";
+  }
+  function personActiveInMonth(who,ym){
+    var hs=state.habits[who]||[], days=ymDays(ym), d, i;
+    for(i=0;i<hs.length;i++){ for(d=1;d<=days;d++){ if(state.logs[hs[i].id+"|"+ym+"|"+d]==="done") return true; } }
+    for(d=1;d<=days;d++){ if(state.notes[who+"|"+ym+"|"+d]) return true; }
+    for(var id in state.photos){ var ph=state.photos[id]; if(ph.person===who&&ph.ym===ym) return true; }
+    return false;
   }
   function repTrendsPerson(who){
     var col=who==="swetha"?"#DD5A86":"#E08A1E", name=esc(state.names[who]||who);
     var ws=[]; for(var k in state.weights){var p=k.split("|"); if(p[0]===who) ws.push({r:ymRank(p[1])*31+(+p[2]),y:+state.weights[k]});}
     ws.sort(function(a,b){return a.r-b.r;});
     var wpts=ws.map(function(e,i){return {x:i,y:e.y};});
-    var h='<div class="rp-person"><h4 style="color:'+col+'">'+name+'</h4>';
+    var h='<div class="rp-person"><h4 class="rp-cardh">Trends · all time</h4>';
     h+='<div class="rp-sec"><div class="rp-lab">Weight · all time</div>';
     if(wpts.length){ var f=wpts[0].y,l=wpts[wpts.length-1].y,dw=l-f; h+='<div class="rp-big">'+wfmt(l)+' kg '+(wpts.length>1?'<span class="rp-bchg '+(dw<0?"good":(dw>0?"bad":""))+'">'+(dw>0?"+":"")+wfmt(dw)+'</span>':'')+'</div>'; } else { h+='<div class="rp-sub">No weight logged</div>'; }
     h+=repLine(wpts,col)+'</div>';
@@ -1373,7 +1386,8 @@
       +".rp-h{padding:24px 20px;background:#fff;border-bottom:1px solid #e7e1d7}.rp-h h1{margin:0;font-size:21px}.rp-meta{color:#9a948a;font-size:13px;margin-top:5px}"
       +".rp-month{max-width:920px;margin:0 auto;padding:18px 16px}.rp-month>h2{font-size:18px;border-bottom:2px solid #e7e1d7;padding-bottom:6px;margin:0 0 14px}"
       +".rp-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:640px){.rp-two{grid-template-columns:1fr}}"
-      +".rp-person{background:#fff;border:1px solid #e7e1d7;border-radius:14px;padding:15px;min-width:0}.rp-person h4{margin:0 0 6px;font-size:16px}"
+      +".rp-person-sec{max-width:920px;margin:0 auto;padding:4px 16px 26px}.rp-personhdr{font-size:25px;font-weight:800;margin:22px 0 2px;padding-bottom:9px;border-bottom:3px solid #ccc}"
+      +".rp-person{background:#fff;border:1px solid #e7e1d7;border-radius:14px;padding:16px;min-width:0;margin-top:14px}.rp-cardh{margin:0 0 4px;font-size:16px;font-weight:700}"
       +".rp-sec{margin-top:14px}.rp-lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#9a948a;margin-bottom:6px;font-weight:700}"
       +".rp-big{font-size:23px;font-weight:800}.rp-sub{font-size:12.5px;color:#6b655c}"
       +".rp-grid{border-collapse:collapse;font-size:9px}.rp-gd{text-align:center;color:#b0a99e;padding:1px 2px}.rp-gh{padding:2px 6px 2px 0;white-space:nowrap;font-size:11px}.rp-cell{width:9px;height:9px;border-radius:2px}"
@@ -1384,27 +1398,21 @@
       +".rp-bodygrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}@media(max-width:520px){.rp-bodygrid{grid-template-columns:1fr}}.rp-bodycard{background:#faf7f1;border:1px solid #e7e1d7;border-radius:12px;padding:13px 14px;min-width:0;overflow:hidden}.rp-bodycard .rp-lab{margin-bottom:3px}.rp-bodycard .rp-big{font-size:18px}.rp-bodycard svg{max-height:66px;margin-top:8px}.rp-sec>svg{max-height:120px}.rp-bchg{font-size:13px;font-weight:700}.rp-bchg.good{color:#1f8f5b}.rp-bchg.bad{color:#c0562e}"
       +".rp-hcon{display:flex;flex-direction:column;gap:9px}.rp-hrow{display:flex;align-items:center;gap:9px;font-size:12.5px}.rp-hdot{width:9px;height:9px;border-radius:50%;flex:none}.rp-hname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rp-hbar{flex:none;width:56px;height:6px;background:#efeae2;border-radius:3px;overflow:hidden}.rp-hbar span{display:block;height:100%}.rp-hval{flex:none;font-size:11px;color:#6b655c;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}.rp-hfreq{color:#9a948a;font-size:10px;font-weight:700}"
       +".rp-f{max-width:920px;margin:14px auto 40px;padding:0 16px;color:#b0a99e;font-size:11px}";
+    var persons = scope==="both" ? ["pravin","swetha"] : [scope];
     if(!months.length){ body='<div class="rp-month"><p>No data logged yet.</p></div>'; }
     else {
-      body+='<section class="rp-month"><h2>Trends · all time</h2>';
-      if(scope==="both") body+='<div class="rp-two">'+repTrendsPerson("pravin")+repTrendsPerson("swetha")+'</div>';
-      else body+=repTrendsPerson(scope);
-      body+='</section>';
+      persons.forEach(function(who){
+        var pcol=who==="swetha"?"#DD5A86":"#E08A1E";
+        body+='<section class="rp-person-sec"><h2 class="rp-personhdr" style="border-color:'+pcol+'"><span style="color:'+pcol+'">'+esc(state.names[who]||who)+'</span></h2>';
+        body+=repTrendsPerson(who);
+        months.forEach(function(ym){
+          if(!personActiveInMonth(who,ym)) return;
+          body+=repPersonMonth(who,ym);
+          body+=repPersonPhotos(who,ym,pmap);
+        });
+        body+='</section>';
+      });
     }
-    months.forEach(function(ym){
-      body+='<section class="rp-month"><h2>'+ymLabel(ym)+'</h2>';
-      if(scope==="both"){
-        body+='<div class="rp-two">'+repPersonMonth("pravin",ym)+repPersonMonth("swetha",ym)+'</div>'+repPhotosBoth(ym,pmap);
-      } else {
-        body+=repPersonMonth(scope,ym);
-        var rpDs={};
-        POSES.forEach(function(psx){ for(var id in state.photos){var p=state.photos[id]; if(p.person===scope&&p.ym===ym&&pPose(p)===psx.k) rpDs[p.day]=1;} });
-        var rpDl=Object.keys(rpDs).map(Number).sort(function(a,b){return a-b;}), cells="";
-        rpDl.forEach(function(d){ POSES.forEach(function(psx){ var ph=photoAt(scope,ym,d,psx.k); if(ph) cells+='<figure>'+repImg(pmap,ph.path)+'<figcaption>'+d+' '+ymShort(ym)+(ymDow(ym,d)===0?' (Sun)':'')+' · '+psx.label+'</figcaption></figure>'; }); });
-        if(cells) body+='<div class="rp-sec rp-photos"><div class="rp-lab">Progress photos</div><div class="rp-pgrid">'+cells+'</div></div>';
-      }
-      body+='</section>';
-    });
     var who=scope==="both"?"Pravin & Swetha":esc(state.names[scope]||scope), gen=new Date().toLocaleString();
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Daily Habits Report — '+who+'</title><style>'+css+'</style></head><body><header class="rp-h"><h1>Daily Habits — Progress Report</h1><div class="rp-meta">'+who+' · generated '+esc(gen)+'</div></header>'+body+'<footer class="rp-f">Self-contained report · photos embedded · generated from the Daily Habits app</footer></body></html>';
   }
@@ -1696,7 +1704,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 54 · inbody-data</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 55 · report-person-first</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
