@@ -294,6 +294,10 @@
   .cmp-fig figcaption{font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;text-align:center}
   .cmp-none{aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border-radius:12px;color:var(--muted)}
   .tl-stage{position:relative;width:100%;max-width:360px;margin:0 auto;aspect-ratio:3/4;border-radius:14px;overflow:hidden;background:var(--surface-2)}
+  .tl-poses{display:flex;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:13px}
+  .tl-pose{flex:1;font:inherit;font-size:13px;font-weight:600;padding:9px 6px;border-radius:8px;border:0;background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
+  .tl-pose.active{background:var(--accent);color:#fff}
+  .tl-pose:disabled{opacity:.32;cursor:not-allowed}
   .tl-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .45s ease;cursor:zoom-in}
   .tl-date{position:absolute;left:0;right:0;bottom:0;text-align:center;font-weight:750;font-size:14px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.65));padding:22px 8px 9px;pointer-events:none}
   .tl-row{display:flex;align-items:center;gap:12px;margin-top:14px}
@@ -1538,31 +1542,40 @@
     var dates=allPhotoDates(who);
     if(dates.length<2) return "";
     var dateLabels=dates.map(function(dt){ return dt.day+" "+ymShort(dt.ym)+" "+ymParse(dt.ym).y+(ymDow(dt.ym,dt.day)===0?" · Sun":""); });
-    var panes=POSES.map(function(ps){
-      var frames=dates.map(function(dt,i){ var ph=photoAt(who,dt.ym,dt.day,ps.k); var u=ph?photoUrl(ph.path):""; return '<img class="tl-frame" src="'+(u||REP_PLACEHOLDER)+'" data-full="'+u+'" style="opacity:'+(i===0?1:0)+'" alt="'+ps.label+'"/>'; }).join("");
-      return '<div class="tlp-pane"><div class="tlp-label">'+ps.label+'</div><div class="tl-stage tlp-stage">'+frames+'</div></div>';
+    var defaultPose=null;
+    POSES.forEach(function(ps){ if(!defaultPose && dates.some(function(dt){ return photoAt(who,dt.ym,dt.day,ps.k); })) defaultPose=ps.k; });
+    if(!defaultPose) defaultPose=POSES[0].k;
+    var poseBtns=POSES.map(function(ps){
+      var hasAny=dates.some(function(dt){ return photoAt(who,dt.ym,dt.day,ps.k); });
+      return '<button class="tl-pose'+(ps.k===defaultPose?' active':'')+'" data-tlpose="'+ps.k+'" type="button"'+(hasAny?'':' disabled')+'>'+ps.label+'</button>';
     }).join("");
-    return '<section><h2 class="eyebrow">Progress timelapse · '+esc(state.names[who]||who)+'</h2><div class="wcard tl-wrap" data-tl="'+key+'" data-dates="'+esc(dateLabels.join("||"))+'">'
-      +'<div class="tlp-grid">'+panes+'</div>'
-      +'<div class="tl-date tlp-date">'+esc(dateLabels[0])+'</div>'
+    var frames="";
+    POSES.forEach(function(ps){
+      dates.forEach(function(dt,i){ var ph=photoAt(who,dt.ym,dt.day,ps.k); var u=ph?photoUrl(ph.path):""; frames+='<img class="tl-frame" data-pose="'+ps.k+'" data-idx="'+i+'" src="'+(u||REP_PLACEHOLDER)+'" data-full="'+u+'" style="opacity:0" alt="'+ps.label+'"/>'; });
+    });
+    return '<section><h2 class="eyebrow">Progress timelapse · '+esc(state.names[who]||who)+'</h2><div class="wcard tl-wrap" data-tl="'+key+'" data-dates="'+esc(dateLabels.join("||"))+'" data-pose="'+defaultPose+'">'
+      +'<div class="tl-poses">'+poseBtns+'</div>'
+      +'<div class="tl-stage">'+frames+'<div class="tl-date">'+esc(dateLabels[0])+'</div></div>'
       +'<div class="tl-row"><button class="btn accent tl-play" type="button">▶ Play</button><input type="range" class="tl-scrub" min="0" max="'+(dates.length-1)+'" value="0" step="1" aria-label="Scrub timelapse" /></div>'
       +'<div class="tl-speed"><span>Speed</span><button class="tl-sp" data-sp="1400" type="button">Slow</button><button class="tl-sp active" data-sp="800" type="button">Medium</button><button class="tl-sp" data-sp="400" type="button">Fast</button></div>'
-      +'<div class="photo-hint">'+dates.length+' sessions · all four angles play together, oldest to newest</div>'
+      +'<div class="photo-hint">'+dates.length+' sessions · one angle at a time, oldest to newest</div>'
       +'</div></section>';
   }
   function wireTimelapse(root){
     var key=root.getAttribute("data-tl");
-    var panes=root.querySelectorAll(".tlp-stage");
+    var stage=root.querySelector(".tl-stage");
     var dateLabels=(root.getAttribute("data-dates")||"").split("||"), n=dateLabels.length;
-    if(!n || !panes.length) return;
+    if(!n || !stage) return;
+    var frames=stage.querySelectorAll(".tl-frame");
     var dateEl=root.querySelector(".tl-date"), scrub=root.querySelector(".tl-scrub"), playBtn=root.querySelector(".tl-play");
-    var idx=0, playing=false, speed=800;
-    function show(i){ idx=((i%n)+n)%n; panes.forEach(function(pane){ var fr=pane.querySelectorAll(".tl-frame"); for(var f=0;f<fr.length;f++) fr[f].style.opacity=(f===idx?1:0); }); if(dateEl) dateEl.textContent=dateLabels[idx]||""; if(scrub) scrub.value=idx; }
+    var idx=0, playing=false, speed=800, pose=root.getAttribute("data-pose")||(POSES[0]&&POSES[0].k);
+    function show(i){ idx=((i%n)+n)%n; for(var f=0;f<frames.length;f++){ var fr=frames[f]; fr.style.opacity=(fr.getAttribute("data-pose")===pose && +fr.getAttribute("data-idx")===idx)?1:0; } if(dateEl) dateEl.textContent=dateLabels[idx]||""; if(scrub) scrub.value=idx; }
     function stop(){ playing=false; if(tlTimers[key]){clearInterval(tlTimers[key]); tlTimers[key]=null;} if(playBtn) playBtn.innerHTML="\u25B6 Play"; }
     function play(){ playing=true; if(playBtn) playBtn.innerHTML="\u23F8 Pause"; if(tlTimers[key]) clearInterval(tlTimers[key]); tlTimers[key]=setInterval(function(){ show(idx+1); }, speed); }
     if(playBtn) playBtn.onclick=function(){ playing?stop():play(); };
     if(scrub) scrub.oninput=function(){ stop(); show(+scrub.value); };
     root.querySelectorAll(".tl-sp").forEach(function(b){ b.onclick=function(){ speed=+b.getAttribute("data-sp"); root.querySelectorAll(".tl-sp").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); if(playing) play(); }; });
+    root.querySelectorAll(".tl-pose").forEach(function(b){ if(b.disabled) return; b.onclick=function(){ pose=b.getAttribute("data-tlpose"); root.querySelectorAll(".tl-pose").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); stop(); show(idx); }; });
     show(0);
   }
 
@@ -1792,7 +1805,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 62 · review-pass</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 63 · timelapse-angle</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
