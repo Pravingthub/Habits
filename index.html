@@ -34,6 +34,7 @@
     --sh-3:0 6px 18px rgba(0,0,0,.5), 0 28px 56px -24px rgba(0,0,0,.8);
   }
   *{box-sizing:border-box}
+  button,input,select,textarea{color:inherit}
   [hidden]{display:none!important}
   html,body{margin:0;padding:0}
   body{
@@ -1722,7 +1723,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 58 · pro-screens</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 59 · card-text-fix</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
