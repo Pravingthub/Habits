@@ -300,20 +300,20 @@
   .cmp-poselab{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
   .cmp-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .cmp-pair img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;display:block}
-  .body-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:4px 0 14px}
+  .body-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin:6px 0 16px}
   .bodytoggle{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
   .coachtabs{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:16px}
   .ct-seg{flex:1;font:inherit;font-size:15px;font-weight:700;padding:11px 12px;border-radius:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
   .ct-seg.active{background:var(--accent);color:#fff}
   .bt-seg{flex:1;font:inherit;font-size:14px;font-weight:700;padding:9px 12px;border-radius:9px;border:0;background:transparent;color:var(--muted);cursor:pointer}
   .bt-seg.active{background:var(--accent);color:#fff}
-  .body-tile{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;min-width:0;overflow:hidden}
+  .body-tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 15px;min-width:0;overflow:hidden}
   .body-tile svg{max-height:60px}
   .duo .body-tiles{grid-template-columns:1fr;gap:9px}
   .duo .body-tile svg{max-height:74px;margin-top:7px}
-  .bt-label{font-size:11px;color:var(--muted);font-weight:600}
-  .bt-val{font-size:20px;font-weight:800;margin-top:2px;letter-spacing:-.01em}
-  .bt-sub{font-size:12.5px;font-weight:750;margin-top:2px;min-height:15px}
+  .bt-label{font-family:"Space Grotesk";font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+  .bt-val{font-family:"Space Grotesk";font-size:28px;font-weight:600;margin-top:6px;letter-spacing:-.01em;line-height:1}
+  .bt-sub{font-size:12.5px;font-weight:600;margin-top:7px;min-height:15px}
   .body-form{margin-top:2px}
   .body-inputs{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:11px}
   .bi{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;min-width:0}
@@ -326,11 +326,11 @@
   .body-table tr:last-child td{border-bottom:0}
   .lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
   /* weight */
-  .wcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);padding:16px 17px}
-  .whead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px;flex-wrap:wrap}
-  .wnow{font-family:"Space Grotesk";font-weight:800;font-size:clamp(24px,5vw,30px);letter-spacing:-.03em;line-height:1}
-  .wnow small{font-size:14px;color:var(--muted);font-weight:600;margin-left:2px}
-  .wdelta{font-family:"Space Grotesk";font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+  .wcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);padding:18px 18px 13px}
+  .whead{display:flex;flex-direction:column;align-items:flex-start;gap:5px;margin-bottom:2px}
+  .wnow{font-family:"Space Grotesk";font-weight:600;font-size:clamp(40px,10vw,52px);letter-spacing:-.03em;line-height:.95}
+  .wnow small{font-size:20px;color:var(--muted);font-weight:500;margin-left:3px}
+  .wdelta{font-family:"Space Grotesk";font-size:13px;font-weight:600;color:var(--muted)}
   .wdelta.down{color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent)}
   .wdelta.up{color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}
   .winput{display:flex;align-items:center;gap:8px;margin:12px 0 4px}
@@ -1508,6 +1508,11 @@
 
     // habits + notes (this month)
     var habits=state.habits[who]||[];
+    if(habits.length){
+      var csR=0; habits.forEach(function(x){csR+=habitConsistency(who,x,elapsed);});
+      var pctR=Math.round(csR/habits.length*100), accR=who==="swetha"?"var(--swetha)":"var(--pravin)", offR=(565.48*(1-pctR/100)).toFixed(1);
+      h.push('<div class="today-ring"><div class="tr-wrap"><svg width="212" height="212" viewBox="0 0 212 212"><circle cx="106" cy="106" r="90" fill="none" stroke="var(--surface-2)" stroke-width="14"/><circle cx="106" cy="106" r="90" fill="none" stroke="'+accR+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="565.48" stroke-dashoffset="'+offR+'"/></svg><div class="tr-mid"><div class="tr-v">'+pctR+'<span>%</span></div><div class="tr-l">'+MONTHS[view.m].slice(0,3)+' consistency</div><div class="tr-s">'+activeDays(who)+' active days · of '+elapsed+'</div></div></div></div>');
+    }
     h.push('<section><h2 class="eyebrow">'+esc(state.names[who])+' · '+MONTHS[view.m]+' '+view.y+'</h2>');
     if(!habits.length){ h.push('<div class="panel empty-p">No habits yet.</div>'); }
     else {
@@ -1717,7 +1722,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 57 · pro-dark-skin</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 58 · pro-screens</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
