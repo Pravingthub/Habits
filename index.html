@@ -785,7 +785,9 @@
   // weight ring: arc = progress from starting weight toward goal; centre = latest weight (editable on Today)
   function weightRing(who, editable){
     var accent=who==="swetha"?"var(--swetha)":"var(--pravin)", circ=565.48;
-    var ser=weightSeries(who), latestAll=ser.length?ser[ser.length-1].y:null, start=ser.length?ser[0].y:null, goal=getGoal(who);
+    var raw=[]; for(var wk in state.weights){ var pk=wk.split("|"); if(pk[0]===who) raw.push({ym:pk[1],day:+pk[2],y:+state.weights[wk]}); }
+    raw.sort(function(a,b){ return ymRank(a.ym)-ymRank(b.ym) || a.day-b.day; });
+    var latestAll=raw.length?raw[raw.length-1].y:null, start=raw.length?raw[0].y:null, goal=getGoal(who);
     var sel=getWeight(who,selDay), latest=(sel!=null?sel:latestAll);
     var pct;
     if(latest==null||start==null) pct=0;
@@ -793,8 +795,11 @@
     else pct=Math.max(0,Math.min(100, Math.round((start-latest)/(start-goal)*100)));
     var off=(circ*(1-pct/100)).toFixed(1);
     var remain = latest!=null ? (latest-goal) : null;
-    var prevY = ser.length>1 ? ser[ser.length-2].y : null;
-    var chg = (prevY!=null && latestAll!=null) ? (latestAll-prevY) : null;
+    // "since last" delta: compare the viewed day's entry to the entry just before it
+    var refIdx=-1;
+    if(sel!=null){ var ymk=ymKey(); for(var ri=0;ri<raw.length;ri++){ if(raw[ri].ym===ymk && raw[ri].day===selDay){ refIdx=ri; break; } } }
+    else { refIdx=raw.length-1; }
+    var chg = (refIdx>0) ? (raw[refIdx].y - raw[refIdx-1].y) : null;
     var chgTxt = (chg!=null && Math.abs(chg)>0.0001) ? ' <span class="tr-chg '+(chg<0?'good':'up')+'">'+(chg<0?'\u2193':'\u2191')+bfmt(Math.abs(chg))+'</span>' : '';
     var subTxt = latest==null ? (editable?'Tap the number to log today':'No weight logged')
                : ((remain>0.0001 ? bfmt(Math.abs(remain))+' kg to goal' : (remain<-0.0001 ? bfmt(Math.abs(remain))+' kg under goal' : 'Goal reached \u2713'))+chgTxt);
@@ -1799,7 +1804,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 66 · icon-cachebust</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 67 · ring-delta-byday</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
