@@ -124,6 +124,31 @@
   .tchip .ct{height:4px;border-radius:2px;background:var(--surface-2);margin-top:9px;overflow:hidden}
   .tchip .ct i{display:block;height:100%;border-radius:2px}
   .tchip .cd{font-size:12px;font-weight:600;margin-top:8px}
+  .habtile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-1);padding:16px 14px;margin-bottom:16px}
+  .habtile .tile-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px}
+  .habtile .tl{font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;color:var(--muted);font-weight:600}
+  .habtile .tc{font-family:"Space Grotesk";font-weight:600;font-size:13px;color:var(--muted)}
+  .habtile .tc b{color:var(--ink)}
+  .habrow{display:flex;flex-wrap:wrap;gap:14px 6px}
+  .habicon{flex:1 0 18%;min-width:62px;max-width:94px;display:flex;flex-direction:column;align-items:center;gap:7px;background:transparent;border:0;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+  .hwrap{position:relative;width:56px;height:56px}
+  .hprog{position:absolute;left:-4px;top:-4px;width:64px;height:64px}
+  .hchip{position:absolute;inset:0;display:grid;place-items:center;border-radius:16px;border:1.5px solid var(--line);background:var(--surface-2);transition:transform .12s,background .12s}
+  .habicon:active .hchip{transform:scale(.92)}
+  .hbadge{position:absolute;right:-3px;top:-3px;width:19px;height:19px;border-radius:99px;background:var(--good);display:grid;place-items:center;border:2px solid var(--surface)}
+  .hbadge svg{width:11px;height:11px}
+  .hbadge.rest{background:var(--muted)}
+  .hlabel{font-family:Inter;font-size:11px;font-weight:600;color:var(--muted);text-align:center;line-height:1.2;width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .habicon.done .hlabel{color:var(--ink)}
+  .hsub{font-family:"Space Grotesk";font-size:10px;font-weight:600;color:var(--muted);display:inline-flex;align-items:center;gap:2px;min-height:12px;line-height:1}
+  .hsub svg{width:9px;height:9px}
+  .habhint{font-size:11px;color:var(--muted);opacity:.8;text-align:center;margin-top:15px}
+  .iconbtn{display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)}
+  .iconpal{display:none;gap:6px;padding:11px 12px;flex-wrap:wrap;background:var(--surface-2);border-bottom:1px solid var(--line)}
+  .iconpal.open{display:flex}
+  .iconpal .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;cursor:pointer;border:1.5px solid var(--line);background:var(--surface);transition:.12s}
+  .iconpal .ic:hover{border-color:var(--muted)}
+  .iconpal .ic.sel{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 26%,transparent)}
   .today-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:13px;gap:10px}
   .today-head .date{font-family:"Space Grotesk";font-weight:800;font-size:clamp(21px,4.6vw,27px);letter-spacing:-.025em}
   .today-head .date span{background:linear-gradient(100deg,var(--accent),var(--accent-deep));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
@@ -955,7 +980,8 @@
     if(op.k==="mealAdd") return supa.from("meals").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0},{onConflict:"id"});
     if(op.k==="mealDel") return supa.from("meals").delete().eq("id",op.id);
     if(op.k==="mealSort") return supa.from("meals").update({sort:op.sort}).eq("id",op.id);
-    if(op.k==="habitAdd") return supa.from("habits").insert({id:op.id,person:op.person,label:op.label,color:op.color,sort:op.sort,week:op.week||0});
+    if(op.k==="habitAdd") return supa.from("habits").insert({id:op.id,person:op.person,label:op.label,color:op.color,sort:op.sort,week:op.week||0,icon:op.icon||null});
+    if(op.k==="habitIcon") return supa.from("habits").update({icon:op.icon}).eq("id",op.id);
     if(op.k==="habitRename") return supa.from("habits").update({label:op.label}).eq("id",op.id);
     if(op.k==="habitColor") return supa.from("habits").update({color:op.color}).eq("id",op.id);
     if(op.k==="habitFreq") return supa.from("habits").update({week:op.week}).eq("id",op.id);
@@ -990,7 +1016,7 @@
       var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[], tap=(r[10]&&r[10].data)||[], inb=(r[11]&&r[11].data)||[], gol=(r[12]&&r[12].data)||[];
       var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{},body:{},tape:{},inbody:{},goals:{}};
       ppl.forEach(function(p){ if(fresh.names[p.person]!==undefined) fresh.names[p.person]=p.display_name; });
-      hbs.forEach(function(h){ if(fresh.habits[h.person]) fresh.habits[h.person].push({id:h.id,label:h.label,color:h.color||"#888",sort:h.sort||0,week:h.week||0}); });
+      hbs.forEach(function(h){ if(fresh.habits[h.person]) fresh.habits[h.person].push({id:h.id,label:h.label,color:h.color||"#888",sort:h.sort||0,week:h.week||0,icon:h.icon||null}); });
       ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); if(!cloud && !fresh.habits[w].length) fresh.habits[w]=seedHabits(); });
       lgs.forEach(function(l){ fresh.logs[l.habit_id+"|"+l.ym+"|"+l.day]=l.state||"done"; });
       nts.forEach(function(n){ fresh.notes[n.person+"|"+n.ym+"|"+n.day]=n.body; });
@@ -1029,7 +1055,8 @@
     else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
     else if(op.k==="mealDel"){ if(s.meals) delete s.meals[op.id]; }
     else if(op.k==="mealSort"){ if(s.meals&&s.meals[op.id]) s.meals[op.id].sort=op.sort; }
-    else if(op.k==="habitAdd"){if(s.habits[op.person])s.habits[op.person].push({id:op.id,label:op.label,color:op.color,sort:op.sort,week:op.week||0});}
+    else if(op.k==="habitAdd"){if(s.habits[op.person])s.habits[op.person].push({id:op.id,label:op.label,color:op.color,sort:op.sort,week:op.week||0,icon:op.icon||null});}
+    else if(op.k==="habitIcon"){eachHabit(s,function(h){if(h.id===op.id)h.icon=op.icon;});}
     else if(op.k==="habitRename"){eachHabit(s,function(h){if(h.id===op.id)h.label=op.label;});}
     else if(op.k==="habitColor"){eachHabit(s,function(h){if(h.id===op.id)h.color=op.color;});}
     else if(op.k==="habitFreq"){eachHabit(s,function(h){if(h.id===op.id)h.week=op.week;});}
@@ -1042,6 +1069,47 @@
   var CHECK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>';
   var DASH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M6 12h12"/></svg>';
   var FLAME='<svg class="flame" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3-2 4-2 7 0 1.5 1 2.5 2 2.5S16 12 15 9c3 2 4 4.5 4 7a7 7 0 11-14 0c0-3 2-5 3-6.5C9.5 6 11 5 12 2z"/></svg>';
+  var HABIT_ICONS={
+    target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/>',
+    phone:'<rect x="7" y="3" width="10" height="18" rx="2"/><line x1="3.5" y1="4" x2="20.5" y2="20"/>',
+    sun:'<circle cx="12" cy="12" r="4.2"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.9" y1="4.9" x2="6.4" y2="6.4"/><line x1="17.6" y1="17.6" x2="19.1" y2="19.1"/><line x1="19.1" y1="4.9" x2="17.6" y2="6.4"/><line x1="6.4" y1="17.6" x2="4.9" y2="19.1"/>',
+    droplet:'<path d="M12 3c3 4 6 7 6 10a6 6 0 0 1-12 0c0-3 3-6 6-10z"/>',
+    dumbbell:'<path d="M6.5 8v8M17.5 8v8M4 10v4M20 10v4M6.5 12h11"/>',
+    run:'<circle cx="13" cy="4.5" r="1.7"/><path d="M5.5 20l3.2-5.2 2.8 1.9 2.2-3.9M13.5 8.5l4.2 2.2"/>',
+    walk:'<circle cx="12" cy="4.5" r="1.7"/><path d="M10.5 21l1.2-5.5-2-1.6 1-4 3 2 1.6 2.2M11.7 15.5L10.5 21"/>',
+    book:'<path d="M4 5.5A2 2 0 0 1 6 4h6v15H6a2 2 0 0 0-2 2z"/><path d="M20 5.5A2 2 0 0 0 18 4h-6v15h6a2 2 0 0 1 2 2z"/>',
+    moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>',
+    meditate:'<circle cx="12" cy="4.6" r="1.9"/><path d="M12 8v5M6 21l6-6 6 6M4.5 14h15"/>',
+    apple:'<path d="M12 7.5c-1.2-2-4-2.6-5.8-.8-2.6 2.7-.2 10 2.6 12 1 .7 2.4.7 3.4 0 2.8-2 5.2-9.3 2.6-12-1.3-1.3-3.4-1-4.4 .8z"/><path d="M12 7.5c.2-1.7 1.2-2.8 2.4-3.2"/>',
+    glass:'<path d="M6.5 4h11l-1 15a2 2 0 0 1-2 1.8H9.5a2 2 0 0 1-2-1.8L6.5 4z"/><path d="M7 9.5h10"/>',
+    heart:'<path d="M12 20s-7-4.5-9-9a4.4 4.4 0 0 1 9-2 4.4 4.4 0 0 1 9 2c-2 4.5-9 9-9 9z"/>',
+    pill:'<rect x="2.5" y="9" width="19" height="6" rx="3" transform="rotate(-45 12 12)"/><line x1="9" y1="9" x2="15" y2="15"/>',
+    brush:'<path d="M4 20s1.6-.6 1.6-2.4S7.4 15.4 8.6 16s.9 2.6-.6 3.6S4 20 4 20z"/><path d="M9.5 15.5l8.5-8.5a1.9 1.9 0 0 1 2.7 2.7l-8.5 8.5"/>',
+    leaf:'<path d="M4.5 19.5c0-8 6-13.5 15.5-15.5C18.5 12 12.5 19.5 4.5 19.5z"/><path d="M4.5 19.5c4-6 8-9 12-11"/>',
+    coffee:'<path d="M5 8h11v5a5 5 0 0 1-10 0V8z"/><path d="M16 9.2h2a2 2 0 0 1 0 6h-1.2"/><line x1="6.5" y1="3.5" x2="6.5" y2="5.2"/><line x1="10" y1="3.5" x2="10" y2="5.2"/>',
+    star:'<path d="M12 3l2.6 5.6 6 .7-4.4 4.1 1.2 6L12 16.9 6.6 19.4l1.2-6L3.4 9.3l6-.7L12 3z"/>'
+  };
+  var HABIT_ICON_KEYS=["target","phone","sun","droplet","glass","dumbbell","run","walk","book","moon","meditate","apple","heart","pill","brush","leaf","coffee","star"];
+  function iconSVG(key,color,px){ var inner=HABIT_ICONS[key]||HABIT_ICONS.target; return '<svg viewBox="0 0 24 24" width="'+px+'" height="'+px+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+inner+'</svg>'; }
+  function habitIconKey(hb){
+    if(hb.icon && HABIT_ICONS[hb.icon]) return hb.icon;
+    var l=(hb.label||"").toLowerCase();
+    if(/phone|screen|scroll/.test(l)) return "phone";
+    if(/sun|light|outdoor|vitamin d/.test(l)) return "sun";
+    if(/water|drink|hydrat/.test(l)) return "droplet";
+    if(/coach|gym|lift|strength|weight train|workout with/.test(l)) return "dumbbell";
+    if(/run|jog|sprint|cardio/.test(l)) return "run";
+    if(/walk|steps|stroll/.test(l)) return "walk";
+    if(/self.?work|workout|exercise|train/.test(l)) return "dumbbell";
+    if(/read|book|study|learn/.test(l)) return "book";
+    if(/sleep|bed/.test(l)) return "moon";
+    if(/meditat|breath|calm|yoga|mindful|journal/.test(l)) return "meditate";
+    if(/food|eat|diet|meal|fast|protein/.test(l)) return "apple";
+    if(/coffee|caffeine|tea/.test(l)) return "coffee";
+    if(/pill|supplement|vitamin|med|omega/.test(l)) return "pill";
+    if(/brush|teeth|dental|floss/.test(l)) return "brush";
+    return "target";
+  }
 
   // Dependency-free SVG line chart. series=[{name,color,points:[{x,y}]}], dim=days in month.
   function weightChart(series,dim){
@@ -1145,16 +1213,26 @@
     var wGoalH=getWaterGoal(who), sGoalH=getStepsGoal(who);
     h+='<section>';
     h+=weightRing(who,true);
-    h+='<div class="today-head"><div class="date display">'+dateLabel+'</div><div class="prog mono">'+done+' / '+habits.length+' habits</div></div><div class="cards">';
-    if(!habits.length) h+='<div class="empty-note">No habits yet. Add some in the Habits tab.</div>';
-    habits.forEach(function(hb){
-      var on=isDone(hb.id,td), sk=isSkip(hb.id,td), sub, srest="";
-      if(sk){ sub="Rest day"; srest=" rest"; }
-      else if(hb.week>0){ var wd=thisWeekDone(hb.id); sub=wd+' / '+hb.week+' this week'+(wd>=hb.week?' — goal hit':''); }
-      else { var st=currentStreak(who,hb.id); sub=st>0?FLAME+st+' day'+(st>1?'s':'')+' in a row':'Not marked'; }
-      var icon=on?CHECK:(sk?DASH:CHECK);
-      h+='<button class="card'+(on?' done':'')+(sk?' skip':'')+'" style="--c:'+hb.color+'" data-today="'+hb.id+'"><span class="check">'+icon+'</span><span class="body"><span class="name">'+esc(hb.label)+(hb.week>0?' · '+hb.week+'×/wk':'')+'</span><span class="streak'+srest+'">'+sub+'</span></span></button>';
-    });
+    h+='<div class="today-head"><div class="date display">'+dateLabel+'</div><div class="prog mono">'+done+' / '+habits.length+' habits</div></div>';
+    h+='<div class="habtile"><div class="tile-h"><span class="tl">Habits</span><span class="tc"><b>'+done+'</b> / '+habits.length+(real?' today':'')+'</span></div>';
+    if(!habits.length){ h+='<div class="empty-note" style="padding:4px 2px">No habits yet. Add some in the Habits tab.</div>'; }
+    else {
+      h+='<div class="habrow">';
+      habits.forEach(function(hb){
+        var on=isDone(hb.id,td), sk=isSkip(hb.id,td), key=habitIconKey(hb);
+        var iconColor = on?'#0B0C0F':(sk?'var(--muted)':hb.color);
+        var ring="";
+        if(hb.week>0 && !sk){ var wd=thisWeekDone(hb.id), frac=Math.max(0,Math.min(1,wd/hb.week)), C=188.5; ring='<svg class="hprog" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="none" stroke="var(--surface-2)" stroke-width="3"/>'+(frac>0?'<circle cx="32" cy="32" r="30" fill="none" stroke="'+hb.color+'" stroke-width="3" stroke-linecap="round" stroke-dasharray="'+(C*frac).toFixed(1)+' '+C+'" transform="rotate(-90 32 32)"/>':'')+'</svg>'; }
+        var chipStyle = on?('background:'+hb.color+';border-color:transparent') : (sk?'':'border-color:color-mix(in srgb,'+hb.color+' 34%,transparent)');
+        var badge = on?'<span class="hbadge"><svg viewBox="0 0 24 24" fill="none" stroke="#0B0C0F" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>' : (sk?'<span class="hbadge rest"><svg viewBox="0 0 24 24" fill="none" stroke="#0B0C0F" stroke-width="3.6" stroke-linecap="round"><path d="M6 12h12"/></svg></span>':'');
+        var subl;
+        if(sk){ subl='<span class="hsub">Rest</span>'; }
+        else if(hb.week>0){ var wd2=thisWeekDone(hb.id); subl='<span class="hsub" style="color:'+hb.color+'">'+wd2+'/'+hb.week+' wk</span>'; }
+        else { var stk=currentStreak(who,hb.id); subl = stk>1?'<span class="hsub" style="color:'+hb.color+'">'+FLAME+stk+'</span>':'<span class="hsub">&nbsp;</span>'; }
+        h+='<button class="habicon'+(on?' done':'')+(sk?' rest':'')+'" data-today="'+hb.id+'" aria-label="'+esc(hb.label)+(on?' (done)':'')+'"><span class="hwrap">'+ring+'<span class="hchip" style="'+chipStyle+'">'+iconSVG(key,iconColor,26)+badge+'</span></span><span class="hlabel">'+esc(hb.label)+'</span>'+subl+'</button>';
+      });
+      h+='</div><div class="habhint">Tap to complete · long-press for a rest day</div>';
+    }
     h+='</div>';
     var wtot=getWater(who,td), goal=wGoalH, wpct=Math.min(100,Math.round(wtot/goal*100));
     var stot=getSteps(who,td), sgoal=sGoalH, spct=Math.min(100,Math.round(stot/sgoal*100));
@@ -1189,7 +1267,8 @@
     h+='<section><div class="sec-head"><span class="sec-name" style="--c:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'">'+esc(state.names[who])+'’s habits</span><button class="mini-edit" id="renameProfile">✎ Rename '+esc(state.names[who])+'</button></div><div class="editor">';
     habits.forEach(function(hb,i){
       var freqLabel=hb.week>0?hb.week+'×/wk':'Daily';
-      h+='<div class="hrow"><button class="swatch-btn" style="background:'+hb.color+'" data-color="'+hb.id+'" aria-label="Change colour"></button><input class="hname" value="'+esc(hb.label)+'" data-rename="'+hb.id+'" aria-label="Habit name" /><button class="freqbtn" data-freq="'+hb.id+'" title="Target">'+freqLabel+'</button><button class="del" data-del="'+hb.id+'" aria-label="Remove habit">✕</button></div>';
+      h+='<div class="hrow"><button class="swatch-btn iconbtn" data-iconbtn="'+hb.id+'" aria-label="Change icon">'+iconSVG(habitIconKey(hb),hb.color,18)+'</button><button class="swatch-btn" style="background:'+hb.color+'" data-color="'+hb.id+'" aria-label="Change colour"></button><input class="hname" value="'+esc(hb.label)+'" data-rename="'+hb.id+'" aria-label="Habit name" /><button class="freqbtn" data-freq="'+hb.id+'" title="Target">'+freqLabel+'</button><button class="del" data-del="'+hb.id+'" aria-label="Remove habit">✕</button></div>';
+      h+='<div class="iconpal" data-iconpal="'+hb.id+'">'+HABIT_ICON_KEYS.map(function(k){var selk=habitIconKey(hb)===k;return '<button class="ic'+(selk?' sel':'')+'" data-pickicon="'+hb.id+'|'+k+'" aria-label="'+k+'">'+iconSVG(k,selk?hb.color:'var(--muted)',20)+'</button>';}).join("")+'</div>';
       h+='<div class="palette" data-pal="'+hb.id+'">'+PALETTE.map(function(c){return '<button class="sw'+(c.toLowerCase()===String(hb.color).toLowerCase()?' sel':'')+'" style="background:'+c+'" data-pick="'+hb.id+'|'+c+'" aria-label="colour"></button>';}).join("")+'</div>';
       var opts='<button class="fq'+(hb.week===0?' sel':'')+'" data-fq="'+hb.id+'|0">Daily</button>';
       for(var wk=1;wk<=6;wk++) opts+='<button class="fq'+(hb.week===wk?' sel':'')+'" data-fq="'+hb.id+'|'+wk+'">'+wk+'×/wk</button>';
@@ -1767,13 +1846,15 @@
     app.querySelectorAll("[data-bodyview]").forEach(function(el){ el.onclick=function(){ bodyView=el.getAttribute("data-bodyview"); render(); }; });
     app.querySelectorAll("[data-rename]").forEach(function(el){el.onchange=function(){var hb=find(who,el.dataset.rename);if(hb){hb.label=el.value.trim()||hb.label;enqueue({k:"habitRename",id:hb.id,label:hb.label});saveCache();render();}};});
     app.querySelectorAll("[data-color]").forEach(function(el){el.onclick=function(){var pal=app.querySelector('[data-pal="'+el.dataset.color+'"]');if(pal)pal.classList.toggle("open");};});
+    app.querySelectorAll("[data-iconbtn]").forEach(function(el){el.onclick=function(){var ip=app.querySelector('[data-iconpal="'+el.dataset.iconbtn+'"]');if(ip)ip.classList.toggle("open");};});
+    app.querySelectorAll("[data-pickicon]").forEach(function(el){el.onclick=function(){var p=el.dataset.pickicon.split("|"),hb=find(who,p[0]);if(hb){hb.icon=p[1];enqueue({k:"habitIcon",id:hb.id,icon:p[1]});saveCache();render();}};});
     app.querySelectorAll("[data-pick]").forEach(function(el){el.onclick=function(){var p=el.dataset.pick.split("|"),hb=find(who,p[0]);if(hb){hb.color=p[1];enqueue({k:"habitColor",id:hb.id,color:p[1]});saveCache();render();}};});
     app.querySelectorAll("[data-freq]").forEach(function(el){el.onclick=function(){var fp=app.querySelector('[data-fqp="'+el.dataset.freq+'"]');if(fp)fp.classList.toggle("open");};});
     app.querySelectorAll("[data-mmv]").forEach(function(el){el.onclick=function(){var p=el.dataset.mmv.split("|");moveMeal(who,+p[1],p[2],p[0]);};});
     app.querySelectorAll("[data-fq]").forEach(function(el){el.onclick=function(){var p=el.dataset.fq.split("|"),hb=find(who,p[0]);if(hb){hb.week=+p[1];enqueue({k:"habitFreq",id:hb.id,week:hb.week});saveCache();render();}};});
     app.querySelectorAll("[data-del]").forEach(function(el){el.onclick=function(){var hb=find(who,el.dataset.del);if(hb&&confirm('Remove "'+hb.label+'"? Its logged days will be cleared.')){state.habits[who]=state.habits[who].filter(function(x){return x.id!==hb.id;});var pre=hb.id+"|";Object.keys(state.logs).forEach(function(k){if(k.indexOf(pre)===0)delete state.logs[k];});enqueue({k:"habitDel",id:hb.id});saveCache();render();}};});
     var add=document.getElementById("addHabit"),inp=document.getElementById("newHabit");
-    function addH(){var v=(inp.value||"").trim();if(!v)return;var color=PALETTE[state.habits[who].length%PALETTE.length],id=uid(),sort=state.habits[who].length;state.habits[who].push({id:id,label:v,color:color,sort:sort,week:0});enqueue({k:"habitAdd",person:who,id:id,label:v,color:color,sort:sort,week:0});inp.value="";saveCache();render();var n=document.getElementById("newHabit");if(n)n.focus();}
+    function addH(){var v=(inp.value||"").trim();if(!v)return;var color=PALETTE[state.habits[who].length%PALETTE.length],id=uid(),sort=state.habits[who].length,ic=habitIconKey({label:v});state.habits[who].push({id:id,label:v,color:color,sort:sort,week:0,icon:ic});enqueue({k:"habitAdd",person:who,id:id,label:v,color:color,sort:sort,week:0,icon:ic});inp.value="";saveCache();render();var n=document.getElementById("newHabit");if(n)n.focus();}
     if(add)add.onclick=addH; if(inp)inp.onkeydown=function(e){if(e.key==="Enter")addH();};
     var rp=document.getElementById("renameProfile");
     if(rp)rp.onclick=function(){var v=prompt("Name for this person:",state.names[who]);if(v&&v.trim()){state.names[who]=v.trim();enqueue({k:"person",person:who,name:v.trim()});saveCache();render();}};
@@ -1816,7 +1897,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 68 · targets-inline</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 69 · habit-icons</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
