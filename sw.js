@@ -1,12 +1,12 @@
 /* Daily Habits — service worker */
-const CACHE = "daily-habits-v65";
+const CACHE = "daily-habits-v66";
 const SHELL = [
   "./",
   "./index.html",
   "./supabase.min.js",
   "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./icon-arc-192.png",
+  "./icon-arc-512.png"
 ];
 
 self.addEventListener("install", (e) => {
