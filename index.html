@@ -263,6 +263,10 @@
   .qspan{grid-column:1/-1}
   .water-total{font-size:22px;font-weight:750;color:var(--ink);margin:2px 0 8px}
   .water-total .water-goal{font-size:12px;font-weight:600;color:var(--muted)}
+  .goaltap{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;text-decoration-color:var(--muted)}
+  .goal-inline{font-family:"Space Grotesk";font-weight:600;font-size:15px;width:5.5em;max-width:130px;background:var(--surface-2);border:1px solid var(--accent);border-radius:8px;color:var(--ink);padding:3px 8px;text-align:center}
+  .goal-inline:focus{outline:none}
+  .goal-inline::-webkit-outer-spin-button,.goal-inline::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .water-bar{height:7px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-bottom:11px}
   .water-bar i{display:block;height:100%;border-radius:99px;transition:width .25s ease}
   .water-btns{display:flex;flex-wrap:wrap;gap:7px}
@@ -1154,13 +1158,8 @@
     h+='</div>';
     var wtot=getWater(who,td), goal=wGoalH, wpct=Math.min(100,Math.round(wtot/goal*100));
     var stot=getSteps(who,td), sgoal=sGoalH, spct=Math.min(100,Math.round(stot/sgoal*100));
-    h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
-    h+='<div class="qcard"><div class="qlabel">Steps'+(real?' today':' this day')+'</div><div class="water-total"><b>'+stot.toLocaleString()+'</b> <span class="water-goal">/ '+sgoal.toLocaleString()+'</span></div><div class="water-bar"><i style="width:'+spct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="winput" style="margin-top:11px"><span class="ibox"><input type="number" step="100" min="0" inputmode="numeric" id="stInput" value="'+(stot>0?stot:'')+'" placeholder="0" aria-label="Steps"/><span class="kg">steps</span></span><button class="btn accent" id="stSave">Save</button></div></div>';
-    h+='<div class="qcard qspan"><div class="qlabel">Targets</div><div class="goalgrid">'
-      +'<label class="glab"><span>Weight</span><span class="gin"><input type="number" step="0.5" min="0" inputmode="decimal" id="goalWt" data-goal="weight" value="'+getGoal(who)+'" aria-label="Weight goal kg"/><u>kg</u></span></label>'
-      +'<label class="glab"><span>Water</span><span class="gin"><input type="number" step="250" min="0" inputmode="numeric" data-goal="water" value="'+wGoalH+'" aria-label="Water goal ml"/><u>ml</u></span></label>'
-      +'<label class="glab"><span>Steps</span><span class="gin"><input type="number" step="500" min="0" inputmode="numeric" data-goal="steps" value="'+sGoalH+'" aria-label="Steps goal"/></span></label>'
-      +'</div></div>';
+    h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal goaltap" data-goaltap="water" title="Tap to set goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
+    h+='<div class="qcard"><div class="qlabel">Steps'+(real?' today':' this day')+'</div><div class="water-total"><b>'+stot.toLocaleString()+'</b> <span class="water-goal goaltap" data-goaltap="steps" title="Tap to set goal">/ '+sgoal.toLocaleString()+'</span></div><div class="water-bar"><i style="width:'+spct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="winput" style="margin-top:11px"><span class="ibox"><input type="number" step="100" min="0" inputmode="numeric" id="stInput" value="'+(stot>0?stot:'')+'" placeholder="0" aria-label="Steps"/><span class="kg">steps</span></span><button class="btn accent" id="stSave">Save</button></div></div>';
     h+='<div class="qcard qspan"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
     h+='<div class="noterow"><div class="nlabel">Note for '+td+' '+MONTHS[view.m].slice(0,3)+(real?' · today':'')+' (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea><div class="noterowbtn"><button class="btn accent" id="noteSave">Save note</button></div></div>';
     h+='</section>';
@@ -1700,11 +1699,24 @@
     app.querySelectorAll("[data-sec]").forEach(function(el){ el.onclick=function(){ section=el.dataset.sec; render(); window.scrollTo(0,0); }; });
     var rw=document.getElementById("ringWt");
     if(rw) rw.addEventListener("change",function(){ var v=rw.value.trim(); if(v===""){ setWeight(who,selDay,null); } else { var n=parseFloat(v); if(isNaN(n)||n<0){ toast("Enter a valid weight"); return; } setWeight(who,selDay,n); } render(); toast("Weight saved"); });
-    var rg=document.getElementById("ringGoal");
-    if(rg) rg.onclick=function(){ var g=document.getElementById("goalWt"); if(g){ g.scrollIntoView({behavior:"smooth",block:"center"}); setTimeout(function(){ g.focus(); g.select&&g.select(); },300); } };
-    app.querySelectorAll("[data-goal]").forEach(function(el){
-      el.addEventListener("change",function(){ var v=parseFloat(el.value); if(isNaN(v)||v<0){ toast("Enter a valid target"); return; } var patch={}; patch[el.dataset.goal]=v; setGoal(who,patch); render(); toast("Target updated"); });
-    });
+    function bindGoalTap(el,gkey){
+      if(!el) return;
+      el.style.cursor="pointer";
+      el.onclick=function(){
+        var cur = gkey==="weight"?getGoal(who) : (gkey==="water"?getWaterGoal(who):getStepsGoal(who));
+        var inp=document.createElement("input");
+        inp.type="number"; inp.value=cur; inp.className="goal-inline";
+        inp.setAttribute("inputmode", gkey==="weight"?"decimal":"numeric");
+        inp.step = gkey==="weight"?"0.5":(gkey==="water"?"250":"500"); inp.min="0";
+        el.replaceWith(inp); inp.focus(); if(inp.select) inp.select();
+        var done=false;
+        function commit(save){ if(done) return; done=true; if(save){ var v=parseFloat(inp.value); if(!isNaN(v)&&v>0){ var patch={}; patch[gkey]=v; setGoal(who,patch); toast("Target updated"); } } render(); }
+        inp.addEventListener("blur",function(){ commit(true); });
+        inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
+      };
+    }
+    bindGoalTap(document.getElementById("ringGoal"),"weight");
+    app.querySelectorAll("[data-goaltap]").forEach(function(el){ bindGoalTap(el, el.getAttribute("data-goaltap")); });
     app.querySelectorAll("[data-today]").forEach(function(el){
       press(el, function(){ tapCell(who,el.dataset.today,selDay); render(); },
                 function(){ skipCell(who,el.dataset.today,selDay); render(); });
@@ -1804,7 +1816,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 67 · ring-delta-byday</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 68 · targets-inline</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
