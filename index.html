@@ -357,6 +357,7 @@
   .bodytoggle{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
   .coachtabs{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:16px}
   .ct-seg{flex:1;font:inherit;font-size:15px;font-weight:700;padding:11px 12px;border-radius:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+  .coachsub{margin:2px 0 16px}
   .ct-seg.active{background:var(--accent);color:#fff}
   .bt-seg{flex:1;font:inherit;font-size:14px;font-weight:700;padding:9px 12px;border-radius:9px;border:0;background:transparent;color:var(--muted);cursor:pointer}
   .bt-seg.active{background:var(--accent);color:#fff}
@@ -612,6 +613,8 @@
   var tlTimers={};           // running timelapse interval handles, keyed by widget
   var bodyView="skinfold";   // Body tab sub-view: "skinfold" | "tape"
   var coachWho="pravin";     // Coach view sub-tab: "pravin" | "swetha"
+  var coachSec="habits";     // Coach section: "habits" | "weight" | "photos" | "measurements"
+  var coachBody="skinfold";  // Coach Measurements sub-view: "skinfold" | "tape" | "inbody"
   var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
   var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   function ymKey(){return view.y+"-"+(view.m+1);}
@@ -1493,52 +1496,35 @@
     for(var id in state.photos){ var ph=state.photos[id]; if(ph.person===who&&ph.ym===ym) return true; }
     return false;
   }
-  function repTrendsPerson(who){
-    var col=who==="swetha"?"#DD5A86":"#E08A1E", name=esc(state.names[who]||who);
+  function repWeightCard(who){
+    var col=who==="swetha"?"#DD5A86":"#E08A1E";
     var ws=[]; for(var k in state.weights){var p=k.split("|"); if(p[0]===who) ws.push({r:ymRank(p[1])*31+(+p[2]),y:+state.weights[k]});}
     ws.sort(function(a,b){return a.r-b.r;});
     var wpts=ws.map(function(e,i){return {x:i,y:e.y};});
-    var h='<div class="rp-person"><h4 class="rp-cardh">Trends · all time</h4>';
-    h+='<div class="rp-sec"><div class="rp-lab">Weight · all time</div>';
+    var h='<div class="rp-person"><h4 class="rp-cardh">Weight · all time</h4><div class="rp-sec">';
     if(wpts.length){ var f=wpts[0].y,l=wpts[wpts.length-1].y,dw=l-f; h+='<div class="rp-big">'+wfmt(l)+' kg '+(wpts.length>1?'<span class="rp-bchg '+(dw<0?"good":(dw>0?"bad":""))+'">'+(dw>0?"+":"")+wfmt(dw)+'</span>':'')+'</div>'; var g=getGoal(who),rem=l-g; h+='<div class="rp-sub">Target '+bfmt(g)+' kg'+(rem>0.05?' \u00b7 '+bfmt(rem)+' to go':(rem<-0.05?' \u00b7 '+bfmt(Math.abs(rem))+' under':' \u00b7 reached'))+'</div>'; } else { h+='<div class="rp-sub">No weight logged</div>'; }
-    h+=repLine(wpts,col)+'</div>';
-    var bent=[]; for(var bk in state.body){var bp=bk.split("|"); if(bp[0]===who){var bv=state.body[bk]; if(bv&&(bv.site1!=null||bv.site2!=null||bv.site3!=null||bv.bodyfat!=null)) bent.push({r:ymRank(bp[1])*31+(+bp[2]),vals:bv});}}
-    bent.sort(function(a,b){return a.r-b.r;});
-    if(bent.length){
-      h+='<div class="rp-sec"><div class="rp-lab">Skinfold &amp; body fat · all time</div><div class="rp-bodygrid">';
-      bodySites(who).forEach(function(m){
-        var pts=[]; bent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
-        var lv=pts.length?pts[pts.length-1].y:null, sub="";
-        if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
-        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+(pts.length>1?repLine(pts,BODY_COLORS[m.k]):"")+'</div>';
-      });
-      h+='</div></div>';
-    }
-    var tent=[]; for(var tk in state.tape){var tp=tk.split("|"); if(tp[0]===who){var tv=state.tape[tk]; if(tv&&(tv.thigh!=null||tv.triceps!=null||tv.hip!=null||tv.waist!=null||tv.abdomen!=null)) tent.push({r:ymRank(tp[1])*31+(+tp[2]),vals:tv});}}
-    tent.sort(function(a,b){return a.r-b.r;});
-    if(tent.length){
-      h+='<div class="rp-sec"><div class="rp-lab">Tape measurements · all time</div><div class="rp-bodygrid">';
-      tapeMetrics().forEach(function(m){
-        var pts=[]; tent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
-        var lv=pts.length?pts[pts.length-1].y:null, sub="";
-        if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
-        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+(pts.length>1?repLine(pts,TAPE_COLORS[m.k]):"")+'</div>';
-      });
-      h+='</div></div>';
-    }
-    var ient=[]; for(var ik in state.inbody){var ip=ik.split("|"); if(ip[0]===who){var iv=state.inbody[ik]; if(iv&&(iv.smm!=null||iv.bfm!=null||iv.bmi!=null||iv.bfp!=null||iv.vfa!=null||iv.whr!=null)) ient.push({r:ymRank(ip[1])*31+(+ip[2]),vals:iv});}}
-    ient.sort(function(a,b){return a.r-b.r;});
-    if(ient.length){
-      h+='<div class="rp-sec"><div class="rp-lab">InBody data · all time</div><div class="rp-bodygrid">';
-      inbodyMetrics().forEach(function(m){
-        var pts=[]; ient.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
-        var lv=pts.length?pts[pts.length-1].y:null, sub="";
-        if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
-        h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+(pts.length>1?repLine(pts,INBODY_COLORS[m.k]):"")+'</div>';
-      });
-      h+='</div></div>';
-    }
-    return h+'</div>';
+    h+=repLine(wpts,col)+'</div></div>';
+    return h;
+  }
+  function repMeasGrid(who,store,metrics,colors,keys,label){
+    var ent=[]; for(var mk in store){var mp=mk.split("|"); if(mp[0]===who){var mv=store[mk]; var has=false; keys.forEach(function(kk){if(mv&&mv[kk]!=null)has=true;}); if(has) ent.push({r:ymRank(mp[1])*31+(+mp[2]),vals:mv});}}
+    ent.sort(function(a,b){return a.r-b.r;});
+    if(!ent.length) return "";
+    var h='<div class="rp-sec"><div class="rp-lab">'+label+'</div><div class="rp-bodygrid">';
+    metrics.forEach(function(m){
+      var pts=[]; ent.forEach(function(e,i){ if(e.vals[m.k]!=null) pts.push({x:i,y:+e.vals[m.k]}); });
+      var lv=pts.length?pts[pts.length-1].y:null, sub="";
+      if(pts.length>1){ var d0=pts[pts.length-1].y-pts[0].y, gc=d0===0?"":((m.good==="down"?d0<0:d0>0)?"good":"bad"); sub='<span class="rp-bchg '+gc+'">'+(d0>0?"+":"")+bfmt(d0)+'</span>'; }
+      h+='<div class="rp-bodycard"><div class="rp-lab">'+m.label+'</div><div class="rp-big">'+(lv!=null?bfmt(lv)+bunit(m):"—")+' '+sub+'</div>'+(pts.length>1?repLine(pts,colors[m.k]):"")+'</div>';
+    });
+    return h+'</div></div>';
+  }
+  function repMeasCard(who){
+    var sk=repMeasGrid(who,state.body,bodySites(who),BODY_COLORS,["site1","site2","site3","bodyfat"],"Skinfold &amp; body fat");
+    var tp=repMeasGrid(who,state.tape,tapeMetrics(),TAPE_COLORS,["thigh","triceps","hip","waist","abdomen"],"Tape measurements");
+    var ib=repMeasGrid(who,state.inbody,inbodyMetrics(),INBODY_COLORS,["smm","bfm","bmi","bfp","vfa","whr"],"InBody data");
+    if(!sk && !tp && !ib) return "";
+    return '<div class="rp-person"><h4 class="rp-cardh">Measurements · all time</h4>'+sk+tp+ib+'</div>';
   }
   function repPhotosBoth(ym,pmap){
     var dset={};
@@ -1568,6 +1554,7 @@
       +".rp-person-sec{max-width:920px;margin:0 auto;padding:4px 16px 26px}.rp-personhdr{font-size:25px;font-weight:800;margin:22px 0 2px;padding-bottom:9px;border-bottom:3px solid #ccc}"
       +".rp-person{background:#fff;border:1px solid #e7e1d7;border-radius:14px;padding:16px;min-width:0;margin-top:14px}.rp-cardh{margin:0 0 4px;font-size:16px;font-weight:700}"
       +".rp-sec{margin-top:14px}.rp-lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#9a948a;margin-bottom:6px;font-weight:700}"
+      +".rp-sechdr{margin:22px 0 2px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a827a}"
       +".rp-big{font-size:23px;font-weight:800}.rp-sub{font-size:12.5px;color:#6b655c}"
       +".rp-grid{border-collapse:collapse;font-size:9px}.rp-gd{text-align:center;color:#b0a99e;padding:1px 2px}.rp-gh{padding:2px 6px 2px 0;white-space:nowrap;font-size:11px}.rp-cell{width:9px;height:9px;border-radius:2px}"
       +".rp-note{font-size:12.5px;background:#FBF4E8;border-left:4px solid #EAD9BC;border-radius:8px;padding:7px 10px;margin-top:6px}"
@@ -1583,12 +1570,19 @@
       persons.forEach(function(who){
         var pcol=who==="swetha"?"#DD5A86":"#E08A1E";
         body+='<section class="rp-person-sec"><h2 class="rp-personhdr" style="border-color:'+pcol+'"><span style="color:'+pcol+'">'+esc(state.names[who]||who)+'</span></h2>';
-        body+=repTrendsPerson(who);
-        months.forEach(function(ym){
-          if(!personActiveInMonth(who,ym)) return;
-          body+=repPersonMonth(who,ym);
-          body+=repPersonPhotos(who,ym,pmap);
-        });
+        // Habits
+        var mActive=months.filter(function(ym){return personActiveInMonth(who,ym);});
+        body+='<div class="rp-sechdr">Habits</div>';
+        if(mActive.length){ mActive.forEach(function(ym){ body+=repPersonMonth(who,ym); }); }
+        else body+='<div class="rp-person"><div class="rp-sub">No habit activity logged.</div></div>';
+        // Weight
+        body+='<div class="rp-sechdr">Weight</div>'+repWeightCard(who);
+        // Photos
+        var ph=""; months.forEach(function(ym){ ph+=repPersonPhotos(who,ym,pmap); });
+        body+='<div class="rp-sechdr">Photos</div>'+(ph||'<div class="rp-person"><div class="rp-sub">No photos yet.</div></div>');
+        // Measurements
+        var mc=repMeasCard(who);
+        body+='<div class="rp-sechdr">Measurements</div>'+(mc||'<div class="rp-person"><div class="rp-sub">No measurements logged.</div></div>');
         body+='</section>';
       });
     }
@@ -1658,85 +1652,81 @@
 
   function renderBoth(){
     var dim=daysIn(view.y,view.m), showToday=isThisMonth(), elapsed=showToday?todayDate():dim;
-    var who=coachWho, pc=who==="swetha"?"var(--swetha)":"var(--pravin)";
+    var who=coachWho, pc=who==="swetha"?"var(--swetha)":"var(--pravin)", habits=state.habits[who]||[];
     var h=['<div class="coachtabs"><button class="ct-seg'+(who==="pravin"?" active":"")+'" data-coachwho="pravin" type="button">Pravin</button><button class="ct-seg'+(who==="swetha"?" active":"")+'" data-coachwho="swetha" type="button">Swetha</button></div>'];
 
-    // habits + notes (this month)
-    var habits=state.habits[who]||[];
-    if(weightSeries(who).length || habits.length){
-      h.push(weightRing(who,false));
+    // persistent weight-ring header
+    if(weightSeries(who).length || habits.length){ h.push(weightRing(who,false)); }
+
+    // section sub-tabs
+    var SECS=[["habits","Habits"],["weight","Weight"],["photos","Photos"],["measurements","Measurements"]];
+    h.push('<div class="tabs coachsub">'+SECS.map(function(s){return '<button class="tab'+(coachSec===s[0]?" active":"")+'" data-coachsec="'+s[0]+'" type="button">'+s[1]+'</button>';}).join("")+'</div>');
+
+    if(coachSec==="habits"){
+      h.push('<section><h2 class="eyebrow">'+esc(state.names[who])+' · '+MONTHS[view.m]+' '+view.y+'</h2>');
+      if(!habits.length){ h.push('<div class="panel empty-p">No habits yet.</div>'); }
+      else {
+        var cs=0; habits.forEach(function(x){cs+=habitConsistency(who,x,elapsed);});
+        var pctH=Math.round(cs/habits.length*100), ad=activeDays(who), strip="", lw=latestWeight(who);
+        for(var sd=1;sd<=dim;sd++){ strip+='<span class="d'+(dayTotal(who,sd)>0?' on':'')+'"></span>'; }
+        h.push('<div class="panel" style="--pc:'+pc+'"><div class="sub">'+pctH+'% consistent'+(lw?' \u00b7 '+wfmt(lw.y)+' kg':'')+'</div><div class="bignum">'+ad+' <small>active days · of '+elapsed+'</small></div><div class="daystrip">'+strip+'</div><div class="hlist">');
+        habits.forEach(function(hb){
+          var w=Math.round(habitConsistency(who,hb,elapsed)*100), label, st=currentStreak(who,hb.id);
+          if(hb.week>0){ var wd=thisWeekDone(hb.id); label=wd+'/'+hb.week+' this wk'+(wd>=hb.week?' \u2713':''); }
+          else { label=habitCount(hb.id)+'/'+elapsed+(st>1?' \u00b7 '+st+' \ud83d\udd25':''); }
+          h.push('<div class="hitem"><div class="row1"><b><span class="sw" style="background:'+hb.color+'"></span><span>'+esc(hb.label)+'</span></b><span class="v">'+label+'</span></div><div class="bar"><i style="width:'+w+'%;background:'+hb.color+'"></i></div></div>');
+        });
+        var nkeys=[]; for(var k in state.notes){ var pr=who+"|"+ymKey()+"|"; if(k.indexOf(pr)===0) nkeys.push(+k.slice(pr.length)); }
+        nkeys.sort(function(a,b){return b-a;});
+        h.push('<div class="noteslist"><div class="nl-h">Notes</div>');
+        if(!nkeys.length) h.push('<div class="nl-empty">No notes yet this month.</div>');
+        nkeys.slice(0,5).forEach(function(d){ h.push('<div class="nl"><span class="dd">'+d+' '+MONTHS[view.m].slice(0,3)+'</span><span class="bd">'+esc(getNote(who,d))+'</span></div>'); });
+        h.push('</div></div>');
+      }
+      h.push('</section>');
     }
-    h.push('<section><h2 class="eyebrow">'+esc(state.names[who])+' · '+MONTHS[view.m]+' '+view.y+'</h2>');
-    if(!habits.length){ h.push('<div class="panel empty-p">No habits yet.</div>'); }
-    else {
-      var cs=0; habits.forEach(function(x){cs+=habitConsistency(who,x,elapsed);});
-      var pct=Math.round(cs/habits.length*100), ad=activeDays(who), strip="", lw=latestWeight(who);
-      for(var sd=1;sd<=dim;sd++){ strip+='<span class="d'+(dayTotal(who,sd)>0?' on':'')+'"></span>'; }
-      h.push('<div class="panel" style="--pc:'+pc+'"><div class="sub">'+pct+'% consistent'+(lw?' \u00b7 '+wfmt(lw.y)+' kg':'')+'</div><div class="bignum">'+ad+' <small>active days · of '+elapsed+'</small></div><div class="daystrip">'+strip+'</div><div class="hlist">');
-      habits.forEach(function(hb){
-        var w=Math.round(habitConsistency(who,hb,elapsed)*100), label, st=currentStreak(who,hb.id);
-        if(hb.week>0){ var wd=thisWeekDone(hb.id); label=wd+'/'+hb.week+' this wk'+(wd>=hb.week?' \u2713':''); }
-        else { label=habitCount(hb.id)+'/'+elapsed+(st>1?' \u00b7 '+st+' \ud83d\udd25':''); }
-        h.push('<div class="hitem"><div class="row1"><b><span class="sw" style="background:'+hb.color+'"></span><span>'+esc(hb.label)+'</span></b><span class="v">'+label+'</span></div><div class="bar"><i style="width:'+w+'%;background:'+hb.color+'"></i></div></div>');
-      });
-      var nkeys=[]; for(var k in state.notes){ var pr=who+"|"+ymKey()+"|"; if(k.indexOf(pr)===0) nkeys.push(+k.slice(pr.length)); }
-      nkeys.sort(function(a,b){return b-a;});
-      h.push('<div class="noteslist"><div class="nl-h">Notes</div>');
-      if(!nkeys.length) h.push('<div class="nl-empty">No notes yet this month.</div>');
-      nkeys.slice(0,5).forEach(function(d){ h.push('<div class="nl"><span class="dd">'+d+' '+MONTHS[view.m].slice(0,3)+'</span><span class="bd">'+esc(getNote(who,d))+'</span></div>'); });
-      h.push('</div></div>');
+    else if(coachSec==="weight"){
+      h.push('<section><h2 class="eyebrow">Weight · all time</h2>');
+      if(weightSeries(who).length){ h.push('<div class="wduo">'+weightMini(who)+'</div>'); }
+      else { h.push('<div class="wcard"><div class="wempty">No weight logged yet.</div></div>'); }
+      h.push('</section>');
     }
-    h.push('</section>');
-
-    // weight all-time
-    h.push('<section><h2 class="eyebrow">Weight · all time</h2>');
-    if(weightSeries(who).length){ h.push('<div class="wduo">'+weightMini(who)+'</div>'); }
-    else { h.push('<div class="wcard"><div class="wempty">No weight logged yet.</div></div>'); }
-    h.push('</section>');
-
-    // selected-day snapshot
-    var selL=DOW[selDate().getDay()]+' '+selDay+' '+MONTHS[view.m].slice(0,3)+' '+view.y+(isSelToday()?' \u00b7 today':'');
-    var hbs=state.habits[who]||[], doneN=hbs.filter(function(x){return isDone(x.id,selDay);}).length;
-    var wt=getWeight(who,selDay), note=getNote(who,selDay), wtr=getWater(who,selDay), stp=getSteps(who,selDay);
-    var chips=hbs.length?hbs.map(function(hb){var stt=isDone(hb.id,selDay)?'done':(isSkip(hb.id,selDay)?'skip':'miss');return '<span class="dchip '+stt+'" style="--c:'+hb.color+'">'+esc(hb.label)+'</span>';}).join(""):'<span class="nl-empty">No habits</span>';
-    h.push('<section><h2 class="eyebrow">Selected day · '+selL+'</h2><div class="panel" style="--pc:'+pc+'"><div class="sub">'+doneN+'/'+hbs.length+' habits \u00b7 '+(wt!=null?wfmt(wt)+' kg':'no weight')+' \u00b7 '+(wtr>0?wtr+' ml water':'no water')+' \u00b7 '+(stp>0?stp.toLocaleString()+' steps':'no steps')+'</div><div class="dchips">'+chips+'</div><div class="nl-h" style="margin-top:15px">Meals</div><div class="meals">'+mealItems(who,selDay,false)+'</div>'+(note?'<div class="notecallout"><div class="nc-h">Note for this day</div><div class="nc-body">'+esc(note)+'</div></div>':'')+'</div></section>');
-
-    // progress photos — latest
-    h.push('<section><h2 class="eyebrow">Progress photos · latest</h2><div class="panel" style="--pc:'+pc+'">');
-    var dates=allPhotoDates(who);
-    if(!dates.length){ h.push('<div class="nl-empty">No photos yet</div>'); }
-    else { var ld=dates[dates.length-1];
-      h.push('<div class="sub" style="margin-bottom:7px">latest: '+ld.day+' '+ymShort(ld.ym)+' '+ymParse(ld.ym).y+'</div><div class="pose-grid">');
-      POSES.forEach(function(psx){ var ph=photoAt(who,ld.ym,ld.day,psx.k); if(ph){var u=photoUrl(ph.path); h.push('<figure class="pose-cell"><div class="pose-lab">'+psx.label+'</div><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="'+psx.label+'"/></figure>');} else { h.push('<figure class="pose-cell pose-empty"><div class="pose-lab">'+psx.label+'</div><span class="pose-add">\u2014</span></figure>'); } });
-      h.push('</div>');
+    else if(coachSec==="photos"){
+      h.push('<section><h2 class="eyebrow">Progress photos · latest</h2><div class="panel" style="--pc:'+pc+'">');
+      var dates=allPhotoDates(who);
+      if(!dates.length){ h.push('<div class="nl-empty">No photos yet</div>'); }
+      else { var ld=dates[dates.length-1];
+        h.push('<div class="sub" style="margin-bottom:7px">latest: '+ld.day+' '+ymShort(ld.ym)+' '+ymParse(ld.ym).y+'</div><div class="pose-grid">');
+        POSES.forEach(function(psx){ var ph=photoAt(who,ld.ym,ld.day,psx.k); if(ph){var u=photoUrl(ph.path); h.push('<figure class="pose-cell"><div class="pose-lab">'+psx.label+'</div><img loading="lazy" src="'+u+'" data-full="'+u+'" alt="'+psx.label+'"/></figure>');} else { h.push('<figure class="pose-cell pose-empty"><div class="pose-lab">'+psx.label+'</div><span class="pose-add">\u2014</span></figure>'); } });
+        h.push('</div>');
+      }
+      h.push('</div></section>');
+      h.push(timelapseCard(who,"tlc-"+who));
     }
-    h.push('</div></section>');
+    else if(coachSec==="measurements"){
+      h.push('<div class="bodytoggle"><button class="bt-seg'+(coachBody==="skinfold"?" active":"")+'" data-coachbody="skinfold" type="button">Skinfold</button><button class="bt-seg'+(coachBody==="tape"?" active":"")+'" data-coachbody="tape" type="button">Tape</button><button class="bt-seg'+(coachBody==="inbody"?" active":"")+'" data-coachbody="inbody" type="button">InBody</button></div>');
+      if(coachBody==="tape"){
+        h.push('<section><h2 class="eyebrow">Tape measurements</h2><div class="panel" style="--pc:'+pc+'">');
+        var tent=allTapeFor(who);
+        if(!tent.length){ h.push('<div class="nl-empty">No measurements logged</div>'); }
+        else { var tle=tent[tent.length-1]; h.push(tapeTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+tle.day+' '+ymShort(tle.ym)+' '+ymParse(tle.ym).y+(tent.length>1?' \u00b7 vs first '+tent[0].day+' '+ymShort(tent[0].ym):'')+'</div>'); }
+        h.push('</div></section>');
+      } else if(coachBody==="inbody"){
+        h.push('<section><h2 class="eyebrow">InBody data</h2><div class="panel" style="--pc:'+pc+'">');
+        var ient=allInbodyFor(who);
+        if(!ient.length){ h.push('<div class="nl-empty">No InBody scans logged</div>'); }
+        else { var ile=ient[ient.length-1]; h.push(inbodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+ile.day+' '+ymShort(ile.ym)+' '+ymParse(ile.ym).y+(ient.length>1?' \u00b7 vs first '+ient[0].day+' '+ymShort(ient[0].ym):'')+'</div>'); }
+        h.push('</div></section>');
+      } else {
+        h.push('<section><h2 class="eyebrow">Skinfold &amp; body fat</h2><div class="panel" style="--pc:'+pc+'">');
+        var ent=allBodyFor(who);
+        if(!ent.length){ h.push('<div class="nl-empty">No readings logged</div>'); }
+        else { var le=ent[ent.length-1]; h.push(bodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+le.day+' '+ymShort(le.ym)+' '+ymParse(le.ym).y+(ent.length>1?' \u00b7 vs first '+ent[0].day+' '+ymShort(ent[0].ym):'')+'</div>'); }
+        h.push('</div></section>');
+      }
+    }
 
-    // skinfold
-    h.push('<section><h2 class="eyebrow">Skinfold &amp; body fat</h2><div class="panel" style="--pc:'+pc+'">');
-    var ent=allBodyFor(who);
-    if(!ent.length){ h.push('<div class="nl-empty">No readings logged</div>'); }
-    else { var le=ent[ent.length-1]; h.push(bodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+le.day+' '+ymShort(le.ym)+' '+ymParse(le.ym).y+(ent.length>1?' \u00b7 vs first '+ent[0].day+' '+ymShort(ent[0].ym):'')+'</div>'); }
-    h.push('</div></section>');
-
-    // tape
-    h.push('<section><h2 class="eyebrow">Tape measurements</h2><div class="panel" style="--pc:'+pc+'">');
-    var tent=allTapeFor(who);
-    if(!tent.length){ h.push('<div class="nl-empty">No measurements logged</div>'); }
-    else { var tle=tent[tent.length-1]; h.push(tapeTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+tle.day+' '+ymShort(tle.ym)+' '+ymParse(tle.ym).y+(tent.length>1?' \u00b7 vs first '+tent[0].day+' '+ymShort(tent[0].ym):'')+'</div>'); }
-    h.push('</div></section>');
-
-    // inbody
-    h.push('<section><h2 class="eyebrow">InBody data</h2><div class="panel" style="--pc:'+pc+'">');
-    var ient=allInbodyFor(who);
-    if(!ient.length){ h.push('<div class="nl-empty">No InBody scans logged</div>'); }
-    else { var ile=ient[ient.length-1]; h.push(inbodyTiles(who)+'<div class="sub" style="margin-top:7px">latest: '+ile.day+' '+ymShort(ile.ym)+' '+ymParse(ile.ym).y+(ient.length>1?' \u00b7 vs first '+ient[0].day+' '+ymShort(ient[0].ym):'')+'</div>'); }
-    h.push('</div></section>');
-
-    // timelapse
-    h.push(timelapseCard(who,"tlc-"+who));
-
-    // report controls (shared)
+    // report controls (always)
     h.push('<div class="toolrow">');
     h.push('<div class="repctl"><select id="repScope" aria-label="Report scope"><option value="both" selected>Both — full report</option><option value="pravin">Pravin only</option><option value="swetha">Swetha only</option></select><button class="btn accent" id="repDl">\u2193 Download report</button></div>');
     h.push(cloud?'<button class="btn" id="refresh">\u21bb Refresh</button>':'<button class="btn" id="backup">\u2193 Back up</button><button class="btn" id="restore">\u2191 Restore</button>');
@@ -1746,6 +1736,8 @@
     var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
     var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
     app.querySelectorAll("[data-coachwho]").forEach(function(el){ el.onclick=function(){ coachWho=el.getAttribute("data-coachwho"); renderBoth(); }; });
+    app.querySelectorAll("[data-coachsec]").forEach(function(el){ el.onclick=function(){ coachSec=el.getAttribute("data-coachsec"); renderBoth(); window.scrollTo(0,0); }; });
+    app.querySelectorAll("[data-coachbody]").forEach(function(el){ el.onclick=function(){ coachBody=el.getAttribute("data-coachbody"); renderBoth(); }; });
     app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
   }
 
@@ -1897,7 +1889,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 69 · habit-icons</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 70 · coach-subtabs</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
