@@ -549,7 +549,8 @@
      ============================================================ */
   var CONFIG = {
     SUPABASE_URL: "https://gjrtmaobnotlczjdimfm.supabase.co",
-    SUPABASE_ANON_KEY: "sb_publishable_8F0wcw89qfhic99SGwCw9w_wGpeSl7J"
+    SUPABASE_ANON_KEY: "sb_publishable_8F0wcw89qfhic99SGwCw9w_wGpeSl7J",
+    VAPID_PUBLIC: "BALovEgtU42GUb0i5_dyLOgDvMHMHhWgPcnGYQlZty1LMO7ZViUA-okd4qVHmgU5ZyAum6RT3Hsln8PJIjZeWmo"
   };
 
   var PALETTE = ["#5B6EE1","#12A5A0","#E0912A","#DD5A86","#2FA36B","#8B5CF6","#F0714E","#159ED4","#7BAE2F","#B0568E"];
@@ -1394,6 +1395,37 @@
     return h;
   }
 
+  // ───────── push reminders ─────────
+  var pushOn=false;
+  function pushSupported(){ return ("Notification" in window) && ("serviceWorker" in navigator) && ("PushManager" in window); }
+  function urlB64ToUint8Array(b64){ var pad="=".repeat((4-b64.length%4)%4); var base=(b64+pad).replace(/-/g,"+").replace(/_/g,"/"); var raw=atob(base); var arr=new Uint8Array(raw.length); for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i); return arr; }
+  function refreshPushState(){ if(!pushSupported())return; navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription();}).then(function(s){ pushOn=!!s; }).catch(function(){}); }
+  function enablePush(person){
+    if(!pushSupported()){ toast("This browser can't do reminders"); return; }
+    if(!supa){ toast("Connect to cloud first (needs sync)"); return; }
+    Notification.requestPermission().then(function(perm){
+      if(perm!=="granted"){ toast("Allow notifications in browser settings"); return; }
+      navigator.serviceWorker.ready.then(function(reg){
+        return reg.pushManager.getSubscription().then(function(sub){ return sub || reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToUint8Array(CONFIG.VAPID_PUBLIC)}); });
+      }).then(function(sub){
+        var j=sub.toJSON()||{}, keys=j.keys||{};
+        localStorage.setItem("arc.push.person", person);
+        return supa.from("push_subscriptions").upsert({person:person, endpoint:sub.endpoint, p256dh:keys.p256dh, auth:keys.auth, ua:navigator.userAgent, updated_at:new Date().toISOString()},{onConflict:"endpoint"});
+      }).then(function(res){ if(res&&res.error){ toast("Save failed: "+res.error.message); } else { pushOn=true; toast("Reminders on for "+(state.names[person]||person)+" on this phone"); render(); } })
+        .catch(function(e){ toast("Couldn't enable: "+(e.message||e)); });
+    });
+  }
+  function disablePush(){
+    if(!pushSupported())return;
+    navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); }).then(function(sub){
+      if(!sub){ pushOn=false; render(); return; }
+      var ep=sub.endpoint;
+      return sub.unsubscribe().then(function(){ if(supa) return supa.from("push_subscriptions").delete().eq("endpoint",ep); }).then(function(){ localStorage.removeItem("arc.push.person"); pushOn=false; toast("Reminders turned off on this phone"); render(); });
+    }).catch(function(e){ toast("Couldn't turn off: "+(e.message||e)); });
+  }
+  function reminderBtn(person){ return '<button class="btn" id="remBtn">'+(pushOn?'\uD83D\uDD14 Reminders on':'\uD83D\uDD14 Enable reminders')+'</button>'; }
+  function wireReminderBtn(person){ var rb=document.getElementById("remBtn"); if(rb) rb.onclick=function(){ pushOn?disablePush():enablePush(person); }; }
+
   function renderProfile(who){
     var h='<div class="subnav">'+SECTIONS.map(function(s){return '<button class="subtab'+(section===s[0]?' active':'')+'" data-sec="'+s[0]+'">'+s[1]+'</button>';}).join("")+'</div>';
     if(section==="today") h+=secToday(who);
@@ -1402,8 +1434,8 @@
     else if(section==="food") h+=secFood(who);
     else if(section==="photos") h+=secPhotos(who);
     else if(section==="body") h+=secBody(who);
-    h+='<div class="toolrow">'+(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>')+'</div>';
-    app.innerHTML=h; wireProfile(who);
+    h+='<div class="toolrow">'+reminderBtn(who)+(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>')+'</div>';
+    app.innerHTML=h; wireProfile(who); wireReminderBtn(who);
   }
 
   // ───────── all-time helpers (report + compare) ─────────
@@ -1728,10 +1760,12 @@
 
     // report controls (always)
     h.push('<div class="toolrow">');
+    h.push(reminderBtn("hari"));
     h.push('<div class="repctl"><select id="repScope" aria-label="Report scope"><option value="both" selected>Both — full report</option><option value="pravin">Pravin only</option><option value="swetha">Swetha only</option></select><button class="btn accent" id="repDl">\u2193 Download report</button></div>');
     h.push(cloud?'<button class="btn" id="refresh">\u21bb Refresh</button>':'<button class="btn" id="backup">\u2193 Back up</button><button class="btn" id="restore">\u2191 Restore</button>');
     h.push('</div>');
     app.innerHTML=h.join("");
+    wireReminderBtn("hari");
     var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
     var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
     var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
@@ -1889,7 +1923,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 70 · coach-subtabs</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 71 · push-reminders</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
@@ -1967,6 +2001,7 @@
         window.addEventListener("online", check);                  // when back online
       }).catch(function(){});
     });
+    setTimeout(refreshPushState, 1200);
   }
   var deferred=null, installBtn=document.getElementById("installBtn");
   window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferred=e;installBtn.classList.add("show");});
