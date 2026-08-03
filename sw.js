@@ -1,5 +1,5 @@
 /* Daily Habits — service worker */
-const CACHE = "daily-habits-v71";
+const CACHE = "daily-habits-v72";
 const SHELL = [
   "./",
   "./index.html",
@@ -55,21 +55,30 @@ self.addEventListener("fetch", (e) => {
 
 /* ── push reminders ── */
 self.addEventListener("push", (e) => {
-  let data = { title: "Arc", body: "Reminder" };
-  try { if (e.data) data = e.data.json(); } catch (_) { try { data.body = e.data.text(); } catch (__) {} }
-  e.waitUntil(self.registration.showNotification(data.title || "Arc", {
-    body: data.body || "",
+  let d = { title: "Arc", body: "Reminder" };
+  try { if (e.data) d = e.data.json(); } catch (_) { try { d.body = e.data.text(); } catch (__) {} }
+  const opts = {
+    body: d.body || "",
     icon: "./icon-arc-192.png",
     badge: "./icon-arc-192.png",
-    tag: data.tag || "arc-reminder",
+    tag: d.tag || "arc-reminder",
     renotify: true,
-    vibrate: [80, 40, 80],
-    data: { url: "./" }
-  }));
+    requireInteraction: true,          // stays until tapped (like a chat message)
+    vibrate: [90, 40, 90, 40, 90],
+    timestamp: Date.now(),
+    data: { url: "./" },
+    actions: [
+      { action: "open", title: "Log now" },
+      { action: "dismiss", title: "Dismiss" }
+    ]
+  };
+  if (d.image) opts.image = d.image;   // optional wide banner if a push ever sends one
+  e.waitUntil(self.registration.showNotification(d.title || "Arc", opts));
 });
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
+  if (e.action === "dismiss") return;
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cl) => {
       for (const c of cl) { if ("focus" in c) return c.focus(); }
