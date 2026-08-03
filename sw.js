@@ -1,5 +1,5 @@
 /* Daily Habits — service worker */
-const CACHE = "daily-habits-v70";
+const CACHE = "daily-habits-v71";
 const SHELL = [
   "./",
   "./index.html",
@@ -50,5 +50,30 @@ self.addEventListener("fetch", (e) => {
         return res;
       }).catch(() => hit)
     )
+  );
+});
+
+/* ── push reminders ── */
+self.addEventListener("push", (e) => {
+  let data = { title: "Arc", body: "Reminder" };
+  try { if (e.data) data = e.data.json(); } catch (_) { try { data.body = e.data.text(); } catch (__) {} }
+  e.waitUntil(self.registration.showNotification(data.title || "Arc", {
+    body: data.body || "",
+    icon: "./icon-arc-192.png",
+    badge: "./icon-arc-192.png",
+    tag: data.tag || "arc-reminder",
+    renotify: true,
+    vibrate: [80, 40, 80],
+    data: { url: "./" }
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cl) => {
+      for (const c of cl) { if ("focus" in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow("./");
+    })
   );
 });
