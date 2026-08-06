@@ -377,6 +377,12 @@
   .body-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin:6px 0 16px}
   .bodytoggle{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
   .coachtabs{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:16px}
+  .dash-ai{display:flex;flex-direction:column;gap:11px}
+  .ai-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px 15px 13px}
+  .ai-card .ai-name{font-family:"Space Grotesk";font-weight:600;font-size:14px;margin-bottom:7px}
+  .ai-card .ai-body{margin:0 0 12px;font-size:13.5px;line-height:1.55;color:var(--ink-2,var(--ink))}
+  .ai-card .ai-copy{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);border-radius:99px;padding:7px 13px;font-family:"Space Grotesk";font-size:12px;font-weight:600;cursor:pointer;transition:.13s}
+  .ai-card .ai-copy:hover{border-color:var(--accent);color:var(--accent)}
   .dash{margin-bottom:18px}
   .dash-h{font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--muted);font-weight:600;margin:2px 2px 12px}
   .dash-cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:12px}
@@ -1669,6 +1675,7 @@
       var rate=s.rate==null?'\u2014':((s.rate<-0.05?'\u25BC ':(s.rate>0.05?'\u25B2 ':''))+bfmt(Math.abs(s.rate))+' kg/wk');
       var goal=s.toGoal!=null?(s.toGoal>0.05?bfmt(s.toGoal)+' kg to goal':(s.toGoal<-0.05?bfmt(Math.abs(s.toGoal))+' kg under goal':'at goal')):'';
       h+='<div class="rp-sub">'+wt+' \u00b7 '+rate+(goal?' \u00b7 '+goal:'')+' \u00b7 habits '+s.pct+'%</div>';
+      h+='<p class="rp-insight">'+esc(insightText(who))+'</p>';
       if(s.flags.length){ h+='<div class="rp-flags">'; s.flags.forEach(function(f){ h+='<div class="rp-flag rpf-'+f.lvl+'">'+esc(f.t)+'</div>'; }); h+='</div>'; }
       else h+='<div class="rp-ok">On track \u2014 nothing flagged.</div>';
       h+='</div>';
@@ -1694,7 +1701,7 @@
       +".rp-bodygrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}@media(max-width:520px){.rp-bodygrid{grid-template-columns:1fr}}.rp-bodycard{background:#faf7f1;border:1px solid #e7e1d7;border-radius:12px;padding:13px 14px;min-width:0;overflow:hidden}.rp-bodycard .rp-lab{margin-bottom:3px}.rp-bodycard .rp-big{font-size:18px}.rp-bodycard svg{max-height:66px;margin-top:8px}.rp-sec>svg{max-height:120px}.rp-bchg{font-size:13px;font-weight:700}.rp-bchg.good{color:#1f8f5b}.rp-bchg.bad{color:#c0562e}"
       +".rp-hcon{display:flex;flex-direction:column;gap:9px}.rp-hrow{display:flex;align-items:center;gap:9px;font-size:12.5px}.rp-hdot{width:9px;height:9px;border-radius:50%;flex:none}.rp-hname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rp-hbar{flex:none;width:56px;height:6px;background:#efeae2;border-radius:3px;overflow:hidden}.rp-hbar span{display:block;height:100%}.rp-hval{flex:none;font-size:11px;color:#6b655c;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}.rp-hfreq{color:#9a948a;font-size:10px;font-weight:700}"
       +".rp-f{max-width:920px;margin:14px auto 40px;padding:0 16px;color:#b0a99e;font-size:11px}"
-      +".rp-flags{margin-top:9px;display:flex;flex-direction:column;gap:6px}.rp-flag{font-size:12px;padding:8px 11px;border-radius:8px;font-weight:600}.rpf-bad{background:#fbeaea;color:#a3352f}.rpf-warn{background:#fbf3e2;color:#8a5a12}.rpf-good{background:#e9f6ee;color:#2e7d4f}.rp-ok{color:#2e7d4f;font-size:12px;font-weight:600;margin-top:7px}";
+      +".rp-flags{margin-top:9px;display:flex;flex-direction:column;gap:6px}.rp-flag{font-size:12px;padding:8px 11px;border-radius:8px;font-weight:600}.rpf-bad{background:#fbeaea;color:#a3352f}.rpf-warn{background:#fbf3e2;color:#8a5a12}.rpf-good{background:#e9f6ee;color:#2e7d4f}.rp-ok{color:#2e7d4f;font-size:12px;font-weight:600;margin-top:7px}.rp-insight{margin:9px 0 0;font-size:13px;line-height:1.55;color:#4a453e}";
     var persons = scope==="both" ? ["pravin","swetha"] : [scope];
     if(!months.length){ body='<div class="rp-month"><p>No data logged yet.</p></div>'; }
     else {
@@ -1816,6 +1823,56 @@
     if(level==="ok" && rate!=null && rate<=-0.2 && (toGoal==null||toGoal>0.3)) level="good";
     return {level:level,name:name,latest:latest,rate:rate,toGoal:toGoal,dsw:dsw,pct:pct,flags:flags};
   }
+  function insightText(who){
+    var s=personStatus(who), name=esc(state.names[who]||who), e=wEntries(who);
+    if(!e.length) return name+" has no weigh-in logged yet — add one to start tracking the trend.";
+    var g=getGoal(who), toGoal=s.toGoal, parts=[];
+    parts.push(name+" is at "+wfmt(s.latest.y)+" kg"+(toGoal!=null?(toGoal>0.3?", "+bfmt(toGoal)+" kg from the "+bfmt(g)+" kg goal":(toGoal<-0.3?", "+bfmt(Math.abs(toGoal))+" kg under the "+bfmt(g)+" kg goal":", right at goal")):"")+".");
+    if(s.rate!=null){
+      if(s.rate<=-0.15){ var eta="";
+        if(toGoal>0.3){ var wk=toGoal/Math.abs(s.rate); if(wk>0&&wk<260){ var d=new Date(Date.now()+wk*7*86400000); eta=" At this pace, on track for "+bfmt(g)+" kg around "+MONTHS[d.getMonth()].slice(0,3)+" "+d.getDate()+"."; } }
+        parts.push("Losing about "+bfmt(Math.abs(s.rate))+" kg/week — a healthy pace."+eta);
+      } else if(s.rate>=0.15){ parts.push("Up about "+bfmt(s.rate)+" kg/week recently — worth a look at this week's intake and salt/water."); }
+      else { parts.push("Weight is holding fairly steady week to week."); }
+    }
+    var sd=stallDays(e);
+    if(sd>=10){ var rc=recompNote(who);
+      if(rc) parts.push("The scale's been flat ~"+sd+" days, but "+rc+" — that's recomposition, not a stall. Hold the course.");
+      else parts.push("The scale's been flat ~"+sd+" days; if it holds another week, consider a small adjustment to intake or activity.");
+    }
+    if((state.habits[who]||[]).length){
+      if(s.pct>=80) parts.push("Habits are strong at "+s.pct+"% this month.");
+      else if(s.pct>=50) parts.push("Habits at "+s.pct+"% this month — a little room to tighten up.");
+      else parts.push("Habits are low at "+s.pct+"% this month — that's the first lever to pull.");
+    }
+    if(s.dsw!=null && s.dsw>=3) parts.push("No weigh-in in "+s.dsw+" days — a fresh one keeps the trend honest.");
+    return parts.join(" ");
+  }
+  function buildAISummary(who){
+    var name=state.names[who]||who, e=wEntries(who), s=personStatus(who), L=[];
+    L.push("You are a supportive, practical fat-loss coach. From the data below, write "+name+" a short weekly review (3-4 sentences) and one concrete suggestion. Be encouraging, specific, and avoid fluff.");
+    L.push(""); L.push("PERSON: "+name); L.push("GOAL: "+bfmt(getGoal(who))+" kg");
+    if(e.length){
+      L.push("CURRENT: "+wfmt(e[e.length-1].y)+" kg ("+(s.toGoal>0.3?bfmt(s.toGoal)+" kg to go":(s.toGoal<-0.3?bfmt(Math.abs(s.toGoal))+" kg under":"at goal"))+")");
+      L.push("WEEKLY RATE: "+(s.rate==null?"n/a":bfmt(s.rate)+" kg/week"));
+      L.push("STALL: "+(stallDays(e)>=10?stallDays(e)+" days flat":"none"));
+      L.push("RECENT WEIGH-INS: "+e.slice(-10).map(function(x){return (x.date.getMonth()+1)+"/"+x.date.getDate()+" "+wfmt(x.y);}).join(", "));
+    } else L.push("WEIGHT: none logged");
+    var md=[]; var w=measSeries(who,state.tape,"waist"); if(w.length>=2) md.push("waist "+bfmt(w[0].y)+"\u2192"+bfmt(w[w.length-1].y)+"cm");
+    var ab=measSeries(who,state.tape,"abdomen"); if(ab.length>=2) md.push("abdomen "+bfmt(ab[0].y)+"\u2192"+bfmt(ab[ab.length-1].y)+"cm");
+    var sm=measSeries(who,state.inbody,"smm"); if(sm.length>=2) md.push("muscle "+bfmt(sm[0].y)+"\u2192"+bfmt(sm[sm.length-1].y)+"kg");
+    var bf=measSeries(who,state.inbody,"bfp"); if(bf.length>=2) md.push("body fat "+bfmt(bf[0].y)+"\u2192"+bfmt(bf[bf.length-1].y)+"%");
+    if(md.length) L.push("MEASUREMENTS: "+md.join(", "));
+    L.push("HABIT CONSISTENCY: "+s.pct+"% this month");
+    return L.join("\n");
+  }
+  function fallbackCopy(txt){ var ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.focus(); ta.select(); try{ document.execCommand("copy"); }catch(e){} document.body.removeChild(ta); }
+  function copyForAI(who){
+    var txt=buildAISummary(who), nm=state.names[who]||who;
+    function ok(){ toast("Copied "+nm+"'s summary — paste into any AI chat"); }
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok).catch(function(){ fallbackCopy(txt); ok(); }); }
+    else { fallbackCopy(txt); ok(); }
+  }
   function coachDash(){
     var cards="", flags=[];
     ["pravin","swetha"].forEach(function(who){
@@ -1837,7 +1894,11 @@
     if(flags.length){ flags.sort(function(a,b){ var o={bad:0,warn:1,good:2}; return o[a.lvl]-o[b.lvl]; });
       strip = flags.map(function(f){ var ic=f.lvl==="bad"?'\u26A0':(f.lvl==="good"?'\u2713':'\u2022'); return '<div class="dflag fl-'+f.lvl+'"><span class="fl-ic">'+ic+'</span><span>'+f.t+'</span></div>'; }).join("");
     } else { strip = '<div class="dflag fl-clear"><span class="fl-ic">\u2713</span><span>Everything\u2019s on track \u2014 nothing needs attention</span></div>'; }
-    return '<div class="dash"><div class="dash-h">Dashboard</div><div class="dash-cards">'+cards+'</div><div class="dash-strip">'+strip+'</div></div>';
+    var ai="";
+    ["pravin","swetha"].forEach(function(who){
+      ai += '<div class="ai-card"><div class="ai-name">'+esc(state.names[who]||who)+'</div><p class="ai-body">'+esc(insightText(who))+'</p><button class="ai-copy" data-aicopy="'+who+'" type="button"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy for AI chat</button></div>';
+    });
+    return '<div class="dash"><div class="dash-h">Dashboard</div><div class="dash-cards">'+cards+'</div><div class="dash-strip">'+strip+'</div><div class="dash-h" style="margin:18px 2px 12px">Insights</div><div class="dash-ai">'+ai+'</div></div>';
   }
 
   function renderBoth(){
@@ -1929,6 +1990,7 @@
     var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
     app.querySelectorAll("[data-coachwho]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachWho=el.getAttribute("data-coachwho"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-dashwho]").forEach(function(el){ el.onclick=function(){ coachWho=el.getAttribute("data-dashwho"); renderBoth(); var r=document.getElementById("coachSubRow"); if(r) r.scrollIntoView({behavior:"smooth",block:"start"}); }; });
+    app.querySelectorAll("[data-aicopy]").forEach(function(el){ el.onclick=function(){ copyForAI(el.getAttribute("data-aicopy")); }; });
     app.querySelectorAll("[data-coachsec]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachSec=el.getAttribute("data-coachsec"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-coachbody]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachBody=el.getAttribute("data-coachbody"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
@@ -2092,7 +2154,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 79 · dash-scroll-report</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 80 · insights</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
