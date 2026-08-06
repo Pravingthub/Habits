@@ -508,7 +508,7 @@
   .build .chip:hover{border-color:var(--accent);color:var(--accent-deep)}
   .build .chip:active{transform:scale(.97)}
   .build .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:12px 19px;border-radius:13px;font-size:13.5px;font-weight:500;opacity:0;pointer-events:none;transition:.26s;z-index:90;box-shadow:0 14px 34px -8px rgba(0,0,0,.45)}
+  .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--surface-2);color:var(--ink);border:1px solid var(--line);padding:12px 19px;border-radius:13px;font-size:13.5px;font-weight:500;opacity:0;pointer-events:none;transition:.26s;z-index:90;box-shadow:0 14px 34px -8px rgba(0,0,0,.55)}
   .toast.show{opacity:1;transform:translate(-50%,0)}
   .install{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:60;display:none}
   .install.show{display:block}
@@ -1567,6 +1567,10 @@
     if(notes.length){ h+='<div class="rp-sec"><div class="rp-lab">Notes</div>'; notes.forEach(function(n){ h+='<div class="rp-note"><b>'+n.d+' '+ymShort(ym)+':</b> '+esc(n.b)+'</div>'; }); h+='</div>'; }
     return h+'</div>';
   }
+  function repImg(pmap,path){
+    var src=(pmap&&pmap[path])?pmap[path]:REP_PLACEHOLDER;
+    return '<img class="rp-photo" src="'+src+'" alt="progress photo"/>';
+  }
   function repPersonPhotos(who,ym,pmap){
     var rpDs={};
     POSES.forEach(function(psx){ for(var id in state.photos){var p=state.photos[id]; if(p.person===who&&p.ym===ym&&pPose(p)===psx.k) rpDs[p.day]=1;} });
@@ -1986,7 +1990,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 76 · meal-time-edit</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 77 · report-photo-fix</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
