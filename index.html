@@ -377,6 +377,32 @@
   .body-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin:6px 0 16px}
   .bodytoggle{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
   .coachtabs{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:16px}
+  .dash{margin-bottom:18px}
+  .dash-h{font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--muted);font-weight:600;margin:2px 2px 12px}
+  .dash-cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:12px}
+  .dcard{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 14px 13px;cursor:pointer;font:inherit;color:var(--ink);position:relative;overflow:hidden}
+  .dcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--pc)}
+  .dcard .dc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+  .dcard .dc-name{font-family:"Space Grotesk";font-weight:600;font-size:15px}
+  .dcard .dc-stat{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+  .dcard.lvl-good .dc-stat{background:var(--good)}
+  .dcard.lvl-warn .dc-stat{background:var(--warn)}
+  .dcard.lvl-bad .dc-stat{background:var(--bad)}
+  .dcard .dc-wt{font-family:"Space Grotesk";font-weight:600;font-size:26px;line-height:1}
+  .dcard .dc-wt u{font-style:normal;font-size:13px;color:var(--muted);font-weight:500}
+  .dcard .dc-none{font-size:14px;color:var(--dim);font-weight:500}
+  .dcard .dc-sub{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:7px;font-family:"Space Grotesk";font-size:12px}
+  .dcard .dc-rate{font-weight:600;color:var(--muted)}
+  .dcard .dc-rate.good{color:var(--good)} .dcard .dc-rate.bad{color:var(--bad)}
+  .dcard .dc-goal{color:var(--muted)}
+  .dcard .dc-pct{font-size:12px;color:var(--muted);margin-top:6px}
+  .dash-strip{display:flex;flex-direction:column;gap:7px}
+  .dflag{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;border-radius:12px;font-size:13px;line-height:1.35;border:1px solid var(--line);background:var(--surface)}
+  .dflag .fl-ic{flex:none;font-size:12px;margin-top:1px}
+  .dflag.fl-clear{color:var(--muted)} .dflag.fl-clear .fl-ic{color:var(--good)}
+  .dflag.fl-good{border-color:color-mix(in srgb,var(--good) 45%,transparent);background:color-mix(in srgb,var(--good) 8%,var(--surface))} .dflag.fl-good .fl-ic{color:var(--good)}
+  .dflag.fl-warn{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 8%,var(--surface))} .dflag.fl-warn .fl-ic{color:var(--warn)}
+  .dflag.fl-bad{border-color:color-mix(in srgb,var(--bad) 50%,transparent);background:color-mix(in srgb,var(--bad) 9%,var(--surface))} .dflag.fl-bad .fl-ic{color:var(--bad)}
   .ct-seg{flex:1;font:inherit;font-size:15px;font-weight:700;padding:11px 12px;border-radius:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
   .coachsub{margin:2px 0 16px}
   .ct-seg.active{background:var(--accent);color:#fff}
@@ -1739,10 +1765,68 @@
     show(0);
   }
 
+  // ───────── coach dashboard intelligence ─────────
+  function wEntries(who){
+    var a=[]; for(var k in state.weights){ var p=k.split("|"); if(p[0]===who){ var ymp=p[1].split("-"); a.push({date:new Date(+ymp[0],(+ymp[1])-1,+p[2]), y:+state.weights[k]}); } }
+    a.sort(function(x,y){return x.date-y.date;}); return a;
+  }
+  function measSeries(who,store,key){
+    var a=[]; for(var k in store){ var p=k.split("|"); if(p[0]===who){ var v=store[k]; if(v&&v[key]!=null){ var ymp=p[1].split("-"); a.push({date:new Date(+ymp[0],(+ymp[1])-1,+p[2]), y:+v[key]}); } } }
+    a.sort(function(x,y){return x.date-y.date;}); return a;
+  }
+  function winAvg(e,endMs,startMs){ var s=0,n=0; for(var i=0;i<e.length;i++){ var t=e[i].date.getTime(); if(t>startMs && t<=endMs){ s+=e[i].y; n++; } } return n?s/n:null; }
+  function weeklyRate(e){ if(e.length<2) return null; var last=e[e.length-1].date.getTime(), D=86400000; var a=winAvg(e,last,last-7*D), b=winAvg(e,last-7*D,last-14*D); if(a==null||b==null) return null; return a-b; }
+  function stallDays(e){ if(e.length<2) return 0; var last=e[e.length-1], i=e.length-1; while(i>0 && Math.abs(e[i-1].y-last.y)<=0.5) i--; return Math.round((last.date-e[i].date)/86400000); }
+  function daysSinceWeigh(e){ if(!e.length) return null; return Math.floor((Date.now()-e[e.length-1].date.getTime())/86400000); }
+  function recompNote(who){
+    var w=measSeries(who,state.tape,"waist"); if(w.length>=2){ var dw=w[w.length-1].y-w[0].y; if(dw<=-1) return "waist \u2212"+bfmt(Math.abs(dw))+"cm"; }
+    var ab=measSeries(who,state.tape,"abdomen"); if(ab.length>=2){ var da=ab[ab.length-1].y-ab[0].y; if(da<=-1) return "abdomen \u2212"+bfmt(Math.abs(da))+"cm"; }
+    var sm=measSeries(who,state.inbody,"smm"); if(sm.length>=2){ var ds=sm[sm.length-1].y-sm[0].y; if(ds>=0.3) return "muscle +"+bfmt(ds)+"kg"; }
+    var bf=measSeries(who,state.inbody,"bfp"); if(bf.length>=2){ var db=bf[bf.length-1].y-bf[0].y; if(db<=-0.5) return "body fat \u2212"+bfmt(Math.abs(db))+"%"; }
+    return null;
+  }
+  function monthPct(who){ var hb=state.habits[who]||[]; if(!hb.length) return 0; var elapsed=isThisMonth()?todayDate():daysIn(view.y,view.m), cs=0; hb.forEach(function(x){cs+=habitConsistency(who,x,elapsed);}); return Math.round(cs/hb.length*100); }
+  function personStatus(who){
+    var e=wEntries(who), name=esc(state.names[who]||who), flags=[], level="ok";
+    var latest=e.length?e[e.length-1]:null, goal=getGoal(who);
+    var rate=weeklyRate(e), toGoal=latest?(latest.y-goal):null, dsw=daysSinceWeigh(e), sd=stallDays(e), pct=monthPct(who);
+    if(dsw!=null && dsw>=3){ flags.push({lvl:"bad",t:name+" \u00b7 no weigh-in for "+dsw+" days"}); level="bad"; }
+    if(sd>=10){ var rc=recompNote(who);
+      if(rc){ flags.push({lvl:"good",t:name+" \u00b7 scale flat "+sd+"d but "+rc+" \u2014 recomposition, hold course"}); }
+      else { flags.push({lvl:"warn",t:name+" \u00b7 weight flat "+sd+" days \u2014 may need a change"}); if(level!=="bad") level="warn"; }
+    }
+    if(pct<50 && (state.habits[who]||[]).length){ flags.push({lvl:"warn",t:name+" \u00b7 habits only "+pct+"% this month"}); if(level==="ok") level="warn"; }
+    if(level==="ok" && rate!=null && rate<=-0.2 && (toGoal==null||toGoal>0.3)) level="good";
+    return {level:level,name:name,latest:latest,rate:rate,toGoal:toGoal,dsw:dsw,pct:pct,flags:flags};
+  }
+  function coachDash(){
+    var cards="", flags=[];
+    ["pravin","swetha"].forEach(function(who){
+      var s=personStatus(who), pc=who==="swetha"?"var(--swetha)":"var(--pravin)";
+      s.flags.forEach(function(f){ flags.push(f); });
+      var wt = s.latest ? wfmt(s.latest.y)+'<u> kg</u>' : '<span class="dc-none">no data</span>';
+      var arrow = s.rate==null?'' : (s.rate<-0.05?'\u2193':(s.rate>0.05?'\u2191':'\u2192'));
+      var rateCls = s.rate==null?'':(s.rate<-0.05?'good':(s.rate>0.05?'bad':''));
+      var rateTxt = s.rate==null?'\u2014':(arrow+' '+bfmt(Math.abs(s.rate))+' kg/wk');
+      var goalTxt = s.toGoal!=null ? (s.toGoal>0.05?bfmt(s.toGoal)+' to goal':(s.toGoal<-0.05?bfmt(Math.abs(s.toGoal))+' under':'at goal')) : '';
+      cards += '<button class="dcard lvl-'+s.level+'" data-coachwho="'+who+'" type="button" style="--pc:'+pc+'">'
+        +'<div class="dc-h"><span class="dc-name">'+s.name+'</span><span class="dc-stat"></span></div>'
+        +'<div class="dc-wt">'+wt+'</div>'
+        +'<div class="dc-sub"><span class="dc-rate '+rateCls+'">'+rateTxt+'</span>'+(goalTxt?'<span class="dc-goal">'+goalTxt+'</span>':'')+'</div>'
+        +'<div class="dc-pct">Habits '+s.pct+'%</div>'
+        +'</button>';
+    });
+    var strip;
+    if(flags.length){ flags.sort(function(a,b){ var o={bad:0,warn:1,good:2}; return o[a.lvl]-o[b.lvl]; });
+      strip = flags.map(function(f){ var ic=f.lvl==="bad"?'\u26A0':(f.lvl==="good"?'\u2713':'\u2022'); return '<div class="dflag fl-'+f.lvl+'"><span class="fl-ic">'+ic+'</span><span>'+f.t+'</span></div>'; }).join("");
+    } else { strip = '<div class="dflag fl-clear"><span class="fl-ic">\u2713</span><span>Everything\u2019s on track \u2014 nothing needs attention</span></div>'; }
+    return '<div class="dash"><div class="dash-h">Dashboard</div><div class="dash-cards">'+cards+'</div><div class="dash-strip">'+strip+'</div></div>';
+  }
+
   function renderBoth(){
     var dim=daysIn(view.y,view.m), showToday=isThisMonth(), elapsed=showToday?todayDate():dim;
     var who=coachWho, pc=who==="swetha"?"var(--swetha)":"var(--pravin)", habits=state.habits[who]||[];
-    var h=['<div class="coachtabs"><button class="ct-seg'+(who==="pravin"?" active":"")+'" data-coachwho="pravin" type="button">Pravin</button><button class="ct-seg'+(who==="swetha"?" active":"")+'" data-coachwho="swetha" type="button">Swetha</button></div>'];
+    var h=[coachDash(), '<div class="coachtabs"><button class="ct-seg'+(who==="pravin"?" active":"")+'" data-coachwho="pravin" type="button">Pravin</button><button class="ct-seg'+(who==="swetha"?" active":"")+'" data-coachwho="swetha" type="button">Swetha</button></div>'];
 
     // persistent weight-ring header
     if(weightSeries(who).length || habits.length){ h.push(weightRing(who,false)); }
@@ -1990,7 +2074,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 77 · report-photo-fix</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 78 · coach-dashboard</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
