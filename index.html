@@ -280,6 +280,8 @@
   .meal .mtime{font-family:"Space Grotesk";font-size:12px;color:var(--muted);flex:none;min-width:44px}
   .meal .mitem{flex:1;font-size:14px;color:var(--ink)}
   .meal .mdel{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:14px;width:26px;height:26px;border-radius:7px;flex:none}
+  .meal .mcopy{border:1px solid var(--line);background:var(--surface-2);color:var(--muted);cursor:pointer;font-family:"Space Grotesk";font-size:11px;font-weight:600;padding:4px 9px;border-radius:8px;flex:none;white-space:nowrap}
+  .meal .mcopy:hover{border-color:var(--accent);color:var(--accent)}
   .meal .mdel:hover{background:color-mix(in srgb,var(--swetha) 24%,transparent);color:var(--swetha)}
   .meal-empty{font-size:13px;color:var(--muted);padding:6px 2px}
   .mealday{margin-top:16px}
@@ -865,6 +867,12 @@
     enqueue({k:"mealAdd",id:id,person:who,ym:ymKey(),day:day,at:at||"",item:item,sort:srt}); saveCache();
   }
   function delMeal(id){ if(state.meals[id]){ delete state.meals[id]; enqueue({k:"mealDel",id:id}); saveCache(); } }
+  function copyMeal(id,other,day){
+    var m=state.meals[id]; if(!m) return;
+    var dup=false; for(var k in state.meals){ var o=state.meals[k]; if(o.person===other&&o.ym===m.ym&&o.day===day&&o.item===m.item&&(o.at||"")===(m.at||"")){ dup=true; break; } }
+    if(dup){ toast("Already on "+(state.names[other]||other)+"'s list"); return; }
+    addMeal(other,day,m.at,m.item); render(); toast("Copied to "+(state.names[other]||other));
+  }
 
   function habitCount(hid){var pre=hid+"|"+ymKey()+"|",n=0;for(var k in state.logs){if(k.indexOf(pre)===0&&state.logs[k]==="done")n++;}return n;}
   function skipCount(hid){var pre=hid+"|"+ymKey()+"|",n=0;for(var k in state.logs){if(k.indexOf(pre)===0&&state.logs[k]==="skip")n++;}return n;}
@@ -1197,10 +1205,11 @@
   function mealItems(who,day,editable,reorder){
     var ms=mealsFor(who,day);
     if(!ms.length) return '<div class="meal-empty">No meals logged.</div>';
+    var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0];
     return ms.map(function(m,i){
       var mv = reorder ? '<span class="mvcol"><button class="mv" data-mmv="up|'+day+'|'+m.id+'"'+(i===0?' disabled':'')+' aria-label="Move up">▲</button><button class="mv" data-mmv="down|'+day+'|'+m.id+'"'+(i===ms.length-1?' disabled':'')+' aria-label="Move down">▼</button></span>' : '';
       return '<div class="meal">'+mv+'<span class="mtime">'+(m.at||'—')+'</span><span class="mitem">'+esc(m.item)+'</span>'+
-        (editable?'<button class="mdel" data-meal="'+m.id+'" aria-label="Delete">✕</button>':'')+'</div>';
+        (editable?'<button class="mcopy" data-mealcopy="'+m.id+'|'+other+'|'+day+'" title="Copy to '+esc(oname)+'">→ '+esc(oname)+'</button><button class="mdel" data-meal="'+m.id+'" aria-label="Delete">✕</button>':'')+'</div>';
     }).join("");
   }
   function mealAddRow(){
@@ -1843,6 +1852,7 @@
     if(mAdd) mAdd.onclick=addM;
     if(mItem) mItem.onkeydown=function(e){ if(e.key==="Enter") addM(); };
     app.querySelectorAll("[data-meal]").forEach(function(el){ el.onclick=function(){ delMeal(el.dataset.meal); render(); }; });
+    app.querySelectorAll("[data-mealcopy]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.mealcopy.split("|"); copyMeal(p[0],p[1],+p[2]); }; });
     var tn=document.getElementById("todayNote"), nsave=document.getElementById("noteSave");
     function saveNote(){ if(!tn) return; setNote(who,selDay,tn.value); toast("Note saved"); render(); }
     if(nsave) nsave.onclick=saveNote;
@@ -1923,7 +1933,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 72 · rich-notify</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 73 · meal-copy</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
