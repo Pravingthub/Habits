@@ -1660,6 +1660,21 @@
     for(var id in state.photos){var p=state.photos[id]; if(persons.indexOf(p.person)>=0 && !seen[p.path]){seen[p.path]=1; out.push(p.path);}}
     return out;
   }
+  function repSummary(persons){
+    var h='<section class="rp-person-sec"><div class="rp-sechdr">Summary &amp; insights</div>';
+    persons.forEach(function(who){
+      var s=personStatus(who), col=who==="swetha"?"#DD5A86":"#E08A1E";
+      h+='<div class="rp-person"><h4 class="rp-cardh" style="color:'+col+'">'+esc(state.names[who]||who)+'</h4>';
+      var wt=s.latest?wfmt(s.latest.y)+' kg':'\u2014';
+      var rate=s.rate==null?'\u2014':((s.rate<-0.05?'\u25BC ':(s.rate>0.05?'\u25B2 ':''))+bfmt(Math.abs(s.rate))+' kg/wk');
+      var goal=s.toGoal!=null?(s.toGoal>0.05?bfmt(s.toGoal)+' kg to goal':(s.toGoal<-0.05?bfmt(Math.abs(s.toGoal))+' kg under goal':'at goal')):'';
+      h+='<div class="rp-sub">'+wt+' \u00b7 '+rate+(goal?' \u00b7 '+goal:'')+' \u00b7 habits '+s.pct+'%</div>';
+      if(s.flags.length){ h+='<div class="rp-flags">'; s.flags.forEach(function(f){ h+='<div class="rp-flag rpf-'+f.lvl+'">'+esc(f.t)+'</div>'; }); h+='</div>'; }
+      else h+='<div class="rp-ok">On track \u2014 nothing flagged.</div>';
+      h+='</div>';
+    });
+    return h+'</section>';
+  }
   function buildReportHTML(scope,pmap){
     var months=allMonths(), body="";
     var css="body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#F3F0E9;color:#2A2A28;line-height:1.5}"
@@ -1678,10 +1693,12 @@
       +".rp-pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.rp-pgrid figure{margin:0}.rp-pgrid img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;display:block;border:1px solid #e7e1d7}.rp-pgrid figcaption{font-size:11px;color:#6b655c;margin-top:4px;text-align:center;font-weight:600}"
       +".rp-bodygrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}@media(max-width:520px){.rp-bodygrid{grid-template-columns:1fr}}.rp-bodycard{background:#faf7f1;border:1px solid #e7e1d7;border-radius:12px;padding:13px 14px;min-width:0;overflow:hidden}.rp-bodycard .rp-lab{margin-bottom:3px}.rp-bodycard .rp-big{font-size:18px}.rp-bodycard svg{max-height:66px;margin-top:8px}.rp-sec>svg{max-height:120px}.rp-bchg{font-size:13px;font-weight:700}.rp-bchg.good{color:#1f8f5b}.rp-bchg.bad{color:#c0562e}"
       +".rp-hcon{display:flex;flex-direction:column;gap:9px}.rp-hrow{display:flex;align-items:center;gap:9px;font-size:12.5px}.rp-hdot{width:9px;height:9px;border-radius:50%;flex:none}.rp-hname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rp-hbar{flex:none;width:56px;height:6px;background:#efeae2;border-radius:3px;overflow:hidden}.rp-hbar span{display:block;height:100%}.rp-hval{flex:none;font-size:11px;color:#6b655c;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}.rp-hfreq{color:#9a948a;font-size:10px;font-weight:700}"
-      +".rp-f{max-width:920px;margin:14px auto 40px;padding:0 16px;color:#b0a99e;font-size:11px}";
+      +".rp-f{max-width:920px;margin:14px auto 40px;padding:0 16px;color:#b0a99e;font-size:11px}"
+      +".rp-flags{margin-top:9px;display:flex;flex-direction:column;gap:6px}.rp-flag{font-size:12px;padding:8px 11px;border-radius:8px;font-weight:600}.rpf-bad{background:#fbeaea;color:#a3352f}.rpf-warn{background:#fbf3e2;color:#8a5a12}.rpf-good{background:#e9f6ee;color:#2e7d4f}.rp-ok{color:#2e7d4f;font-size:12px;font-weight:600;margin-top:7px}";
     var persons = scope==="both" ? ["pravin","swetha"] : [scope];
     if(!months.length){ body='<div class="rp-month"><p>No data logged yet.</p></div>'; }
     else {
+      body+=repSummary(persons);
       persons.forEach(function(who){
         var pcol=who==="swetha"?"#DD5A86":"#E08A1E";
         body+='<section class="rp-person-sec"><h2 class="rp-personhdr" style="border-color:'+pcol+'"><span style="color:'+pcol+'">'+esc(state.names[who]||who)+'</span></h2>';
@@ -1809,7 +1826,7 @@
       var rateCls = s.rate==null?'':(s.rate<-0.05?'good':(s.rate>0.05?'bad':''));
       var rateTxt = s.rate==null?'\u2014':(arrow+' '+bfmt(Math.abs(s.rate))+' kg/wk');
       var goalTxt = s.toGoal!=null ? (s.toGoal>0.05?bfmt(s.toGoal)+' to goal':(s.toGoal<-0.05?bfmt(Math.abs(s.toGoal))+' under':'at goal')) : '';
-      cards += '<button class="dcard lvl-'+s.level+'" data-coachwho="'+who+'" type="button" style="--pc:'+pc+'">'
+      cards += '<button class="dcard lvl-'+s.level+'" data-dashwho="'+who+'" type="button" style="--pc:'+pc+'">'
         +'<div class="dc-h"><span class="dc-name">'+s.name+'</span><span class="dc-stat"></span></div>'
         +'<div class="dc-wt">'+wt+'</div>'
         +'<div class="dc-sub"><span class="dc-rate '+rateCls+'">'+rateTxt+'</span>'+(goalTxt?'<span class="dc-goal">'+goalTxt+'</span>':'')+'</div>'
@@ -1833,7 +1850,7 @@
 
     // section sub-tabs
     var SECS=[["habits","Habits"],["weight","Weight"],["photos","Photos"],["measurements","Measurements"]];
-    h.push('<div class="tabs coachsub">'+SECS.map(function(s){return '<button class="tab'+(coachSec===s[0]?" active":"")+'" data-coachsec="'+s[0]+'" type="button">'+s[1]+'</button>';}).join("")+'</div>');
+    h.push('<div class="tabs coachsub" id="coachSubRow">'+SECS.map(function(s){return '<button class="tab'+(coachSec===s[0]?" active":"")+'" data-coachsec="'+s[0]+'" type="button">'+s[1]+'</button>';}).join("")+'</div>');
 
     if(coachSec==="habits"){
       h.push('<section><h2 class="eyebrow">'+esc(state.names[who])+' · '+MONTHS[view.m]+' '+view.y+'</h2>');
@@ -1910,9 +1927,10 @@
     var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
     var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
     var rd=document.getElementById("repDl"); if(rd)rd.onclick=function(){ var sc=(document.getElementById("repScope")||{}).value||"both"; downloadReport(sc); };
-    app.querySelectorAll("[data-coachwho]").forEach(function(el){ el.onclick=function(){ coachWho=el.getAttribute("data-coachwho"); renderBoth(); }; });
-    app.querySelectorAll("[data-coachsec]").forEach(function(el){ el.onclick=function(){ coachSec=el.getAttribute("data-coachsec"); renderBoth(); window.scrollTo(0,0); }; });
-    app.querySelectorAll("[data-coachbody]").forEach(function(el){ el.onclick=function(){ coachBody=el.getAttribute("data-coachbody"); renderBoth(); }; });
+    app.querySelectorAll("[data-coachwho]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachWho=el.getAttribute("data-coachwho"); renderBoth(); window.scrollTo(0,y); }; });
+    app.querySelectorAll("[data-dashwho]").forEach(function(el){ el.onclick=function(){ coachWho=el.getAttribute("data-dashwho"); renderBoth(); var r=document.getElementById("coachSubRow"); if(r) r.scrollIntoView({behavior:"smooth",block:"start"}); }; });
+    app.querySelectorAll("[data-coachsec]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachSec=el.getAttribute("data-coachsec"); renderBoth(); window.scrollTo(0,y); }; });
+    app.querySelectorAll("[data-coachbody]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachBody=el.getAttribute("data-coachbody"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
   }
 
@@ -2074,7 +2092,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 78 · coach-dashboard</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 79 · dash-scroll-report</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
