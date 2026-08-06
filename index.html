@@ -2154,7 +2154,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 80 · insights</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 81 · fast-update</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
@@ -2222,10 +2222,10 @@
       swRefreshing=true; location.reload();    // a new version took over — swap in seamlessly
     });
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("./sw.js").then(function(reg){
+      navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"}).then(function(reg){
         function check(){ try{ reg.update(); }catch(e){} }
         check();                                                   // on load
-        setInterval(check, 15*60*1000);                            // every 15 min while open
+        setInterval(check, 60*1000);                               // every minute while open
         document.addEventListener("visibilitychange",function(){ if(!document.hidden) check(); }); // when refocused
         window.addEventListener("pageshow", check);                // when PWA/tab is resumed from background
         window.addEventListener("focus", check);
