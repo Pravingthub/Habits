@@ -292,10 +292,15 @@
   .meal{display:flex;align-items:center;gap:11px;padding:8px 2px;border-bottom:1px solid var(--line)}
   .meal:last-child{border-bottom:0}
   .meal .mtime{font-family:"Space Grotesk";font-size:12px;color:var(--muted);flex:none;min-width:44px}
+  .meal .mtime.edit{background:transparent;border:0;cursor:pointer;padding:2px 0;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;text-decoration-color:var(--muted);text-align:left}
+  .meal .mtime.edit:hover{color:var(--ink)}
+  .mtime-inp{font-family:"Space Grotesk";font-size:12px;background:var(--surface-2);border:1px solid var(--accent);border-radius:8px;color:var(--ink);padding:4px 6px;flex:none;width:104px}
+  .mtime-inp:focus{outline:none}
   .meal .mitem{flex:1;font-size:14px;color:var(--ink)}
   .meal .mdel{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:14px;width:26px;height:26px;border-radius:7px;flex:none}
-  .meal .mcopy{border:1px solid var(--line);background:var(--surface-2);color:var(--muted);cursor:pointer;font-family:"Space Grotesk";font-size:11px;font-weight:600;padding:4px 9px;border-radius:8px;flex:none;white-space:nowrap}
-  .meal .mcopy:hover{border-color:var(--accent);color:var(--accent)}
+  .meal .mcopy{display:inline-flex;align-items:center;gap:5px;border:1px solid color-mix(in srgb,var(--mc) 55%,transparent);background:color-mix(in srgb,var(--mc) 15%,var(--surface-2));color:var(--mc);cursor:pointer;font-family:"Space Grotesk";font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:99px;flex:none;white-space:nowrap;box-shadow:0 3px 10px -4px color-mix(in srgb,var(--mc) 70%,transparent);transition:.13s}
+  .meal .mcopy svg{width:13px;height:13px}
+  .meal .mcopy:hover,.meal .mcopy:active{background:var(--mc);color:#0B0C0F;transform:translateY(-1px)}
   .meal .mdel:hover{background:color-mix(in srgb,var(--swetha) 24%,transparent);color:var(--swetha)}
   .meal-empty{font-size:13px;color:var(--muted);padding:6px 2px}
   .mealday{margin-top:16px}
@@ -887,6 +892,12 @@
     if(dup){ toast("Already on "+(state.names[other]||other)+"'s list"); return; }
     addMeal(other,day,m.at,m.item); render(); toast("Copied to "+(state.names[other]||other));
   }
+  function editMealTime(id,at){
+    var m=state.meals[id]; if(!m) return;
+    m.at=at||"";
+    enqueue({k:"mealAdd",id:id,person:m.person,ym:m.ym,day:m.day,at:m.at,item:m.item,sort:m.sort||0});
+    saveCache(); render();
+  }
 
   function habitCount(hid){var pre=hid+"|"+ymKey()+"|",n=0;for(var k in state.logs){if(k.indexOf(pre)===0&&state.logs[k]==="done")n++;}return n;}
   function skipCount(hid){var pre=hid+"|"+ymKey()+"|",n=0;for(var k in state.logs){if(k.indexOf(pre)===0&&state.logs[k]==="skip")n++;}return n;}
@@ -1219,11 +1230,12 @@
   function mealItems(who,day,editable,reorder){
     var ms=mealsFor(who,day);
     if(!ms.length) return '<div class="meal-empty">No meals logged.</div>';
-    var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0];
+    var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0], oc=other==="swetha"?"var(--swetha)":"var(--pravin)";
     return ms.map(function(m,i){
       var mv = reorder ? '<span class="mvcol"><button class="mv" data-mmv="up|'+day+'|'+m.id+'"'+(i===0?' disabled':'')+' aria-label="Move up">▲</button><button class="mv" data-mmv="down|'+day+'|'+m.id+'"'+(i===ms.length-1?' disabled':'')+' aria-label="Move down">▼</button></span>' : '';
-      return '<div class="meal">'+mv+'<span class="mtime">'+(m.at||'—')+'</span><span class="mitem">'+esc(m.item)+'</span>'+
-        (editable?'<button class="mcopy" data-mealcopy="'+m.id+'|'+other+'|'+day+'" title="Copy to '+esc(oname)+'">→ '+esc(oname)+'</button><button class="mdel" data-meal="'+m.id+'" aria-label="Delete">✕</button>':'')+'</div>';
+      var timeEl = editable ? '<button class="mtime edit" data-mealtime="'+m.id+'" title="Edit time">'+(m.at||'—')+'</button>' : '<span class="mtime">'+(m.at||'—')+'</span>';
+      return '<div class="meal">'+mv+timeEl+'<span class="mitem">'+esc(m.item)+'</span>'+
+        (editable?'<button class="mcopy" data-mealcopy="'+m.id+'|'+other+'|'+day+'" style="--mc:'+oc+'" title="Copy to '+esc(oname)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M12 6l6 6-6 6"/></svg>'+esc(oname)+'</button><button class="mdel" data-meal="'+m.id+'" aria-label="Delete">✕</button>':'')+'</div>';
     }).join("");
   }
   function mealAddRow(){
@@ -1885,6 +1897,15 @@
     if(mItem) mItem.onkeydown=function(e){ if(e.key==="Enter") addM(); };
     app.querySelectorAll("[data-meal]").forEach(function(el){ el.onclick=function(){ delMeal(el.dataset.meal); render(); }; });
     app.querySelectorAll("[data-mealcopy]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.mealcopy.split("|"); copyMeal(p[0],p[1],+p[2]); }; });
+    app.querySelectorAll("[data-mealtime]").forEach(function(el){ el.onclick=function(){
+      var id=el.dataset.mealtime, m=state.meals[id]; if(!m) return;
+      var inp=document.createElement("input"); inp.type="time"; inp.className="mtime-inp"; inp.value=m.at||"";
+      el.replaceWith(inp); inp.focus(); if(inp.showPicker){ try{ inp.showPicker(); }catch(e){} }
+      var done=false; function commit(save){ if(done)return; done=true; if(save) editMealTime(id, inp.value); else render(); }
+      inp.addEventListener("change",function(){ commit(true); });
+      inp.addEventListener("blur",function(){ commit(true); });
+      inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
+    }; });
     var tn=document.getElementById("todayNote"), nsave=document.getElementById("noteSave");
     function saveNote(){ if(!tn) return; setNote(who,selDay,tn.value); toast("Note saved"); render(); }
     if(nsave) nsave.onclick=saveNote;
@@ -1965,7 +1986,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 75 · reminder-status</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 76 · meal-time-edit</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
