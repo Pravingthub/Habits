@@ -298,8 +298,9 @@
   .dchip.skip{border-style:dashed;color:var(--ink-2)}
   .dchip.miss{opacity:.65}
   /* sub navigation (sections within a person) */
-  .subnav{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:20px}
-  .subtab{flex:1;border:0;background:transparent;cursor:pointer;padding:9px 6px;border-radius:10px;font-family:"Inter";font-weight:600;font-size:13.5px;color:var(--muted);transition:.15s}
+  .subnav{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:20px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+  .subnav::-webkit-scrollbar{display:none}
+  .subtab{flex:0 0 auto;white-space:nowrap;border:0;background:transparent;cursor:pointer;padding:9px 14px;border-radius:10px;font-family:"Inter";font-weight:600;font-size:13.5px;color:var(--muted);transition:.15s;scroll-snap-align:center}
   .subtab:hover{color:var(--ink)}
   .subtab.active{background:var(--surface);color:var(--accent-deep);box-shadow:var(--sh-1)}
   .subtab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -435,7 +436,9 @@
   .dflag.fl-warn{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 8%,var(--surface))} .dflag.fl-warn .fl-ic{color:var(--warn)}
   .dflag.fl-bad{border-color:color-mix(in srgb,var(--bad) 50%,transparent);background:color-mix(in srgb,var(--bad) 9%,var(--surface))} .dflag.fl-bad .fl-ic{color:var(--bad)}
   .ct-seg{flex:1;font:inherit;font-size:15px;font-weight:700;padding:11px 12px;border-radius:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
-  .coachsub{margin:2px 0 16px}
+  .coachsub{margin:2px 0 16px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .coachsub::-webkit-scrollbar{display:none}
+  .coachsub .tab{flex:0 0 auto;white-space:nowrap}
   .ct-seg.active{background:var(--accent);color:#fff}
   .bt-seg{flex:1;font:inherit;font-size:14px;font-weight:700;padding:9px 12px;border-radius:9px;border:0;background:transparent;color:var(--muted);cursor:pointer}
   .bt-seg.active{background:var(--accent);color:#fff}
@@ -1599,6 +1602,7 @@
     h+=reminderCard(who);
     h+='<div class="toolrow">'+(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>')+'</div>';
     app.innerHTML=h; wireProfile(who); wireReminderBtn(who);
+    var _at=app.querySelector(".subtab.active"); if(_at&&_at.scrollIntoView) try{ _at.scrollIntoView({inline:"center",block:"nearest"}); }catch(e){}
   }
 
   // ───────── all-time helpers (report + compare) ─────────
@@ -2246,7 +2250,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 84 · workouts</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 85 · tab-scroll</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
