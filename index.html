@@ -179,6 +179,14 @@
   .wk-frow2 .btn{flex:1 0 100%;margin-top:2px}
   .wk-hint,.wk-note{font-size:11.5px;color:var(--muted);opacity:.85;margin-top:11px;line-height:1.5}
   .wk-note{text-align:center;margin-top:12px}
+  .wk-prog{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px;margin-top:14px}
+  .wk-prog .wk-sel{margin-bottom:10px}
+  .wk-mtoggle{display:flex;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:4px;margin-bottom:12px}
+  .wk-mseg{flex:1;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:"Space Grotesk";font-weight:600;font-size:12.5px;padding:8px 4px;border-radius:8px;transition:.13s}
+  .wk-mseg.active{background:var(--accent);color:#0B0C0F}
+  .wk-prog-lab{font-family:"Space Grotesk";font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+  .wk-prog-sum{font-family:"Space Grotesk";font-size:12.5px;font-weight:600;color:var(--muted);margin-top:9px}
+  .wk-prog-sum.good{color:var(--good)} .wk-prog-sum.bad{color:var(--bad)}
   .remcard{display:flex;align-items:center;gap:12px;width:100%;padding:14px 15px;border-radius:16px;border:1px solid var(--line);background:var(--surface);cursor:pointer;margin:2px 0 12px;text-align:left;font:inherit;color:var(--ink)}
   .remcard .rc-ico{font-size:20px;line-height:1;flex:none}
   .remcard .rc-tx{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -1554,7 +1562,7 @@
 
 
   // ───────── workouts ─────────
-  var wkLastMuscle="", wkLastEx="";
+  var wkLastMuscle="", wkLastEx="", wkChartEx="", wkChartMetric="top";
   function wkRows(who,day){ var a=[], ymk=ymKey(); for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.ym===ymk&&w.day===day) a.push({id:id,muscle:w.muscle,exercise:w.exercise,setno:w.setno,weight:w.weight,reps:w.reps}); } return a; }
   function wkExNames(who){ var set={}; for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.exercise) set[w.exercise]=1; } return Object.keys(set).sort(); }
   function addWkSet(who,day,muscle,exercise,weight,reps){
@@ -1574,6 +1582,30 @@
     sets.sort(function(a,b){return a.setno-b.setno;});
     sets.forEach(function(s){ addWkSet(other,day,muscle,exercise,s.weight,s.reps); });
     render(); toast("Copied "+exercise+" to "+(state.names[other]||other));
+  }
+  function wkExSessions(who,exercise){
+    var byDay={};
+    for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.exercise===exercise&&w.weight!=null&&w.reps!=null){ var key=w.ym+"|"+w.day; if(!byDay[key])byDay[key]={ym:w.ym,day:w.day,sets:[]}; byDay[key].sets.push(w); } }
+    var out=[];
+    for(var k in byDay){ var s=byDay[k], top=0,vol=0,e=0; s.sets.forEach(function(x){ vol+=x.weight*x.reps; if(x.weight>top)top=x.weight; var e1=x.weight*(1+x.reps/30); if(e1>e)e=e1; }); out.push({ym:s.ym,day:s.day,x:ymRank(s.ym)*31+s.day,label:s.day+" "+ymShort(s.ym),top:Math.round(top*10)/10,vol:Math.round(vol),e1rm:Math.round(e*10)/10}); }
+    out.sort(function(a,b){return a.x-b.x;});
+    return out;
+  }
+  function wkProgressionHTML(who){
+    var exs=wkExNames(who);
+    if(!exs.length) return '<div class="wk-prog"><div class="wk-fh">Progression</div><div class="wk-empty">Log an exercise and its graph shows up here — weight, volume and estimated 1-rep-max over time.</div></div>';
+    var ex=(wkChartEx && exs.indexOf(wkChartEx)>=0)?wkChartEx:exs[0];
+    var metric=wkChartMetric||"top", hex=who==="swetha"?"#DD5A86":"#E08A1E";
+    var sessions=wkExSessions(who,ex), pts=sessions.map(function(s){return {x:s.x,y:s[metric],label:s.label};});
+    var mLabel={top:"Top-set weight (kg)",vol:"Total volume (kg)",e1rm:"Estimated 1-rep-max (kg)"}[metric];
+    var chart = pts.length ? weightChart([{name:ex,color:hex,points:pts}],0) : '';
+    var body;
+    if(pts.length>=2){ var d=pts[pts.length-1].y-pts[0].y; body=chart+'<div class="wk-prog-sum '+(d>0?'good':(d<0?'bad':''))+'">'+(d>0?'\u25B2 +':(d<0?'\u25BC \u2212':'\u00b7 '))+bfmt(Math.abs(d))+' kg since '+pts[0].label+' \u00b7 '+pts.length+' sessions</div>'; }
+    else if(pts.length===1){ body=chart+'<div class="wk-prog-sum">First session logged ('+bfmt(pts[0].y)+' kg) \u2014 one more and the trend line appears.</div>'; }
+    else body='<div class="wk-empty">No sets with weight &amp; reps yet for '+esc(ex)+'.</div>';
+    var sel='<select id="wkChartSel" class="wk-sel">'+exs.map(function(e){return '<option'+(e===ex?' selected':'')+'>'+esc(e)+'</option>';}).join("")+'</select>';
+    var toggle='<div class="wk-mtoggle">'+[["top","Top wt"],["vol","Volume"],["e1rm","Est 1RM"]].map(function(m){return '<button class="wk-mseg'+(metric===m[0]?' active':'')+'" data-wkmetric="'+m[0]+'" type="button">'+m[1]+'</button>';}).join("")+'</div>';
+    return '<div class="wk-prog"><div class="wk-fh">Progression</div>'+sel+toggle+'<div class="wk-prog-lab">'+mLabel+'</div>'+body+'</div>';
   }
   function wkDayHTML(who,day,editable){
     var rows=wkRows(who,day), groups={}, order=[];
@@ -1606,7 +1638,9 @@
     h+='<div class="wk-frow"><input id="wkEx" class="wk-inp" list="wkExList" placeholder="Exercise (e.g. Bench Press)" value="'+esc(wkLastEx)+'" /><datalist id="wkExList">'+wkExNames(who).map(function(x){return '<option value="'+esc(x)+'"></option>';}).join("")+'</datalist></div>';
     h+='<div class="wk-frow2"><span class="ib"><input id="wkWt" class="wk-num" type="number" step="0.5" min="0" inputmode="decimal" placeholder="0"/><u>kg</u></span><span class="ib"><input id="wkReps" class="wk-num" type="number" step="1" min="0" inputmode="numeric" placeholder="0"/><u>reps</u></span><button class="btn accent" id="wkAdd">Add set</button></div>';
     h+='<div class="wk-hint">Pick a muscle group, name the exercise, then log each set. The exercise stays selected so you can add set after set.</div>';
-    h+='</div></section>';
+    h+='</div>';
+    h+=wkProgressionHTML(who);
+    h+='</section>';
     return h;
   }
 
@@ -2048,7 +2082,7 @@
     }
     else if(coachSec==="workout"){
       var wsel=DOW[selDate().getDay()]+' '+selDay+' '+MONTHS[view.m].slice(0,3)+(isSelToday()?' \u00b7 today':'');
-      h.push('<section><h2 class="eyebrow">Workout \u00b7 '+wsel+'</h2><div class="panel" style="--pc:'+pc+'">'+wkDayHTML(who,selDay,false)+'</div><div class="wk-note">Per-exercise progression graphs are coming next.</div></section>');
+      h.push('<section><h2 class="eyebrow">Workout \u00b7 '+wsel+'</h2><div class="panel" style="--pc:'+pc+'">'+wkDayHTML(who,selDay,false)+'</div>'+wkProgressionHTML(who)+'</section>');
     }
     else if(coachSec==="photos"){
       h.push('<section><h2 class="eyebrow">Progress photos · latest</h2><div class="panel" style="--pc:'+pc+'">');
@@ -2099,6 +2133,8 @@
     app.querySelectorAll("[data-coachwho]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachWho=el.getAttribute("data-coachwho"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-dashwho]").forEach(function(el){ el.onclick=function(){ coachWho=el.getAttribute("data-dashwho"); renderBoth(); var r=document.getElementById("coachSubRow"); if(r) r.scrollIntoView({behavior:"smooth",block:"start"}); }; });
     app.querySelectorAll("[data-aicopy]").forEach(function(el){ el.onclick=function(){ copyForAI(el.getAttribute("data-aicopy")); }; });
+    var _cwcs=document.getElementById("wkChartSel"); if(_cwcs) _cwcs.onchange=function(){ var y=window.scrollY; wkChartEx=_cwcs.value; renderBoth(); window.scrollTo(0,y); };
+    app.querySelectorAll("[data-wkmetric]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkChartMetric=el.dataset.wkmetric; renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-coachsec]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachSec=el.getAttribute("data-coachsec"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-coachbody]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachBody=el.getAttribute("data-coachbody"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
@@ -2183,6 +2219,8 @@
     };
     app.querySelectorAll("[data-wkdel]").forEach(function(el){ el.onclick=function(){ delWkSet(el.dataset.wkdel); render(); }; });
     app.querySelectorAll("[data-wkcopy]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.wkcopy.split("||"); var other=who==="pravin"?"swetha":"pravin"; copyWorkoutEx(who,other,selDay,p[0],p[1]); }; });
+    var _wcs=document.getElementById("wkChartSel"); if(_wcs) _wcs.onchange=function(){ wkChartEx=_wcs.value; render(); };
+    app.querySelectorAll("[data-wkmetric]").forEach(function(el){ el.onclick=function(){ wkChartMetric=el.dataset.wkmetric; render(); }; });
     app.querySelectorAll("[data-wkaddset]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.wkaddset.split("||"); wkLastMuscle=p[0]; wkLastEx=p[1]; render(); setTimeout(function(){ var w=document.getElementById("wkWt"); if(w){ w.focus(); w.scrollIntoView({behavior:"smooth",block:"center"}); } },30); }; });
     app.querySelectorAll("[data-mealtime]").forEach(function(el){ el.onclick=function(){
       var id=el.dataset.mealtime, m=state.meals[id]; if(!m) return;
@@ -2273,7 +2311,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 87 · workout-copy</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 88 · workout-graphs</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
