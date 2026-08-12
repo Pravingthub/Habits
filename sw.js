@@ -1,5 +1,5 @@
-\/* Daily Habits — service worker */
-const CACHE = "daily-habits-v99";
+/* Daily Habits — service worker */
+const CACHE = "daily-habits-v100";
 const SHELL = [
   "./",
   "./index.html",
