@@ -216,7 +216,21 @@
   .wsg-newex{display:grid;grid-template-columns:1fr 34px;gap:6px;margin-top:8px}
   .wsg-exin{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:Inter;font-size:13px;padding:9px 11px;outline:none;min-width:0}
   .wsg-exin:focus{border-color:var(--accent)}
-  .wse{border:1px solid var(--line);border-radius:11px;padding:10px 11px 8px;margin-bottom:9px;background:var(--surface-2)}
+  .wex{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px;background:var(--surface)}
+  .wex.done{border-color:color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 6%,var(--surface))}
+  .wex-top{display:flex;align-items:center;gap:11px}
+  .wex-check{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--surface-2);color:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:.13s}
+  .wex-check.on{background:var(--good);border-color:var(--good);color:#07130C}
+  .wex-check.ro{cursor:default}
+  .wex-n{flex:1;font-family:"Space Grotesk";font-weight:600;font-size:15px;min-width:0}
+  .wex-n.edit{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--line);text-underline-offset:3px}
+  .wex-del{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;width:26px;height:26px;border-radius:7px}
+  .wex-in{display:flex;gap:10px;margin:10px 0 2px 37px}
+  .wex-f{display:flex;align-items:center;gap:5px}
+  .wex-f u{font-style:normal;font-size:11px;color:var(--muted)}
+  .wex-num{width:66px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:"Space Grotesk";font-weight:600;font-size:15px;padding:8px 9px;outline:none;text-align:center}
+  .wex-num:focus{border-color:var(--accent)}
+  .wex-num:disabled{opacity:.7}
   .wse-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
   .wse-n{font-family:"Space Grotesk";font-weight:600;font-size:14px}
   .wse-n.edit{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--line);text-underline-offset:3px}
@@ -1800,11 +1814,15 @@
   function renameEx(id,name){ var p=state.wkPlan[id]; if(!p) return; name=(name||"").trim(); if(!name) return; p.exercise=name; enqueue({k:"wkPlanAdd",id:id,person:p.person,day:p.day,muscle:p.muscle||"",exercise:name,sort:p.sort||0}); saveCache(); render(); }
   function delEx(id){ var p=state.wkPlan[id]; if(!p) return; for(var sid in state.wkSet){ if(state.wkSet[sid].planId===id){ enqueue({k:"wkSetDel",id:sid}); delete state.wkSet[sid]; } } delete state.wkPlan[id]; enqueue({k:"wkPlanDel",id:id}); saveCache(); }
   function setsFor(planId,week){ var a=[]; for(var id in state.wkSet){ var s=state.wkSet[id]; if(s.planId===planId&&s.week===week) a.push({id:id,setno:s.setno||0,weight:s.weight,reps:s.reps}); } a.sort(function(x,y){return x.setno-y.setno;}); return a; }
+  function valRowId(planId,week){ return planId+":w"+week; }
+  function getVal(planId,week){ return state.wkSet[valRowId(planId,week)]||null; }
+  function toggleDone(planId,week){ var p=state.wkPlan[planId]; if(!p) return; var id=valRowId(planId,week); if(state.wkSet[id]){ delete state.wkSet[id]; enqueue({k:"wkSetDel",id:id}); } else { var so=Date.now(); state.wkSet[id]={person:p.person,planId:planId,week:week,setno:1,weight:null,reps:null,sort:so}; enqueue({k:"wkSetAdd",id:id,person:p.person,planId:planId,week:week,setno:1,weight:null,reps:null,sort:so}); } saveCache(); }
+  function setVal(planId,week,field,raw){ var p=state.wkPlan[planId]; if(!p) return; var id=valRowId(planId,week), cur=state.wkSet[id]; if(!cur){ cur={person:p.person,planId:planId,week:week,setno:1,weight:null,reps:null,sort:Date.now()}; } var nv=(raw===""||raw==null?null:+raw); cur[field]=nv; state.wkSet[id]=cur; enqueue({k:"wkSetAdd",id:id,person:cur.person,planId:planId,week:week,setno:1,weight:cur.weight,reps:cur.reps,sort:cur.sort||0}); saveCache(); }
   function addSet(planId,week,weight,reps){ var p=state.wkPlan[planId]; if(!p) return; var n=0; for(var id in state.wkSet){ var s=state.wkSet[id]; if(s.planId===planId&&s.week===week) n++; } var nid=uid(), wt=(weight===""||weight==null?null:+weight), rp=(reps===""||reps==null?null:+reps), so=Date.now(); state.wkSet[nid]={person:p.person,planId:planId,week:week,setno:n+1,weight:wt,reps:rp,sort:so}; enqueue({k:"wkSetAdd",id:nid,person:p.person,planId:planId,week:week,setno:n+1,weight:wt,reps:rp,sort:so}); saveCache(); return nid; }
   function editSet(id,field,raw){ var s=state.wkSet[id]; if(!s) return; var nv=(raw===""||raw==null?null:+raw); if(field==="weight") s.weight=nv; else s.reps=nv; enqueue({k:"wkSetAdd",id:id,person:s.person,planId:s.planId,week:s.week,setno:s.setno,weight:s.weight,reps:s.reps,sort:s.sort||0}); saveCache(); }
   function delSet(id){ if(state.wkSet[id]){ delete state.wkSet[id]; enqueue({k:"wkSetDel",id:id}); saveCache(); } }
-  function copyDayGroups(who,other,day){ var mine=exsForDay(who,day); if(!mine.length){ toast("Nothing on Day "+day+" to copy"); return; } exsForDay(other,day).forEach(function(e){ delEx(e.id); }); setFocus(other,day,"seeded"); mine.forEach(function(e){ var nid=addExercise(other,day,e.exercise); if(!nid) return; for(var w=1;w<=4;w++){ setsFor(e.id,w).forEach(function(s){ addSet(nid,w,s.weight,s.reps); }); } }); var nd=state.wkDay[who+"|"+day]; if(nd&&nd.note){ setDayNote(other,day,nd.note); } render(); toast("Copied Day "+day+" to "+(state.names[other]||other)+" ("+mine.length+" exercise"+(mine.length>1?"s":"")+")"); }
-  function wkMonthAgg(who){ var g={1:{w:[0,0,0,0],r:[0,0,0,0]},2:{w:[0,0,0,0],r:[0,0,0,0]},3:{w:[0,0,0,0],r:[0,0,0,0]}}; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person!==who||!g[p.day]) continue; for(var w=1;w<=4;w++){ setsFor(id,w).forEach(function(s){ if(s.weight!=null&&s.reps!=null){ g[p.day].w[w-1]+=s.weight*s.reps; g[p.day].r[w-1]+=s.reps; } }); } } return g; }
+  function copyDayGroups(who,other,day){ var mine=exsForDay(who,day); if(!mine.length){ toast("Nothing on Day "+day+" to copy"); return; } exsForDay(other,day).forEach(function(e){ delEx(e.id); }); setFocus(other,day,"seeded"); mine.forEach(function(e){ var nid=addExercise(other,day,e.exercise); if(!nid) return; for(var w=1;w<=4;w++){ var v=getVal(e.id,w); if(v){ toggleDone(nid,w); if(v.weight!=null) setVal(nid,w,"weight",v.weight); if(v.reps!=null) setVal(nid,w,"reps",v.reps); } } }); var nd=state.wkDay[who+"|"+day]; if(nd&&nd.note){ setDayNote(other,day,nd.note); } render(); toast("Copied Day "+day+" to "+(state.names[other]||other)+" ("+mine.length+" exercise"+(mine.length>1?"s":"")+")"); }
+  function wkMonthAgg(who){ var g={1:{w:[0,0,0,0],r:[0,0,0,0]},2:{w:[0,0,0,0],r:[0,0,0,0]},3:{w:[0,0,0,0],r:[0,0,0,0]}}; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person!==who||!g[p.day]) continue; for(var w=1;w<=4;w++){ var v=getVal(id,w); if(v&&v.weight!=null&&v.reps!=null){ g[p.day].w[w-1]+=v.weight*v.reps; g[p.day].r[w-1]+=v.reps; } } } return g; }
   function wkMonthAggTable(who,light){
     var g=wkMonthAgg(who), cls=light?"rp-magg":"wk-magg", tw=[0,0,0,0], tr=[0,0,0,0];
     var head='<thead><tr><th rowspan="2">Training day</th><th colspan="2">Week 1</th><th colspan="2">Week 2</th><th colspan="2">Week 3</th><th colspan="2">Week 4</th><th colspan="2">Month total</th></tr><tr>'+('<th>Vol</th><th>Reps</th>'.repeat(5))+'</tr></thead>';
@@ -1816,16 +1834,19 @@
   function wkDayExercisesHTML(who,day,editable){
     var exs=exsForDay(who,day), wk=curWeek(), h='';
     if(!exs.length){ h+='<div class="wkp-none">No exercises'+(editable?' — add one below':'')+'.</div>'; }
-    exs.forEach(function(e){ var sets=setsFor(e.id,wk);
-      h+='<div class="wse"><div class="wse-h"><span class="wse-n'+(editable?' edit':'')+'"'+(editable?' data-exrename="'+e.id+'"':'')+'>'+esc(e.exercise)+'</span>'+(editable?'<button class="wse-del" data-exdel="'+e.id+'" aria-label="Remove exercise">✕</button>':'')+'</div>';
-      h+='<div class="wse-head"><span>Set</span><span>Kg</span><span>Reps</span><span></span></div>';
-      if(!sets.length){ h+='<div class="wkp-none">No sets logged'+(editable?' — “+ set” below':'')+'.</div>'; }
-      sets.forEach(function(s,i){
-        h+='<div class="wse-row"><div class="wse-sn">'+(i+1)+'</div>'
-          +setCellHTML(s.id,"weight",s.weight,editable)+setCellHTML(s.id,"reps",s.reps,editable)
-          +'<div class="wsg-x">'+(editable?'<button class="wk-del" data-setdel="'+s.id+'" aria-label="Delete set">✕</button>':'')+'</div></div>';
-      });
-      if(editable) h+='<button class="wkt-addset" data-setadd="'+e.id+'">+ set</button>';
+    exs.forEach(function(e){ var v=getVal(e.id,wk), done=!!v;
+      h+='<div class="wex'+(done?' done':'')+'">';
+      h+='<div class="wex-top">';
+      h+= (editable?'<button class="wex-check'+(done?' on':'')+'" data-exdone="'+e.id+'" aria-label="Mark done"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></button>' : '<span class="wex-check ro'+(done?' on':'')+'"></span>');
+      h+='<span class="wex-n'+(editable?' edit':'')+'"'+(editable?' data-exrename="'+e.id+'"':'')+'>'+esc(e.exercise)+'</span>';
+      h+= (editable?'<button class="wex-del" data-exdel="'+e.id+'" aria-label="Remove">✕</button>':'');
+      h+='</div>';
+      if(done){
+        h+='<div class="wex-in">'
+          +'<span class="wex-f"><input class="wex-num" type="number" step="0.5" min="0" inputmode="decimal" placeholder="—"'+(editable?'':' disabled')+' data-valfield="'+e.id+'|weight" value="'+(v.weight!=null?v.weight:'')+'"><u>kg</u></span>'
+          +'<span class="wex-f"><input class="wex-num" type="number" step="1" min="0" inputmode="numeric" placeholder="—"'+(editable?'':' disabled')+' data-valfield="'+e.id+'|reps" value="'+(v.reps!=null?v.reps:'')+'"><u>reps</u></span>'
+          +'</div>';
+      }
       h+='</div>';
     });
     if(editable) h+='<div class="wsg-newex" data-exadd="'+day+'"><input class="wkt-in wsg-exin" list="wkExList" placeholder="+ add exercise"><button class="wkt-addex-btn" aria-label="Add">+</button></div>';
@@ -2053,8 +2074,8 @@
       var exs=exsForDay(who,day); if(!exs.length) return; any=true;
       var note=getDayNote(who,day);
       h+='<div class="rp-person"><h4 class="rp-cardh">Day '+day+' · '+DAY_NAMES[day]+'</h4>';
-      h+='<table class="rp-prog"><thead><tr><th>Exercise</th><th>Set</th><th>Weight (kg)</th><th>Reps</th></tr></thead><tbody>';
-      exs.forEach(function(e){ var sets=setsFor(e.id,wk); if(!sets.length){ h+='<tr><td class="rp-prog-ex">'+esc(e.exercise)+'</td><td>·</td><td>·</td><td>·</td></tr>'; return; } sets.forEach(function(s,i){ h+='<tr><td class="rp-prog-ex">'+(i===0?esc(e.exercise):'')+'</td><td>'+(i+1)+'</td><td>'+(s.weight!=null?bfmt(s.weight):'—')+'</td><td>'+(s.reps!=null?s.reps:'—')+'</td></tr>'; }); });
+      h+='<table class="rp-prog"><thead><tr><th>Exercise</th><th>Done</th><th>Weight (kg)</th><th>Reps</th></tr></thead><tbody>';
+      exs.forEach(function(e){ var v=getVal(e.id,wk); h+='<tr><td class="rp-prog-ex">'+esc(e.exercise)+'</td><td>'+(v?'\u2713':'\u2014')+'</td><td>'+(v&&v.weight!=null?bfmt(v.weight):'\u00b7')+'</td><td>'+(v&&v.reps!=null?v.reps:'\u00b7')+'</td></tr>'; });
       h+='</tbody></table>';
       h+=(note?'<div class="rp-note">Notes: '+esc(note)+'</div>':'')+'</div>';
     });
@@ -2538,16 +2559,8 @@
       btn.onclick=go;
       var exi=row.querySelector(".wsg-exin"); if(exi) exi.addEventListener("keydown",function(e){ if(e.key==="Enter") go(); });
     });
-    app.querySelectorAll("[data-setadd]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; var pid=el.dataset.setadd, wk=curWeek(), ss=setsFor(pid,wk), last=ss.length?ss[ss.length-1]:null; addSet(pid,wk, last?last.weight:"", last?last.reps:""); render(); window.scrollTo(0,y); }; });
-    app.querySelectorAll("[data-setdel]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; delSet(el.dataset.setdel); render(); window.scrollTo(0,y); }; });
-    app.querySelectorAll("[data-setcell]").forEach(function(el){ el.onclick=function(){
-      var y=window.scrollY, parts=el.dataset.setcell.split("|"), id=parts[0], field=parts[1], s=state.wkSet[id]; if(!s) return;
-      var inp=document.createElement("input"); inp.className="wkt-cellinp"; inp.type="number"; inp.step=(field==="weight"?"0.5":"1"); inp.min="0"; inp.inputMode=(field==="weight"?"decimal":"numeric"); inp.value=(s[field]!=null?s[field]:"");
-      el.replaceWith(inp); inp.focus(); try{ inp.select(); }catch(e){}
-      var done=false; function commit(save){ if(done)return; done=true; if(save) editSet(id,field,inp.value); render(); window.scrollTo(0,y); }
-      inp.addEventListener("blur",function(){ commit(true); });
-      inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
-    }; });
+    app.querySelectorAll("[data-exdone]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; toggleDone(el.dataset.exdone,curWeek()); render(); window.scrollTo(0,y); }; });
+    app.querySelectorAll("[data-valfield]").forEach(function(inp){ inp.onblur=function(){ var y=window.scrollY; var pp=inp.dataset.valfield.split("|"); setVal(pp[0],curWeek(),pp[1],inp.value); render(); window.scrollTo(0,y); }; inp.onkeydown=function(e){ if(e.key==="Enter") inp.blur(); }; });
     app.querySelectorAll("[data-mealtime]").forEach(function(el){ el.onclick=function(){
       var id=el.dataset.mealtime, m=state.meals[id]; if(!m) return;
       var inp=document.createElement("input"); inp.type="time"; inp.className="mtime-inp"; inp.value=m.at||"";
@@ -2657,7 +2670,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 98 · workout-day-exercises</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 99 · workout-done-toggle</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
