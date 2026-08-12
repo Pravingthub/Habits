@@ -557,19 +557,29 @@
   .dash-h{font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--muted);font-weight:600;margin:2px 2px 12px}
   .dash-cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:12px}
   .dc-walk{font-family:"Space Grotesk";font-size:11px;color:var(--muted);margin-top:5px}
-  .walk-card{text-align:center}
-  .walk-ring{position:relative;width:150px;height:150px;margin:6px auto 2px}
-  .walk-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
-  .walk-tot{font-family:"Space Grotesk";font-weight:700;font-size:30px;line-height:1;letter-spacing:-.02em}
+  .walk-card{text-align:center;position:relative;overflow:hidden}
+  .walk-card::before{content:"";position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:220px;height:220px;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 16%,transparent),transparent 68%);pointer-events:none;z-index:0}
+  .walk-card>*{position:relative;z-index:1}
+  .walk-ring{position:relative;width:168px;height:168px;margin:8px auto 4px}
+  .walk-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+  .walk-tot{font-family:"Space Grotesk";font-weight:700;font-size:34px;line-height:1;letter-spacing:-.03em}
   .walk-unit{font-family:"Space Grotesk";font-size:11px;color:var(--muted)}
-  .walk-pct{font-family:"Space Grotesk";font-size:12px;color:var(--accent);font-weight:700;margin-top:2px}
-  .walk-sub{font-family:"Space Grotesk";font-size:12.5px;color:var(--muted);margin:2px 0 12px}
-  .walk-seg{display:flex;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:4px;margin-bottom:11px}
-  .walk-mseg{flex:1;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:"Space Grotesk";font-weight:600;font-size:13px;padding:9px 4px;border-radius:8px}
+  .walk-pct{font-family:"Space Grotesk";font-size:11px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:99px;padding:2px 9px;margin-top:4px}
+  .walk-sub{font-family:"Space Grotesk";font-size:13px;color:var(--ink);margin:4px 0 14px;font-weight:600}
+  .walk-seg{display:flex;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:12px}
+  .walk-mseg{flex:1;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:"Space Grotesk";font-weight:600;font-size:13px;padding:10px 4px;border-radius:9px;transition:.13s}
   .walk-mseg.active{background:var(--accent);color:#0B0C0F}
-  .walk-in{display:flex;gap:8px;align-items:stretch;justify-content:center;margin-bottom:10px}
-  .walk-today{font-family:"Space Grotesk";font-size:12.5px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+  .walk-in{display:flex;gap:8px;align-items:stretch;justify-content:center;margin-bottom:12px}
+  .walk-field{display:flex;align-items:center;gap:7px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:0 14px;flex:1;max-width:230px;transition:.13s}
+  .walk-field:focus-within{border-color:var(--accent)}
+  .walk-num{flex:1;min-width:0;background:transparent;border:0;color:var(--ink);font-family:"Space Grotesk";font-weight:700;font-size:19px;padding:12px 0;outline:none;text-align:left}
+  .walk-num::placeholder{color:var(--muted);font-weight:600}
+  .walk-num::-webkit-outer-spin-button,.walk-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .walk-u{color:var(--muted);font-size:12px;font-family:"Space Grotesk";font-weight:600;flex:none}
+  .walk-in .btn{flex:none;padding:0 18px}
+  .walk-today{font-family:"Space Grotesk";font-size:12.5px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:10px 13px;line-height:1.5}
   .walk-today.muted{color:var(--muted)}
+  .walk-today b{color:var(--accent)}
   .dcard{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 14px 13px;cursor:pointer;font:inherit;color:var(--ink);position:relative;overflow:hidden}
   .dcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--pc)}
   .dcard .dc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
@@ -1068,10 +1078,10 @@
     var seg = editable ? '<div class="walk-seg">'+[["steps","Steps"],["km","KM"],["mins","Minutes"]].map(function(m){return '<button class="walk-mseg'+(walkMode===m[0]?' active':'')+'" data-walkmode="'+m[0]+'" type="button">'+m[1]+'</button>';}).join("")+'</div>' : '';
     var unit={steps:"steps",km:"km",mins:"min"}[walkMode];
     var inputVal = (e&&e.kind===walkMode)?e.amount:'';
-    var inRow = editable ? '<div class="walk-in"><span class="ibox"><input type="number" step="'+(walkMode==="km"?"0.1":"1")+'" min="0" inputmode="'+(walkMode==="km"?"decimal":"numeric")+'" id="walkInput" value="'+inputVal+'" placeholder="0"/><span class="kg">'+unit+'</span></span><button class="btn accent" id="walkSave">Save this day</button></div>' : '';
+    var inRow = editable ? '<div class="walk-in"><div class="walk-field"><input type="number" step="'+(walkMode==="km"?"0.1":"1")+'" min="0" inputmode="'+(walkMode==="km"?"decimal":"numeric")+'" id="walkInput" class="walk-num" value="'+inputVal+'" placeholder="0"/><span class="walk-u">'+unit+'</span></div><button class="btn accent" id="walkSave">Save</button></div>' : '';
     return '<div class="qcard qspan walk-card"><div class="qlabel">Walking \u00b7 toward '+WALK_GOAL.toLocaleString()+' kcal</div>'
-      +'<div class="walk-ring"><svg width="150" height="150" viewBox="0 0 212 212"><circle cx="106" cy="106" r="90" fill="none" stroke="var(--surface-2)" stroke-width="16"/><circle cx="106" cy="106" r="90" fill="none" stroke="'+accent+'" stroke-width="16" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'" transform="rotate(-90 106 106)"/></svg>'
-      +'<div class="walk-mid"><div class="walk-tot">'+total.toLocaleString()+'</div><div class="walk-unit">/ '+WALK_GOAL.toLocaleString()+' kcal</div><div class="walk-pct">'+pct+'%</div></div></div>'
+      +'<div class="walk-ring"><svg width="168" height="168" viewBox="0 0 212 212"><circle cx="106" cy="106" r="90" fill="none" stroke="var(--surface-2)" stroke-width="16"/><circle cx="106" cy="106" r="90" fill="none" stroke="'+accent+'" stroke-width="16" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'" transform="rotate(-90 106 106)"/></svg>'
+      +'<div class="walk-mid"><div class="walk-tot">'+total.toLocaleString()+'</div><div class="walk-unit">of '+WALK_GOAL.toLocaleString()+' kcal</div><div class="walk-pct">'+pct+'%</div></div></div>'
       +'<div class="walk-sub">'+sub+'</div>'+seg+inRow+todayLine+'</div>';
   }
 
@@ -2738,7 +2748,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 102 · walk-calorie-arc</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 103 · walk-input-polish</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
