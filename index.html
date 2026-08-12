@@ -2518,31 +2518,31 @@
     app.querySelectorAll("[data-mealcopy]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.mealcopy.split("|"); copyMeal(p[0],p[1],+p[2]); }; });
     var _wdn=document.getElementById("wkDayNote"); if(_wdn) _wdn.onblur=function(){ setDayNote(who,wkDay,_wdn.value); };
     app.querySelectorAll("[data-wkday]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkDay=+el.dataset.wkday; render(); window.scrollTo(0,y); }; });
-    var _wcd=document.getElementById("wkCopyDay"); if(_wcd) _wcd.onclick=function(){ copyDayGroups(who,(who==="pravin"?"swetha":"pravin"),wkDay); };
+    var _wcd=document.getElementById("wkCopyDay"); if(_wcd) _wcd.onclick=function(){ var y=window.scrollY; copyDayGroups(who,(who==="pravin"?"swetha":"pravin"),wkDay); window.scrollTo(0,y); };
     app.querySelectorAll("[data-grouppick]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; openGroup(who,wkDay,el.dataset.grouppick); render(); window.scrollTo(0,y); }; });
-    app.querySelectorAll("[data-groupdel]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.groupdel.split("||"), d=+p[0], m=p[1]; exsFor(who,d,m).forEach(function(e){ delEx(e.id); }); var k=who+"|"+d; if(wkOpenGroups[k]){ var i=wkOpenGroups[k].indexOf(m); if(i>=0) wkOpenGroups[k].splice(i,1); } render(); }; });
+    app.querySelectorAll("[data-groupdel]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; var p=el.dataset.groupdel.split("||"), d=+p[0], m=p[1]; exsFor(who,d,m).forEach(function(e){ delEx(e.id); }); var k=who+"|"+d; if(wkOpenGroups[k]){ var i=wkOpenGroups[k].indexOf(m); if(i>=0) wkOpenGroups[k].splice(i,1); } render(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-exrename]").forEach(function(el){ el.onclick=function(){
-      var id=el.dataset.exrename, p=state.wkPlan[id]; if(!p) return;
+      var y=window.scrollY, id=el.dataset.exrename, p=state.wkPlan[id]; if(!p) return;
       var inp=document.createElement("input"); inp.className="mitem-inp"; inp.value=p.exercise;
       el.replaceWith(inp); inp.focus(); try{ inp.select(); }catch(e){}
-      var done=false; function commit(save){ if(done)return; done=true; if(save&&inp.value.trim()) renameEx(id,inp.value); else render(); }
+      var done=false; function commit(save){ if(done)return; done=true; if(save&&inp.value.trim()) renameEx(id,inp.value); else render(); window.scrollTo(0,y); }
       inp.addEventListener("blur",function(){ commit(true); });
       inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
     }; });
-    app.querySelectorAll("[data-exdel]").forEach(function(el){ el.onclick=function(){ delEx(el.dataset.exdel); render(); }; });
+    app.querySelectorAll("[data-exdel]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; delEx(el.dataset.exdel); render(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-exaddrow]").forEach(function(row){ var btn=row.querySelector(".wkt-addex-btn"); if(!btn) return;
       var pp=row.getAttribute("data-exaddrow").split("||"), d=+pp[0], m=pp[1];
-      var go=function(){ var exi=row.querySelector(".wsg-exin"), ex=(exi.value||"").trim(); if(!ex){ toast("Type an exercise name"); exi.focus(); return; } addEx(who,d,m,ex); render(); };
+      var go=function(){ var exi=row.querySelector(".wsg-exin"), ex=(exi.value||"").trim(); if(!ex){ toast("Type an exercise name"); exi.focus(); return; } var y=window.scrollY; addEx(who,d,m,ex); render(); window.scrollTo(0,y); };
       btn.onclick=go;
       var exi=row.querySelector(".wsg-exin"); if(exi) exi.addEventListener("keydown",function(e){ if(e.key==="Enter") go(); });
     });
-    app.querySelectorAll("[data-setadd]").forEach(function(el){ el.onclick=function(){ var pid=el.dataset.setadd, wk=curWeek(), ss=setsFor(pid,wk), last=ss.length?ss[ss.length-1]:null; addSet(pid,wk, last?last.weight:"", last?last.reps:""); render(); }; });
-    app.querySelectorAll("[data-setdel]").forEach(function(el){ el.onclick=function(){ delSet(el.dataset.setdel); render(); }; });
+    app.querySelectorAll("[data-setadd]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; var pid=el.dataset.setadd, wk=curWeek(), ss=setsFor(pid,wk), last=ss.length?ss[ss.length-1]:null; addSet(pid,wk, last?last.weight:"", last?last.reps:""); render(); window.scrollTo(0,y); }; });
+    app.querySelectorAll("[data-setdel]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; delSet(el.dataset.setdel); render(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-setcell]").forEach(function(el){ el.onclick=function(){
-      var parts=el.dataset.setcell.split("|"), id=parts[0], field=parts[1], s=state.wkSet[id]; if(!s) return;
+      var y=window.scrollY, parts=el.dataset.setcell.split("|"), id=parts[0], field=parts[1], s=state.wkSet[id]; if(!s) return;
       var inp=document.createElement("input"); inp.className="wkt-cellinp"; inp.type="number"; inp.step=(field==="weight"?"0.5":"1"); inp.min="0"; inp.inputMode=(field==="weight"?"decimal":"numeric"); inp.value=(s[field]!=null?s[field]:"");
       el.replaceWith(inp); inp.focus(); try{ inp.select(); }catch(e){}
-      var done=false; function commit(save){ if(done)return; done=true; if(save) editSet(id,field,inp.value); render(); }
+      var done=false; function commit(save){ if(done)return; done=true; if(save) editSet(id,field,inp.value); render(); window.scrollTo(0,y); }
       inp.addEventListener("blur",function(){ commit(true); });
       inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
     }; });
@@ -2655,7 +2655,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 96 · workout-weekday-auto</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 97 · workout-scroll-fix</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
