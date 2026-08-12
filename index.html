@@ -180,6 +180,33 @@
   .wk-hint,.wk-note{font-size:11.5px;color:var(--muted);opacity:.85;margin-top:11px;line-height:1.5}
   .wk-note{text-align:center;margin-top:12px}
   .wk-prog{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px;margin-top:14px}
+  .wkt-group{margin-bottom:16px;background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:12px 12px 10px}
+  .wkt-gh{font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:700;color:var(--accent);margin:0 2px 8px}
+  .wkt-head,.wkt-row,.wkt-newex{display:grid;grid-template-columns:1fr 62px 58px 26px;gap:6px;align-items:center}
+  .wkt-head{font-family:"Space Grotesk";font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:0 2px 5px;border-bottom:1px solid var(--line);margin-bottom:4px}
+  .wkt-head span:nth-child(2),.wkt-head span:nth-child(3){text-align:center}
+  .wkt-exblock{border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:6px}
+  .wkt-row{padding:3px 0}
+  .wkt-c1{display:flex;align-items:center;gap:6px;min-width:0}
+  .wkt-exn{font-family:"Space Grotesk";font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wkt-exn.dim{color:var(--line);font-weight:400}
+  .wkt-cell{font-family:"Space Grotesk";font-weight:600;font-size:14.5px;text-align:center;padding:7px 2px;border-radius:8px;background:var(--surface-2)}
+  .wkt-cell.edit{cursor:pointer}
+  .wkt-cell.edit:hover{outline:1px solid var(--accent)}
+  .wkt-cellinp{width:100%;text-align:center;background:var(--surface-2);border:1px solid var(--accent);border-radius:8px;color:var(--ink);font-family:"Space Grotesk";font-weight:600;font-size:14.5px;padding:6px 2px;outline:none}
+  .wkt-x{display:flex;justify-content:center}
+  .wkt-x .wk-del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;width:24px;height:24px;border-radius:6px}
+  .wkt-copy{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid color-mix(in srgb,var(--mc) 55%,transparent);background:color-mix(in srgb,var(--mc) 16%,var(--surface-2));color:var(--mc);cursor:pointer;border-radius:6px;padding:0}
+  .wkt-copy:hover{background:var(--mc);color:#0B0C0F}
+  .wkt-addset{margin:2px 0 2px;background:transparent;border:0;color:var(--accent);cursor:pointer;font-family:"Space Grotesk";font-size:12px;font-weight:700;padding:3px 2px}
+  .wkt-newex{margin-top:8px}
+  .wkt-in{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-family:Inter;font-size:13px;padding:8px 9px;outline:none;min-width:0}
+  .wkt-in:focus{border-color:var(--accent)}
+  .wkt-kg,.wkt-rp{font-family:"Space Grotesk";font-weight:600;text-align:center;padding:8px 4px}
+  .wkt-addex-btn{border:0;background:var(--accent);color:#0B0C0F;border-radius:8px;font-size:18px;font-weight:700;cursor:pointer;height:34px;display:flex;align-items:center;justify-content:center}
+  .wkt-addgroup{margin:4px 0 2px}
+  .wk-prog-sels{display:flex;gap:8px;margin-bottom:10px}
+  .wk-prog-sels .wk-sel{flex:1}
   .wk-prog .wk-sel{margin-bottom:10px}
   .wk-mtoggle{display:flex;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:4px;margin-bottom:12px}
   .wk-mseg{flex:1;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:"Space Grotesk";font-weight:600;font-size:12.5px;padding:8px 4px;border-radius:8px;transition:.13s}
@@ -1581,7 +1608,10 @@
 
 
   // ───────── workouts ─────────
-  var wkLastMuscle="", wkLastEx="", wkChartEx="", wkChartMetric="top";
+  var wkLastMuscle="", wkLastEx="", wkChartEx="", wkChartMetric="top", wkChartMuscle="", wkAddGroup="";
+  function wkExByMuscle(who,muscle){ var set={}; for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.muscle===muscle&&w.exercise) set[w.exercise]=1; } return Object.keys(set).sort(); }
+  function wkMusclesLogged(who){ var seen={},order=[]; for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.muscle&&!seen[w.muscle]){ seen[w.muscle]=1; order.push(w.muscle); } } return order.sort(function(a,b){return MUSCLES.indexOf(a)-MUSCLES.indexOf(b);}); }
+  function editWkOne(id,field,val){ var w=state.workouts[id]; if(!w) return; var nv=(val===""||val==null?null:+val); if(field==="weight") w.weight=nv; else w.reps=nv; enqueue({k:"workoutAdd",id:id,person:w.person,ym:w.ym,day:w.day,muscle:w.muscle,exercise:w.exercise,setno:w.setno,weight:w.weight,reps:w.reps,sort:w.sort||0}); saveCache(); render(); }
   function wkRows(who,day){ var a=[], ymk=ymKey(); for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.ym===ymk&&w.day===day) a.push({id:id,muscle:w.muscle,exercise:w.exercise,setno:w.setno,weight:w.weight,reps:w.reps}); } return a; }
   function wkExNames(who){ var set={}; for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.exercise) set[w.exercise]=1; } return Object.keys(set).sort(); }
   function addWkSet(who,day,muscle,exercise,weight,reps){
@@ -1611,39 +1641,58 @@
     return out;
   }
   function wkProgressionHTML(who){
-    var exs=wkExNames(who);
-    if(!exs.length) return '<div class="wk-prog"><div class="wk-fh">Progression</div><div class="wk-empty">Log an exercise and its graph shows up here — weight, volume and estimated 1-rep-max over time.</div></div>';
+    var muscles=wkMusclesLogged(who);
+    if(!muscles.length) return '<div class="wk-prog"><div class="wk-fh">Progression</div><div class="wk-empty">Log an exercise and its graph shows up here — weight, volume and estimated 1-rep-max over time.</div></div>';
+    var mus=(wkChartMuscle && muscles.indexOf(wkChartMuscle)>=0)?wkChartMuscle:muscles[0];
+    var exs=wkExByMuscle(who,mus);
     var ex=(wkChartEx && exs.indexOf(wkChartEx)>=0)?wkChartEx:exs[0];
     var metric=wkChartMetric||"top", hex=who==="swetha"?"#DD5A86":"#E08A1E";
-    var sessions=wkExSessions(who,ex), pts=sessions.map(function(s){return {x:s.x,y:s[metric],label:s.label};});
+    var sessions=ex?wkExSessions(who,ex):[], pts=sessions.map(function(s){return {x:s.x,y:s[metric],label:s.label};});
     var mLabel={top:"Top-set weight (kg)",vol:"Total volume (kg)",e1rm:"Estimated 1-rep-max (kg)"}[metric];
     var chart = pts.length ? weightChart([{name:ex,color:hex,points:pts}],0) : '';
     var body;
     if(pts.length>=2){ var d=pts[pts.length-1].y-pts[0].y; body=chart+'<div class="wk-prog-sum '+(d>0?'good':(d<0?'bad':''))+'">'+(d>0?'\u25B2 +':(d<0?'\u25BC \u2212':'\u00b7 '))+bfmt(Math.abs(d))+' kg since '+pts[0].label+' \u00b7 '+pts.length+' sessions</div>'; }
     else if(pts.length===1){ body=chart+'<div class="wk-prog-sum">First session logged ('+bfmt(pts[0].y)+' kg) \u2014 one more and the trend line appears.</div>'; }
-    else body='<div class="wk-empty">No sets with weight &amp; reps yet for '+esc(ex)+'.</div>';
-    var sel='<select id="wkChartSel" class="wk-sel">'+exs.map(function(e){return '<option'+(e===ex?' selected':'')+'>'+esc(e)+'</option>';}).join("")+'</select>';
+    else body='<div class="wk-empty">No sets with weight &amp; reps yet.</div>';
+    var musSel='<select id="wkChartMusSel" class="wk-sel">'+muscles.map(function(m){return '<option'+(m===mus?' selected':'')+'>'+esc(m)+'</option>';}).join("")+'</select>';
+    var exSel='<select id="wkChartSel" class="wk-sel">'+exs.map(function(e){return '<option'+(e===ex?' selected':'')+'>'+esc(e)+'</option>';}).join("")+'</select>';
     var toggle='<div class="wk-mtoggle">'+[["top","Top wt"],["vol","Volume"],["e1rm","Est 1RM"]].map(function(m){return '<button class="wk-mseg'+(metric===m[0]?' active':'')+'" data-wkmetric="'+m[0]+'" type="button">'+m[1]+'</button>';}).join("")+'</div>';
-    return '<div class="wk-prog"><div class="wk-fh">Progression</div>'+sel+toggle+'<div class="wk-prog-lab">'+mLabel+'</div>'+body+'</div>';
+    return '<div class="wk-prog"><div class="wk-fh">Progression</div><div class="wk-prog-sels">'+musSel+exSel+'</div>'+toggle+'<div class="wk-prog-lab">'+mLabel+'</div>'+body+'</div>';
   }
   function wkDayHTML(who,day,editable){
     var rows=wkRows(who,day), groups={}, order=[];
     var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0], oc=other==="swetha"?"var(--swetha)":"var(--pravin)";
     rows.forEach(function(r){ if(!groups[r.muscle]){groups[r.muscle]={exOrder:[],ex:{}}; order.push(r.muscle);} var g=groups[r.muscle]; if(!g.ex[r.exercise]){g.ex[r.exercise]=[]; g.exOrder.push(r.exercise);} g.ex[r.exercise].push(r); });
-    if(!order.length) return '<div class="wk-empty">No workout logged this day.</div>';
+    order.sort(function(a,b){return MUSCLES.indexOf(a)-MUSCLES.indexOf(b);});
+    if(editable && wkAddGroup && order.indexOf(wkAddGroup)<0){ order.push(wkAddGroup); groups[wkAddGroup]=groups[wkAddGroup]||{exOrder:[],ex:{}}; }
+    if(!order.length) return editable ? '' : '<div class="wk-empty">No workout logged this day.</div>';
     var h="";
     order.forEach(function(mus){
-      h+='<div class="wk-group"><div class="wk-gh">'+esc(mus)+'</div>';
+      h+='<div class="wkt-group"><div class="wkt-gh">'+esc(mus)+'</div>';
+      h+='<div class="wkt-head"><span>Exercise</span><span>Kg</span><span>Reps</span><span></span></div>';
       groups[mus].exOrder.forEach(function(ex){
-        var sets=groups[mus].ex[ex].sort(function(a,b){return a.setno-b.setno;}), vol=0, top=0;
-        sets.forEach(function(s){ if(s.weight!=null&&s.reps!=null){ vol+=s.weight*s.reps; if(s.weight>top)top=s.weight; } });
-        var meta=sets.length+' set'+(sets.length>1?'s':'')+(top>0?' · top '+bfmt(top)+'kg':'')+(vol>0?' · '+bfmt(vol)+'kg vol':'');
-        var copyBtn = editable ? '<button class="wk-copy" data-wkcopy="'+esc(mus).replace(/"/g,'&quot;')+'||'+esc(ex).replace(/"/g,'&quot;')+'" style="--mc:'+oc+'" title="Copy to '+esc(oname)+'"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M12 6l6 6-6 6"/></svg>'+esc(oname)+'</button>' : '';
-        h+='<div class="wk-ex"><div class="wk-exh"><div class="wk-exl"><span class="wk-exn">'+esc(ex)+'</span><span class="wk-exv">'+meta+'</span></div>'+copyBtn+'</div>';
-        sets.forEach(function(s,i){ h+='<div class="wk-set"><span class="wk-sn">Set '+(i+1)+'</span><span class="wk-sv'+(editable?' edit':'')+'"'+(editable?' data-wkset="'+s.id+'"':'')+'>'+(s.weight!=null?bfmt(s.weight)+' kg':'—')+' × '+(s.reps!=null?s.reps:'—')+'</span>'+(editable?'<button class="wk-del" data-wkdel="'+s.id+'" aria-label="Delete set">✕</button>':'')+'</div>'; });
-        if(editable) h+='<button class="wk-addset" data-wkaddset="'+esc(mus).replace(/"/g,'&quot;')+'||'+esc(ex).replace(/"/g,'&quot;')+'">+ add another set</button>';
+        var sets=groups[mus].ex[ex].sort(function(a,b){return a.setno-b.setno;});
+        h+='<div class="wkt-exblock">';
+        sets.forEach(function(s,i){
+          var nameCell = i===0 ? '<span class="wkt-exn">'+esc(ex)+'</span>'+(editable?'<button class="wkt-copy" data-wkcopy="'+esc(mus).replace(/"/g,'&quot;')+'||'+esc(ex).replace(/"/g,'&quot;')+'" style="--mc:'+oc+'" title="Copy to '+esc(oname)+'"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M12 6l6 6-6 6"/></svg></button>':'') : '<span class="wkt-exn dim">·</span>';
+          h+='<div class="wkt-row">'
+            +'<div class="wkt-c1">'+nameCell+'</div>'
+            +'<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-wkcell="'+s.id+'|weight"':'')+'>'+(s.weight!=null?bfmt(s.weight):'—')+'</div>'
+            +'<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-wkcell="'+s.id+'|reps"':'')+'>'+(s.reps!=null?s.reps:'—')+'</div>'
+            +'<div class="wkt-x">'+(editable?'<button class="wk-del" data-wkdel="'+s.id+'" aria-label="Delete set">✕</button>':'')+'</div>'
+            +'</div>';
+        });
+        if(editable) h+='<button class="wkt-addset" data-wkaddset="'+esc(mus).replace(/"/g,'&quot;')+'||'+esc(ex).replace(/"/g,'&quot;')+'">+ set</button>';
         h+='</div>';
       });
+      if(editable){
+        h+='<div class="wkt-newex" data-addex="'+esc(mus).replace(/"/g,'&quot;')+'">'
+          +'<input class="wkt-in wkt-exin" list="wkExList" placeholder="+ add exercise" />'
+          +'<input class="wkt-in wkt-kg" type="number" step="0.5" min="0" inputmode="decimal" placeholder="kg" />'
+          +'<input class="wkt-in wkt-rp" type="number" step="1" min="0" inputmode="numeric" placeholder="reps" />'
+          +'<button class="wkt-addex-btn" aria-label="Add exercise">+</button>'
+          +'</div>';
+      }
       h+='</div>';
     });
     return h;
@@ -1651,13 +1700,11 @@
   function secWorkout(who){
     var td=selDay, real=isSelToday(), h='<section>';
     h+='<div class="today-head"><div class="date display">Workout · '+(real?'Today · ':'')+DOW[selDate().getDay()]+' '+td+' '+MONTHS[view.m].slice(0,3)+'</div></div>';
-    h+=wkDayHTML(who,td,true);
-    h+='<div class="wk-form"><div class="wk-fh">Add a set</div>';
-    h+='<div class="wk-frow"><select id="wkMuscle" class="wk-sel" aria-label="Muscle group">'+MUSCLES.map(function(m){return '<option'+(m===wkLastMuscle?' selected':'')+'>'+esc(m)+'</option>';}).join("")+'</select></div>';
-    h+='<div class="wk-frow"><input id="wkEx" class="wk-inp" list="wkExList" placeholder="Exercise (e.g. Bench Press)" value="'+esc(wkLastEx)+'" /><datalist id="wkExList">'+wkExNames(who).map(function(x){return '<option value="'+esc(x)+'"></option>';}).join("")+'</datalist></div>';
-    h+='<div class="wk-frow2"><span class="ib"><input id="wkWt" class="wk-num" type="number" step="0.5" min="0" inputmode="decimal" placeholder="0"/><u>kg</u></span><span class="ib"><input id="wkReps" class="wk-num" type="number" step="1" min="0" inputmode="numeric" placeholder="0"/><u>reps</u></span><button class="btn accent" id="wkAdd">Add set</button></div>';
-    h+='<div class="wk-hint">Pick a muscle group, name the exercise, then log each set. The exercise stays selected so you can add set after set.</div>';
-    h+='</div>';
+    h+='<datalist id="wkExList">'+wkExNames(who).map(function(x){return '<option value="'+esc(x)+'"></option>';}).join("")+'</datalist>';
+    var grid=wkDayHTML(who,td,true);
+    h+= grid || '<div class="wk-empty">No workout yet. Pick a muscle group below to start.</div>';
+    h+='<div class="wkt-addgroup"><select id="wkAddGroupSel" class="wk-sel"><option value="">+ Add muscle group…</option>'+MUSCLES.map(function(m){return '<option'+(m===wkAddGroup?' selected':'')+'>'+esc(m)+'</option>';}).join("")+'</select></div>';
+    h+='<div class="wk-hint">Pick a muscle group, then fill the grid: exercise name, kg, reps. "+ set" adds another set to that exercise; "+ add exercise" starts the next one. Tap any Kg or Reps cell to fix it.</div>';
     h+=wkProgressionHTML(who);
     h+='</section>';
     return h;
@@ -2152,6 +2199,7 @@
     app.querySelectorAll("[data-coachwho]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachWho=el.getAttribute("data-coachwho"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-dashwho]").forEach(function(el){ el.onclick=function(){ coachWho=el.getAttribute("data-dashwho"); renderBoth(); var r=document.getElementById("coachSubRow"); if(r) r.scrollIntoView({behavior:"smooth",block:"start"}); }; });
     app.querySelectorAll("[data-aicopy]").forEach(function(el){ el.onclick=function(){ copyForAI(el.getAttribute("data-aicopy")); }; });
+    var _cwms=document.getElementById("wkChartMusSel"); if(_cwms) _cwms.onchange=function(){ var y=window.scrollY; wkChartMuscle=_cwms.value; wkChartEx=""; renderBoth(); window.scrollTo(0,y); };
     var _cwcs=document.getElementById("wkChartSel"); if(_cwcs) _cwcs.onchange=function(){ var y=window.scrollY; wkChartEx=_cwcs.value; renderBoth(); window.scrollTo(0,y); };
     app.querySelectorAll("[data-wkmetric]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkChartMetric=el.dataset.wkmetric; renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-coachsec]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachSec=el.getAttribute("data-coachsec"); renderBoth(); window.scrollTo(0,y); }; });
@@ -2228,19 +2276,32 @@
     if(mItem) mItem.onkeydown=function(e){ if(e.key==="Enter") addM(); };
     app.querySelectorAll("[data-meal]").forEach(function(el){ el.onclick=function(){ delMeal(el.dataset.meal); render(); }; });
     app.querySelectorAll("[data-mealcopy]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.mealcopy.split("|"); copyMeal(p[0],p[1],+p[2]); }; });
-    var wkAddBtn=document.getElementById("wkAdd");
-    if(wkAddBtn) wkAddBtn.onclick=function(){
-      var mus=(document.getElementById("wkMuscle")||{}).value||"", ex=((document.getElementById("wkEx")||{}).value||"").trim(), wt=(document.getElementById("wkWt")||{}).value, rp=(document.getElementById("wkReps")||{}).value;
-      if(!ex){ toast("Enter an exercise name"); return; }
-      if(rp===""||rp==null){ toast("Enter the reps for this set"); return; }
-      wkLastMuscle=mus; wkLastEx=ex; addWkSet(who,selDay,mus,ex,wt,rp); render();
-      setTimeout(function(){ var w=document.getElementById("wkWt"); if(w) w.focus(); },30);
-    };
     app.querySelectorAll("[data-wkdel]").forEach(function(el){ el.onclick=function(){ delWkSet(el.dataset.wkdel); render(); }; });
     app.querySelectorAll("[data-wkcopy]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.wkcopy.split("||"); var other=who==="pravin"?"swetha":"pravin"; copyWorkoutEx(who,other,selDay,p[0],p[1]); }; });
+    var _wms=document.getElementById("wkChartMusSel"); if(_wms) _wms.onchange=function(){ wkChartMuscle=_wms.value; wkChartEx=""; render(); };
     var _wcs=document.getElementById("wkChartSel"); if(_wcs) _wcs.onchange=function(){ wkChartEx=_wcs.value; render(); };
     app.querySelectorAll("[data-wkmetric]").forEach(function(el){ el.onclick=function(){ wkChartMetric=el.dataset.wkmetric; render(); }; });
-    app.querySelectorAll("[data-wkaddset]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.wkaddset.split("||"); wkLastMuscle=p[0]; wkLastEx=p[1]; render(); setTimeout(function(){ var w=document.getElementById("wkWt"); if(w){ w.focus(); w.scrollIntoView({behavior:"smooth",block:"center"}); } },30); }; });
+    // one-tap "+ set": duplicate the last set of that exercise, then it's editable in the grid
+    app.querySelectorAll("[data-wkaddset]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.wkaddset.split("||"), mus=p[0], ex=p[1], ymk=ymKey(), last=null, mx=-1;
+      for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.ym===ymk&&w.day===selDay&&w.muscle===mus&&w.exercise===ex&&w.setno>mx){ mx=w.setno; last=w; } }
+      addWkSet(who,selDay,mus,ex, last?last.weight:"", last?last.reps:""); render();
+    }; });
+    // add-exercise row
+    app.querySelectorAll("[data-addex]").forEach(function(row){ var btn=row.querySelector(".wkt-addex-btn"); if(!btn) return;
+      var go=function(){ var mus=row.getAttribute("data-addex"), exi=row.querySelector(".wkt-exin"), kgi=row.querySelector(".wkt-kg"), rpi=row.querySelector(".wkt-rp"); var ex=(exi.value||"").trim(); if(!ex){ toast("Type an exercise name"); exi.focus(); return; } addWkSet(who,selDay,mus,ex,kgi.value,rpi.value); wkAddGroup=""; render(); };
+      btn.onclick=go;
+      row.querySelectorAll(".wkt-in").forEach(function(inp){ inp.addEventListener("keydown",function(e){ if(e.key==="Enter") go(); }); });
+    });
+    var _wag=document.getElementById("wkAddGroupSel"); if(_wag) _wag.onchange=function(){ wkAddGroup=_wag.value; render(); if(_wag.value){ setTimeout(function(){ var r=app.querySelector('[data-addex="'+_wag.value.replace(/"/g,'&quot;')+'"] .wkt-exin'); if(r){ r.focus(); r.scrollIntoView({behavior:"smooth",block:"center"}); } },40); } };
+    // per-cell edit (Kg / Reps)
+    app.querySelectorAll("[data-wkcell]").forEach(function(el){ el.onclick=function(){
+      var parts=el.dataset.wkcell.split("|"), id=parts[0], field=parts[1], w=state.workouts[id]; if(!w) return;
+      var inp=document.createElement("input"); inp.className="wkt-cellinp"; inp.type="number"; inp.step=(field==="weight"?"0.5":"1"); inp.min="0"; inp.inputMode=(field==="weight"?"decimal":"numeric"); inp.value=(field==="weight"?(w.weight!=null?w.weight:""):(w.reps!=null?w.reps:""));
+      el.replaceWith(inp); inp.focus(); try{ inp.select(); }catch(e){}
+      var done=false; function commit(save){ if(done)return; done=true; if(save) editWkOne(id,field,inp.value); else render(); }
+      inp.addEventListener("blur",function(){ commit(true); });
+      inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
+    }; });
     app.querySelectorAll("[data-mealtime]").forEach(function(el){ el.onclick=function(){
       var id=el.dataset.mealtime, m=state.meals[id]; if(!m) return;
       var inp=document.createElement("input"); inp.type="time"; inp.className="mtime-inp"; inp.value=m.at||"";
@@ -2350,7 +2411,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 89 · edit-everywhere</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 90 · workout-grid</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
