@@ -213,6 +213,16 @@
   .wsg-newex{display:grid;grid-template-columns:1fr 34px;gap:6px;margin-top:8px}
   .wsg-exin{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:Inter;font-size:13px;padding:9px 11px;outline:none;min-width:0}
   .wsg-exin:focus{border-color:var(--accent)}
+  .wse{border:1px solid var(--line);border-radius:11px;padding:10px 11px 8px;margin-bottom:9px;background:var(--surface-2)}
+  .wse-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+  .wse-n{font-family:"Space Grotesk";font-weight:600;font-size:14px}
+  .wse-n.edit{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--line);text-underline-offset:3px}
+  .wse-del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;width:24px;height:24px;border-radius:6px;flex:none}
+  .wse-head,.wse-row{display:grid;grid-template-columns:44px 1fr 1fr 26px;gap:6px;align-items:center}
+  .wse-head{font-family:"Space Grotesk";font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px;margin-bottom:4px}
+  .wse-head span:nth-child(2),.wse-head span:nth-child(3){text-align:center}
+  .wse-row{padding:3px 0}
+  .wse-sn{font-family:"Space Grotesk";font-size:12px;color:var(--muted);text-align:center}
   .wk-magg-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px}
   .wk-magg{border-collapse:collapse;font-family:"Space Grotesk";font-size:11.5px;min-width:620px}
   .wk-magg th{background:var(--surface-2);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-size:9.5px;padding:7px 8px;text-align:center;border:1px solid var(--line);white-space:nowrap}
@@ -1771,11 +1781,12 @@
   function renameEx(id,name){ var p=state.wkPlan[id]; if(!p) return; name=(name||"").trim(); if(!name) return; p.exercise=name; enqueue({k:"wkPlanAdd",id:id,person:p.person,day:p.day,muscle:p.muscle,exercise:name,sort:p.sort||0}); saveCache(); render(); }
   function delEx(id){ var p=state.wkPlan[id]; if(!p) return; for(var sid in state.wkSet){ if(state.wkSet[sid].planId===id){ enqueue({k:"wkSetDel",id:sid}); delete state.wkSet[sid]; } } delete state.wkPlan[id]; enqueue({k:"wkPlanDel",id:id}); saveCache(); }
   function openGroup(who,day,muscle){ var k=who+"|"+day; if(!wkOpenGroups[k]) wkOpenGroups[k]=[]; if(wkOpenGroups[k].indexOf(muscle)<0 && dayMuscles(who,day).indexOf(muscle)<0) wkOpenGroups[k].push(muscle); }
-  function valId(planId,week){ return planId+":w"+week; }
-  function getVal(planId,week){ return state.wkSet[valId(planId,week)]||null; }
-  function setValField(planId,week,field,raw){ var p=state.wkPlan[planId]; if(!p) return; var id=valId(planId,week), cur=state.wkSet[id]||{person:p.person,planId:planId,week:week,setno:1,weight:null,reps:null,sets:null,sort:Date.now()}; var nv=(raw===""||raw==null?null:+raw); cur[field]=nv; state.wkSet[id]=cur; enqueue({k:"wkSetAdd",id:id,person:cur.person,planId:planId,week:week,setno:1,weight:cur.weight,reps:cur.reps,sets:cur.sets,sort:cur.sort||0}); saveCache(); }
-  function copyDayGroups(who,other,day){ var mine=[]; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person===who&&p.day===day) mine.push(p); } if(!mine.length){ toast("Nothing on Day "+day+" to copy"); return; } mine.sort(function(a,b){return (a.sort||0)-(b.sort||0);}); var have={}; for(var id2 in state.wkPlan){ var q=state.wkPlan[id2]; if(q.person===other&&q.day===day) have[q.muscle+"||"+q.exercise]=id2; } var copied=0; mine.forEach(function(p){ if(have[p.muscle+"||"+p.exercise]) return; copied++; var origId=null; for(var k in state.wkPlan){ if(state.wkPlan[k]===p){origId=k;break;} } var nid=addEx(other,day,p.muscle,p.exercise); if(!nid||!origId) return; for(var w=1;w<=4;w++){ var v=getVal(origId,w); if(v){ ["weight","reps","sets"].forEach(function(f){ if(v[f]!=null) setValField(nid,w,f,v[f]); }); } } }); var nd=state.wkDay[who+"|"+day]; if(nd&&nd.note){ setDayNote(other,day,nd.note); } render(); toast(copied?("Copied Day "+day+" \u00b7 "+copied+" exercise"+(copied>1?"s":"")+" to "+(state.names[other]||other)):(state.names[other]||other)+" already has Day "+day); }
-  function wkMonthAgg(who){ var g={}; FOCUS_GROUPS.forEach(function(m){ g[m]={w:[0,0,0,0],r:[0,0,0,0]}; }); for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person!==who||!p.muscle||!g[p.muscle]) continue; for(var w=1;w<=4;w++){ var v=getVal(id,w); if(!v) continue; if(v.weight!=null&&v.reps!=null){ var st=(v.sets!=null?v.sets:1); g[p.muscle].w[w-1]+=v.weight*v.reps*st; g[p.muscle].r[w-1]+=v.reps*st; } } } return g; }
+  function setsFor(planId,week){ var a=[]; for(var id in state.wkSet){ var s=state.wkSet[id]; if(s.planId===planId&&s.week===week) a.push({id:id,setno:s.setno||0,weight:s.weight,reps:s.reps}); } a.sort(function(x,y){return x.setno-y.setno;}); return a; }
+  function addSet(planId,week,weight,reps){ var p=state.wkPlan[planId]; if(!p) return; var n=0; for(var id in state.wkSet){ var s=state.wkSet[id]; if(s.planId===planId&&s.week===week) n++; } var nid=uid(), wt=(weight===""||weight==null?null:+weight), rp=(reps===""||reps==null?null:+reps), so=Date.now(); state.wkSet[nid]={person:p.person,planId:planId,week:week,setno:n+1,weight:wt,reps:rp,sort:so}; enqueue({k:"wkSetAdd",id:nid,person:p.person,planId:planId,week:week,setno:n+1,weight:wt,reps:rp,sort:so}); saveCache(); return nid; }
+  function editSet(id,field,raw){ var s=state.wkSet[id]; if(!s) return; var nv=(raw===""||raw==null?null:+raw); if(field==="weight") s.weight=nv; else s.reps=nv; enqueue({k:"wkSetAdd",id:id,person:s.person,planId:s.planId,week:s.week,setno:s.setno,weight:s.weight,reps:s.reps,sort:s.sort||0}); saveCache(); }
+  function delSet(id){ if(state.wkSet[id]){ delete state.wkSet[id]; enqueue({k:"wkSetDel",id:id}); saveCache(); } }
+  function copyDayGroups(who,other,day){ var mine=[]; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person===who&&p.day===day) mine.push({id:id,p:p}); } if(!mine.length){ toast("Nothing on Day "+day+" to copy"); return; } mine.sort(function(a,b){return (a.p.sort||0)-(b.p.sort||0);}); var have={}; for(var id2 in state.wkPlan){ var q=state.wkPlan[id2]; if(q.person===other&&q.day===day) have[q.muscle+"||"+q.exercise]=1; } var copied=0; mine.forEach(function(m){ var p=m.p; if(have[p.muscle+"||"+p.exercise]) return; copied++; var nid=addEx(other,day,p.muscle,p.exercise); if(!nid) return; for(var w=1;w<=4;w++){ setsFor(m.id,w).forEach(function(s){ addSet(nid,w,s.weight,s.reps); }); } }); var nd=state.wkDay[who+"|"+day]; if(nd&&nd.note){ setDayNote(other,day,nd.note); } render(); toast(copied?("Copied Day "+day+" \u00b7 "+copied+" exercise"+(copied>1?"s":"")+" to "+(state.names[other]||other)):(state.names[other]||other)+" already has Day "+day); }
+  function wkMonthAgg(who){ var g={}; FOCUS_GROUPS.forEach(function(m){ g[m]={w:[0,0,0,0],r:[0,0,0,0]}; }); for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person!==who||!p.muscle||!g[p.muscle]) continue; for(var w=1;w<=4;w++){ setsFor(id,w).forEach(function(s){ if(s.weight!=null&&s.reps!=null){ g[p.muscle].w[w-1]+=s.weight*s.reps; g[p.muscle].r[w-1]+=s.reps; } }); } } return g; }
   function wkMonthAggTable(who,light){
     var g=wkMonthAgg(who), cls=light?"rp-magg":"wk-magg", tw=[0,0,0,0], tr=[0,0,0,0];
     var head='<thead><tr><th rowspan="2">Muscle group</th><th colspan="2">Week 1</th><th colspan="2">Week 2</th><th colspan="2">Week 3</th><th colspan="2">Week 4</th><th colspan="2">Month total</th></tr><tr>'+('<th>Vol</th><th>Reps</th>'.repeat(5))+'</tr></thead>';
@@ -1787,18 +1798,24 @@
   function wkGroupTableHTML(who,day,muscle,editable){
     var exs=exsFor(who,day,muscle), wk=curWeek(), h='';
     h+='<div class="wsg"><div class="wsg-h"><span>'+esc(muscle)+'</span>'+(editable?'<button class="wsg-del" data-groupdel="'+day+'||'+esc(muscle).replace(/"/g,'&quot;')+'" title="Remove group">✕</button>':'')+'</div>';
-    h+='<div class="wsg-head"><span>Exercise</span><span>Kg</span><span>Reps</span><span>Sets</span><span></span></div>';
     if(!exs.length){ h+='<div class="wkp-none">No exercises yet.</div>'; }
-    exs.forEach(function(e){ var v=getVal(e.id,wk)||{};
-      h+='<div class="wsg-row"><div class="wsg-ex'+(editable?' edit':'')+'"'+(editable?' data-exrename="'+e.id+'"':'')+'>'+esc(e.exercise)+'</div>'
-        +cellHTML(e.id,"weight",v.weight,editable)+cellHTML(e.id,"reps",v.reps,editable)+cellHTML(e.id,"sets",v.sets,editable)
-        +'<div class="wsg-x">'+(editable?'<button class="wk-del" data-exdel="'+e.id+'" aria-label="Delete">✕</button>':'')+'</div></div>';
+    exs.forEach(function(e){ var sets=setsFor(e.id,wk);
+      h+='<div class="wse"><div class="wse-h"><span class="wse-n'+(editable?' edit':'')+'"'+(editable?' data-exrename="'+e.id+'"':'')+'>'+esc(e.exercise)+'</span>'+(editable?'<button class="wse-del" data-exdel="'+e.id+'" aria-label="Remove exercise">✕</button>':'')+'</div>';
+      h+='<div class="wse-head"><span>Set</span><span>Kg</span><span>Reps</span><span></span></div>';
+      if(!sets.length){ h+='<div class="wkp-none">No sets logged'+(editable?' — add one below':'')+'.</div>'; }
+      sets.forEach(function(s,i){
+        h+='<div class="wse-row"><div class="wse-sn">'+(i+1)+'</div>'
+          +setCellHTML(s.id,"weight",s.weight,editable)+setCellHTML(s.id,"reps",s.reps,editable)
+          +'<div class="wsg-x">'+(editable?'<button class="wk-del" data-setdel="'+s.id+'" aria-label="Delete set">✕</button>':'')+'</div></div>';
+      });
+      if(editable) h+='<button class="wkt-addset" data-setadd="'+e.id+'">+ set</button>';
+      h+='</div>';
     });
     if(editable) h+='<div class="wsg-newex" data-exaddrow="'+day+'||'+esc(muscle).replace(/"/g,'&quot;')+'"><input class="wkt-in wsg-exin" list="wkExList" placeholder="+ add exercise"><button class="wkt-addex-btn" aria-label="Add">+</button></div>';
     h+='</div>';
     return h;
   }
-  function cellHTML(planId,field,val,editable){ return '<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-valcell="'+planId+'|'+field+'"':'')+'>'+(val!=null?bfmt(val):(editable?'<span class="wkt-hint">＋</span>':'—'))+'</div>'; }
+  function setCellHTML(setId,field,val,editable){ return '<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-setcell="'+setId+'|'+field+'"':'')+'>'+(val!=null?bfmt(val):(editable?'<span class="wkt-hint">＋</span>':'—'))+'</div>'; }
   function wkExByMuscle(who,muscle){ var set={}; for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.muscle===muscle&&w.exercise) set[w.exercise]=1; } return Object.keys(set).sort(); }
   function wkMusclesLogged(who){ var seen={},order=[]; for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.muscle&&!seen[w.muscle]){ seen[w.muscle]=1; order.push(w.muscle); } } return order.sort(function(a,b){return MUSCLES.indexOf(a)-MUSCLES.indexOf(b);}); }
   function editWkOne(id,field,val){ var w=state.workouts[id]; if(!w) return; var nv=(val===""||val==null?null:+val); if(field==="weight") w.weight=nv; else w.reps=nv; enqueue({k:"workoutAdd",id:id,person:w.person,ym:w.ym,day:w.day,muscle:w.muscle,exercise:w.exercise,setno:w.setno,weight:w.weight,reps:w.reps,sort:w.sort||0}); saveCache(); render(); }
@@ -1900,7 +1917,7 @@
       h+='<div class="wkf-pick">'+avail.map(function(m){return '<button class="wkf-opt" data-grouppick="'+esc(m).replace(/"/g,'&quot;')+'" type="button"><span class="wkf-dot"></span>'+m+'</button>';}).join("")+'</div>'; }
     h+='<div class="wkl-title">Notes</div><textarea class="wkn" id="wkDayNote" placeholder="Notes for Day '+wkDay+'…">'+esc(getDayNote(who,wkDay))+'</textarea>';
     h+='<div class="wkl-title">Aggregate report · monthly</div>'+wkMonthAggTable(who,false);
-    h+='<div class="wk-hint">Vol = \u03a3(Weight \u00d7 Reps \u00d7 Sets). Reps = total reps performed. Weeks are set automatically by the date you log.</div>';
+    h+='<div class="wk-hint">Vol = \u03a3(Weight \u00d7 Reps) across every set. Reps = total reps. Each set has its own weight — add sets with “+ set”. Weeks are set automatically by date.</div>';
     h+='</section>';
     return h;
   }
@@ -2024,14 +2041,14 @@
       h+='<div class="rp-person"><h4 class="rp-cardh">Day '+day+' · '+DAY_NAMES[day]+'</h4>';
       groups.forEach(function(m){
         var exs=exsFor(who,day,m); if(!exs.length) return;
-        h+='<table class="rp-prog"><thead><tr><th>'+esc(m)+'</th><th>Weight (kg)</th><th>Reps</th><th>Sets</th></tr></thead><tbody>';
-        exs.forEach(function(e){ var v=getVal(e.id,wk)||{}; h+='<tr><td class="rp-prog-ex">'+esc(e.exercise)+'</td><td>'+(v.weight!=null?bfmt(v.weight):'·')+'</td><td>'+(v.reps!=null?v.reps:'·')+'</td><td>'+(v.sets!=null?v.sets:'·')+'</td></tr>'; });
+        h+='<table class="rp-prog"><thead><tr><th>'+esc(m)+'</th><th>Set</th><th>Weight (kg)</th><th>Reps</th></tr></thead><tbody>';
+        exs.forEach(function(e){ var sets=setsFor(e.id,wk); if(!sets.length){ h+='<tr><td class="rp-prog-ex">'+esc(e.exercise)+'</td><td>·</td><td>·</td><td>·</td></tr>'; return; } sets.forEach(function(s,i){ h+='<tr><td class="rp-prog-ex">'+(i===0?esc(e.exercise):'')+'</td><td>'+(i+1)+'</td><td>'+(s.weight!=null?bfmt(s.weight):'—')+'</td><td>'+(s.reps!=null?s.reps:'—')+'</td></tr>'; }); });
         h+='</tbody></table>';
       });
       h+=(note?'<div class="rp-note">Notes: '+esc(note)+'</div>':'')+'</div>';
     });
     if(!any) return '<div class="rp-person"><div class="rp-sub">No program set.</div></div>';
-    h+='<div class="rp-person"><h4 class="rp-cardh">Aggregate report · monthly</h4>'+wkMonthAggTable(who,true)+'<div class="rp-sub" style="margin-top:6px">Vol = \u03a3(Weight \u00d7 Reps \u00d7 Sets) \u00b7 Reps = total reps performed</div></div>';
+    h+='<div class="rp-person"><h4 class="rp-cardh">Aggregate report · monthly</h4>'+wkMonthAggTable(who,true)+'<div class="rp-sub" style="margin-top:6px">Vol = \u03a3(Weight \u00d7 Reps) across every set \u00b7 Reps = total reps</div></div>';
     return h;
   }
   function repWeightCard(who){
@@ -2512,11 +2529,13 @@
       btn.onclick=go;
       var exi=row.querySelector(".wsg-exin"); if(exi) exi.addEventListener("keydown",function(e){ if(e.key==="Enter") go(); });
     });
-    app.querySelectorAll("[data-valcell]").forEach(function(el){ el.onclick=function(){
-      var parts=el.dataset.valcell.split("|"), id=parts[0], field=parts[1], wk=curWeek(), v=getVal(id,wk)||{};
-      var inp=document.createElement("input"); inp.className="wkt-cellinp"; inp.type="number"; inp.step=(field==="weight"?"0.5":"1"); inp.min="0"; inp.inputMode=(field==="weight"?"decimal":"numeric"); inp.value=(v[field]!=null?v[field]:"");
+    app.querySelectorAll("[data-setadd]").forEach(function(el){ el.onclick=function(){ var pid=el.dataset.setadd, wk=curWeek(), ss=setsFor(pid,wk), last=ss.length?ss[ss.length-1]:null; addSet(pid,wk, last?last.weight:"", last?last.reps:""); render(); }; });
+    app.querySelectorAll("[data-setdel]").forEach(function(el){ el.onclick=function(){ delSet(el.dataset.setdel); render(); }; });
+    app.querySelectorAll("[data-setcell]").forEach(function(el){ el.onclick=function(){
+      var parts=el.dataset.setcell.split("|"), id=parts[0], field=parts[1], s=state.wkSet[id]; if(!s) return;
+      var inp=document.createElement("input"); inp.className="wkt-cellinp"; inp.type="number"; inp.step=(field==="weight"?"0.5":"1"); inp.min="0"; inp.inputMode=(field==="weight"?"decimal":"numeric"); inp.value=(s[field]!=null?s[field]:"");
       el.replaceWith(inp); inp.focus(); try{ inp.select(); }catch(e){}
-      var done=false; function commit(save){ if(done)return; done=true; if(save) setValField(id,wk,field,inp.value); render(); }
+      var done=false; function commit(save){ if(done)return; done=true; if(save) editSet(id,field,inp.value); render(); }
       inp.addEventListener("blur",function(){ commit(true); });
       inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
     }; });
@@ -2629,7 +2648,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 94 · workout-groups-monthly</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 95 · workout-persets</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
