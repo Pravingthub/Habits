@@ -556,6 +556,20 @@
   .dash{margin-bottom:18px}
   .dash-h{font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--muted);font-weight:600;margin:2px 2px 12px}
   .dash-cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:12px}
+  .dc-walk{font-family:"Space Grotesk";font-size:11px;color:var(--muted);margin-top:5px}
+  .walk-card{text-align:center}
+  .walk-ring{position:relative;width:150px;height:150px;margin:6px auto 2px}
+  .walk-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+  .walk-tot{font-family:"Space Grotesk";font-weight:700;font-size:30px;line-height:1;letter-spacing:-.02em}
+  .walk-unit{font-family:"Space Grotesk";font-size:11px;color:var(--muted)}
+  .walk-pct{font-family:"Space Grotesk";font-size:12px;color:var(--accent);font-weight:700;margin-top:2px}
+  .walk-sub{font-family:"Space Grotesk";font-size:12.5px;color:var(--muted);margin:2px 0 12px}
+  .walk-seg{display:flex;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:4px;margin-bottom:11px}
+  .walk-mseg{flex:1;border:0;background:transparent;color:var(--muted);cursor:pointer;font-family:"Space Grotesk";font-weight:600;font-size:13px;padding:9px 4px;border-radius:8px}
+  .walk-mseg.active{background:var(--accent);color:#0B0C0F}
+  .walk-in{display:flex;gap:8px;align-items:stretch;justify-content:center;margin-bottom:10px}
+  .walk-today{font-family:"Space Grotesk";font-size:12.5px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+  .walk-today.muted{color:var(--muted)}
   .dcard{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 14px 13px;cursor:pointer;font:inherit;color:var(--ink);position:relative;overflow:hidden}
   .dcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--pc)}
   .dcard .dc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
@@ -799,6 +813,7 @@
   if(!state.wkSet) state.wkSet={};
   if(!state.water) state.water={};
   if(!state.steps) state.steps={};
+  if(!state.walk) state.walk={};
   if(!state.body) state.body={};
   if(!state.tape) state.tape={};
   if(!state.inbody) state.inbody={};
@@ -1030,6 +1045,35 @@
     return a.map(function(e,i){ return {x:i, y:e.y, label:e.day+" "+ymShort(e.ym)}; });
   }
   function latestWeight(who){var s=weightSeries(who);return s.length?s[s.length-1]:null;}
+  // ── Walking calories goal (arc toward 7700 kcal) ──
+  var WALK_GOAL=7700, walkMode="steps";
+  function walkWeight(who){ var w=latestWeight(who); return (w&&w>0)?w:70; }
+  function walkCalc(who,kind,amount){ amount=+amount||0; var w=walkWeight(who), MET=3.5, PACE=5, KMPS=0.0007; var km=0,mins=0,steps=0;
+    if(kind==="steps"){ steps=amount; km=amount*KMPS; }
+    else if(kind==="km"){ km=amount; steps=Math.round(amount/KMPS); }
+    else { mins=amount; km=PACE*(amount/60); steps=Math.round(km/KMPS); }
+    if(!mins) mins=(km/PACE)*60;
+    var cal=Math.round(MET*w*(mins/60));
+    return {steps:Math.round(steps),km:Math.round(km*100)/100,mins:Math.round(mins),cal:cal};
+  }
+  function getWalk(who,day){ return state.walk[who+"|"+ymKey()+"|"+day]||null; }
+  function setWalk(who,day,kind,amount){ var key=who+"|"+ymKey()+"|"+day, amt=+amount||0; if(amt<=0){ delete state.walk[key]; enqueue({k:"walk",person:who,ym:ymKey(),day:day,kind:kind,amount:0,cal:0}); saveCache(); render(); return; } var c=walkCalc(who,kind,amt); state.walk[key]={kind:kind,amount:amt,cal:c.cal}; enqueue({k:"walk",person:who,ym:ymKey(),day:day,kind:kind,amount:amt,cal:c.cal}); saveCache(); render(); }
+  function walkTotal(who){ var t=0, pre=who+"|"; for(var k in state.walk){ if(k.indexOf(pre)===0) t+=(state.walk[k].cal||0); } return t; }
+  function walkArc(who,editable){
+    var total=walkTotal(who), pct=Math.min(100,Math.round(total/WALK_GOAL*100)), circ=(2*Math.PI*90).toFixed(1), off=((2*Math.PI*90)*(1-pct/100)).toFixed(1);
+    var accent=who==="swetha"?"var(--swetha)":"var(--pravin)";
+    var e=getWalk(who,selDay), disp=e?walkCalc(who,e.kind,e.amount):null;
+    var sub = total>=WALK_GOAL ? 'Goal smashed \u2713 \u00b7 '+(total-WALK_GOAL).toLocaleString()+' over' : (WALK_GOAL-total).toLocaleString()+' kcal to go';
+    var todayLine = disp ? '<div class="walk-today">'+(selDay===selDay?'This day':'')+': '+disp.steps.toLocaleString()+' steps \u00b7 '+bfmt(disp.km)+' km \u00b7 '+disp.mins+' min \u2248 <b>'+disp.cal.toLocaleString()+' kcal</b></div>' : '<div class="walk-today muted">Nothing logged this day yet.</div>';
+    var seg = editable ? '<div class="walk-seg">'+[["steps","Steps"],["km","KM"],["mins","Minutes"]].map(function(m){return '<button class="walk-mseg'+(walkMode===m[0]?' active':'')+'" data-walkmode="'+m[0]+'" type="button">'+m[1]+'</button>';}).join("")+'</div>' : '';
+    var unit={steps:"steps",km:"km",mins:"min"}[walkMode];
+    var inputVal = (e&&e.kind===walkMode)?e.amount:'';
+    var inRow = editable ? '<div class="walk-in"><span class="ibox"><input type="number" step="'+(walkMode==="km"?"0.1":"1")+'" min="0" inputmode="'+(walkMode==="km"?"decimal":"numeric")+'" id="walkInput" value="'+inputVal+'" placeholder="0"/><span class="kg">'+unit+'</span></span><button class="btn accent" id="walkSave">Save this day</button></div>' : '';
+    return '<div class="qcard qspan walk-card"><div class="qlabel">Walking \u00b7 toward '+WALK_GOAL.toLocaleString()+' kcal</div>'
+      +'<div class="walk-ring"><svg width="150" height="150" viewBox="0 0 212 212"><circle cx="106" cy="106" r="90" fill="none" stroke="var(--surface-2)" stroke-width="16"/><circle cx="106" cy="106" r="90" fill="none" stroke="'+accent+'" stroke-width="16" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'" transform="rotate(-90 106 106)"/></svg>'
+      +'<div class="walk-mid"><div class="walk-tot">'+total.toLocaleString()+'</div><div class="walk-unit">/ '+WALK_GOAL.toLocaleString()+' kcal</div><div class="walk-pct">'+pct+'%</div></div></div>'
+      +'<div class="walk-sub">'+sub+'</div>'+seg+inRow+todayLine+'</div>';
+  }
 
   // goal targets (per person, synced): {weight, water, steps}
   function goalRow(who){ var g=state.goals&&state.goals[who]; return (g&&typeof g==="object")?g:{}; }
@@ -1214,6 +1258,10 @@
       if(op.count!=null && op.count>0) return supa.from("steps").upsert({person:op.person,ym:op.ym,day:op.day,count:op.count},{onConflict:"person,ym,day"});
       return supa.from("steps").delete().match({person:op.person,ym:op.ym,day:op.day});
     }
+    if(op.k==="walk"){
+      if(op.amount!=null && op.amount>0) return supa.from("walk").upsert({person:op.person,ym:op.ym,day:op.day,kind:op.kind,amount:op.amount,cal:op.cal},{onConflict:"person,ym,day"});
+      return supa.from("walk").delete().match({person:op.person,ym:op.ym,day:op.day});
+    }
     if(op.k==="body"){
       var bodyAny = op.site1!=null||op.site2!=null||op.site3!=null||op.bodyfat!=null;
       if(bodyAny) return supa.from("body").upsert({person:op.person,ym:op.ym,day:op.day,site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat},{onConflict:"person,ym,day"});
@@ -1274,7 +1322,7 @@
   function pull(){
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
-    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};}),fetchAllRows("tape").catch(function(){return {data:[],error:null};}),fetchAllRows("inbody").catch(function(){return {data:[],error:null};}),fetchAllRows("goals").catch(function(){return {data:[],error:null};}),fetchAllRows("workouts").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_plan").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_set").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_day").catch(function(){return {data:[],error:null};})])
+    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};}),fetchAllRows("tape").catch(function(){return {data:[],error:null};}),fetchAllRows("inbody").catch(function(){return {data:[],error:null};}),fetchAllRows("goals").catch(function(){return {data:[],error:null};}),fetchAllRows("workouts").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_plan").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_set").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_day").catch(function(){return {data:[],error:null};}),fetchAllRows("walk").catch(function(){return {data:[],error:null};})])
     .then(function(r){
       if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error);
       var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[], tap=(r[10]&&r[10].data)||[], inb=(r[11]&&r[11].data)||[], gol=(r[12]&&r[12].data)||[], wko=(r[13]&&r[13].data)||[];
@@ -1292,6 +1340,7 @@
       wpl.forEach(function(p){ fresh.wkPlan[p.id]={person:p.person,day:p.day,muscle:p.muscle,exercise:p.exercise,sort:(p.sort||0)}; });
       wst.forEach(function(s){ fresh.wkSet[s.id]={person:s.person,planId:s.plan_id,week:s.week,setno:s.setno,weight:s.weight,reps:s.reps,sets:s.sets,sort:(s.sort||0)}; });
       var wdy=(r[16]&&r[16].data)||[]; fresh.wkDay={}; wdy.forEach(function(d){ fresh.wkDay[d.person+"|"+d.day]={focus:d.focus||"",note:d.note||""}; });
+      var wlk=(r[17]&&r[17].data)||[]; fresh.walk={}; wlk.forEach(function(x){ fresh.walk[x.person+"|"+x.ym+"|"+x.day]={kind:x.kind,amount:x.amount,cal:x.cal}; });
       wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
       stp.forEach(function(x){ fresh.steps[x.person+"|"+x.ym+"|"+x.day]=x.count; });
       bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={site1:x.site1,site2:x.site2,site3:x.site3,bodyfat:x.bodyfat}; });
@@ -1316,6 +1365,7 @@
     else if(op.k==="weight"){var wkey=op.person+"|"+op.ym+"|"+op.day;if(op.kg!=null)s.weights[wkey]=op.kg;else delete s.weights[wkey];}
     else if(op.k==="water"){if(!s.water)s.water={};var wak=op.person+"|"+op.ym+"|"+op.day;if(op.ml!=null&&op.ml>0)s.water[wak]=op.ml;else delete s.water[wak];}
     else if(op.k==="steps"){if(!s.steps)s.steps={};var stk=op.person+"|"+op.ym+"|"+op.day;if(op.count!=null&&op.count>0)s.steps[stk]=op.count;else delete s.steps[stk];}
+    else if(op.k==="walk"){if(!s.walk)s.walk={};var wkk=op.person+"|"+op.ym+"|"+op.day;if(op.amount!=null&&op.amount>0)s.walk[wkk]={kind:op.kind,amount:op.amount,cal:op.cal};else delete s.walk[wkk];}
     else if(op.k==="body"){if(!s.body)s.body={};var bk=op.person+"|"+op.ym+"|"+op.day;var bany=op.site1!=null||op.site2!=null||op.site3!=null||op.bodyfat!=null;if(bany)s.body[bk]={site1:op.site1,site2:op.site2,site3:op.site3,bodyfat:op.bodyfat};else delete s.body[bk];}
     else if(op.k==="tape"){if(!s.tape)s.tape={};var tk=op.person+"|"+op.ym+"|"+op.day;var tany=op.thigh!=null||op.triceps!=null||op.hip!=null||op.waist!=null||op.abdomen!=null;if(tany)s.tape[tk]={thigh:op.thigh,triceps:op.triceps,hip:op.hip,waist:op.waist,abdomen:op.abdomen};else delete s.tape[tk];}
     else if(op.k==="goals"){if(!s.goals)s.goals={};s.goals[op.person]={weight:op.weight,water:op.water,steps:op.steps};}
@@ -1532,6 +1582,7 @@
     h+='<div class="qgrid"><div class="qcard"><div class="qlabel">Water'+(real?' today':' this day')+'</div><div class="water-total"><b id="waterTotal">'+wtot+'</b> ml <span class="water-goal goaltap" data-goaltap="water" title="Tap to set goal">/ '+goal+'</span></div><div class="water-bar"><i style="width:'+wpct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="water-btns"><button class="wbtn" data-water="250">+250</button><button class="wbtn" data-water="500">+500</button><button class="wbtn" data-water="750">+750</button><button class="wbtn ghost" data-water="-250">−250</button><button class="wbtn ghost" id="waterClear">Clear</button></div></div>';
     h+='<div class="qcard"><div class="qlabel">Steps'+(real?' today':' this day')+'</div><div class="water-total"><b>'+stot.toLocaleString()+'</b> <span class="water-goal goaltap" data-goaltap="steps" title="Tap to set goal">/ '+sgoal.toLocaleString()+'</span></div><div class="water-bar"><i style="width:'+spct+'%;background:'+(who==="swetha"?"var(--swetha)":"var(--pravin)")+'"></i></div><div class="winput" style="margin-top:11px"><span class="ibox"><input type="number" step="100" min="0" inputmode="numeric" id="stInput" value="'+(stot>0?stot:'')+'" placeholder="0" aria-label="Steps"/><span class="kg">steps</span></span><button class="btn accent" id="stSave">Save</button></div></div>';
     h+='<div class="qcard qspan"><div class="qlabel">Meals</div><div class="meals" id="todayMeals">'+mealItems(who,td,true,true)+'</div>'+mealAddRow()+'</div></div>';
+    h+='<div class="qgrid">'+walkArc(who,true)+'</div>';
     h+='<div class="noterow"><div class="nlabel">Note for '+td+' '+MONTHS[view.m].slice(0,3)+(real?' · today':'')+' (optional)</div><textarea id="todayNote" placeholder="How did it go?">'+esc(getNote(who,td))+'</textarea><div class="noterowbtn"><button class="btn accent" id="noteSave">Save note</button></div></div>';
     h+='</section>';
     return h;
@@ -2365,6 +2416,7 @@
         +'<div class="dc-wt">'+wt+'</div>'
         +'<div class="dc-sub"><span class="dc-rate '+rateCls+'">'+rateTxt+'</span>'+(goalTxt?'<span class="dc-goal">'+goalTxt+'</span>':'')+'</div>'
         +'<div class="dc-pct">Habits '+s.pct+'%</div>'
+        +'<div class="dc-walk">Walk '+walkTotal(who).toLocaleString()+' / '+WALK_GOAL.toLocaleString()+' kcal</div>'
         +'</button>';
     });
     var strip;
@@ -2615,6 +2667,11 @@
     function saveSt(){ if(!stI)return; var v=stI.value.trim(); setSteps(who,selDay, v===""?0:parseInt(v,10)); render(); toast(v===""?"Steps cleared":"Steps saved"); }
     if(stB) stB.onclick=saveSt;
     if(stI) stI.onkeydown=function(e){ if(e.key==="Enter") saveSt(); };
+    app.querySelectorAll("[data-walkmode]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; walkMode=el.dataset.walkmode; render(); window.scrollTo(0,y); }; });
+    var wkI=document.getElementById("walkInput"), wkB=document.getElementById("walkSave");
+    function saveWalk(){ if(!wkI)return; var y=window.scrollY; setWalk(who,selDay,walkMode,wkI.value.trim()); window.scrollTo(0,y); toast(wkI.value.trim()===""?"Walk cleared":"Walk saved"); }
+    if(wkB) wkB.onclick=saveWalk;
+    if(wkI) wkI.onkeydown=function(e){ if(e.key==="Enter") saveWalk(); };
     var bSave=document.getElementById("bodySave");
     if(bSave) bSave.onclick=function(){ var o={}; app.querySelectorAll("[data-body]").forEach(function(el){ var v=el.value.trim(); o[el.dataset.body]= v===""?null:parseFloat(v); }); setBody(who,selDay,o); render(); toast("Reading saved"); };
     var bDel=document.getElementById("bodyDel");
@@ -2681,7 +2738,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 101 · workout-sets-exagg</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 102 · walk-calorie-arc</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
