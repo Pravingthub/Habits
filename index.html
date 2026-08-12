@@ -193,6 +193,7 @@
   .wkt-cell{font-family:"Space Grotesk";font-weight:600;font-size:14.5px;text-align:center;padding:7px 2px;border-radius:8px;background:var(--surface-2)}
   .wkt-cell.edit{cursor:pointer}
   .wkt-cell.edit:hover{outline:1px solid var(--accent)}
+  .wkt-hint{color:var(--accent);opacity:.55;font-weight:700}
   .wkt-cellinp{width:100%;text-align:center;background:var(--surface-2);border:1px solid var(--accent);border-radius:8px;color:var(--ink);font-family:"Space Grotesk";font-weight:600;font-size:14.5px;padding:6px 2px;outline:none}
   .wkt-x{display:flex;justify-content:center}
   .wkt-x .wk-del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;width:24px;height:24px;border-radius:6px}
@@ -1677,8 +1678,8 @@
           var nameCell = i===0 ? '<span class="wkt-exn">'+esc(ex)+'</span>'+(editable?'<button class="wkt-copy" data-wkcopy="'+esc(mus).replace(/"/g,'&quot;')+'||'+esc(ex).replace(/"/g,'&quot;')+'" style="--mc:'+oc+'" title="Copy to '+esc(oname)+'"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M12 6l6 6-6 6"/></svg></button>':'') : '<span class="wkt-exn dim">·</span>';
           h+='<div class="wkt-row">'
             +'<div class="wkt-c1">'+nameCell+'</div>'
-            +'<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-wkcell="'+s.id+'|weight"':'')+'>'+(s.weight!=null?bfmt(s.weight):'—')+'</div>'
-            +'<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-wkcell="'+s.id+'|reps"':'')+'>'+(s.reps!=null?s.reps:'—')+'</div>'
+            +'<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-wkcell="'+s.id+'|weight"':'')+'>'+(s.weight!=null?bfmt(s.weight):(editable?'<span class="wkt-hint">＋</span>':'—'))+'</div>'
+            +'<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-wkcell="'+s.id+'|reps"':'')+'>'+(s.reps!=null?s.reps:(editable?'<span class="wkt-hint">＋</span>':'—'))+'</div>'
             +'<div class="wkt-x">'+(editable?'<button class="wk-del" data-wkdel="'+s.id+'" aria-label="Delete set">✕</button>':'')+'</div>'
             +'</div>';
         });
@@ -1688,8 +1689,8 @@
       if(editable){
         h+='<div class="wkt-newex" data-addex="'+esc(mus).replace(/"/g,'&quot;')+'">'
           +'<input class="wkt-in wkt-exin" list="wkExList" placeholder="+ add exercise" />'
-          +'<input class="wkt-in wkt-kg" type="number" step="0.5" min="0" inputmode="decimal" placeholder="kg" />'
-          +'<input class="wkt-in wkt-rp" type="number" step="1" min="0" inputmode="numeric" placeholder="reps" />'
+          +'<input class="wkt-in wkt-kg" type="number" step="0.5" min="0" inputmode="decimal" placeholder="kg?" />'
+          +'<input class="wkt-in wkt-rp" type="number" step="1" min="0" inputmode="numeric" placeholder="reps?" />'
           +'<button class="wkt-addex-btn" aria-label="Add exercise">+</button>'
           +'</div>';
       }
@@ -1704,7 +1705,7 @@
     var grid=wkDayHTML(who,td,true);
     h+= grid || '<div class="wk-empty">No workout yet. Pick a muscle group below to start.</div>';
     h+='<div class="wkt-addgroup"><select id="wkAddGroupSel" class="wk-sel"><option value="">+ Add muscle group…</option>'+MUSCLES.map(function(m){return '<option'+(m===wkAddGroup?' selected':'')+'>'+esc(m)+'</option>';}).join("")+'</select></div>';
-    h+='<div class="wk-hint">Pick a muscle group, then fill the grid: exercise name, kg, reps. "+ set" adds another set to that exercise; "+ add exercise" starts the next one. Tap any Kg or Reps cell to fix it.</div>';
+    h+='<div class="wk-hint">The exercise name alone saves — leave kg & reps blank and fill them in later by tapping the ＋ cells. "+ set" adds another set; "+ Add muscle group" starts a new block.</div>';
     h+=wkProgressionHTML(who);
     h+='</section>';
     return h;
@@ -2411,7 +2412,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 90 · workout-grid</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 91 · workout-optional-numbers</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
