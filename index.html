@@ -197,6 +197,29 @@
   .wkp-row{padding:3px 0}
   .wkp-sn{font-family:"Space Grotesk";font-size:12px;color:var(--muted);text-align:center}
   .wkp-none{font-size:12.5px;color:var(--muted);padding:6px 2px}
+  .wkweek-note{font-size:12px;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:14px}
+  .wkweek-note b{color:var(--accent)}
+  .wsg{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:12px 12px 10px;margin-bottom:12px}
+  .wsg-h{display:flex;align-items:center;justify-content:space-between;font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:700;color:var(--accent);margin:0 2px 9px}
+  .wsg-del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;width:24px;height:24px;border-radius:6px}
+  .wsg-head,.wsg-row{display:grid;grid-template-columns:1fr 52px 48px 44px 24px;gap:5px;align-items:center}
+  .wsg-head{font-family:"Space Grotesk";font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:5px}
+  .wsg-head span:nth-child(n+2){text-align:center}
+  .wsg-row{padding:3px 0}
+  .wsg-ex{font-family:"Space Grotesk";font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wsg-ex.edit{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--line);text-underline-offset:3px}
+  .wsg-x{display:flex;justify-content:center}
+  .wsg-x .wk-del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:11px;width:22px;height:22px}
+  .wsg-newex{display:grid;grid-template-columns:1fr 34px;gap:6px;margin-top:8px}
+  .wsg-exin{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:Inter;font-size:13px;padding:9px 11px;outline:none;min-width:0}
+  .wsg-exin:focus{border-color:var(--accent)}
+  .wk-magg-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px}
+  .wk-magg{border-collapse:collapse;font-family:"Space Grotesk";font-size:11.5px;min-width:620px}
+  .wk-magg th{background:var(--surface-2);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-size:9.5px;padding:7px 8px;text-align:center;border:1px solid var(--line);white-space:nowrap}
+  .wk-magg th[rowspan]{text-align:left}
+  .wk-magg td{border:1px solid var(--line);padding:7px 8px;text-align:center;font-weight:600;white-space:nowrap}
+  .wk-magg .wk-magg-m{text-align:left;color:var(--muted)}
+  .wk-magg .wk-magg-total td{background:color-mix(in srgb,var(--good) 10%,var(--surface));color:var(--good);font-weight:700}
   .wkf-lab,.wkl-title{font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;color:var(--muted);font-weight:600;margin:6px 2px 9px}
   .wkl-title{margin:22px 2px 10px}
   .wkf-pick{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:6px}
@@ -1181,9 +1204,9 @@
     if(op.k==="mealAdd") return supa.from("meals").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0},{onConflict:"id"});
     if(op.k==="mealDel") return supa.from("meals").delete().eq("id",op.id);
     if(op.k==="workoutAdd") return supa.from("workouts").upsert({id:op.id,person:op.person,ym:op.ym,day:op.day,muscle:op.muscle,exercise:op.exercise,setno:op.setno,weight:op.weight,reps:op.reps,sort:op.sort||0},{onConflict:"id"});
-    if(op.k==="wkPlanAdd") return supa.from("wk_plan").upsert({id:op.id,person:op.person,day:op.day,exercise:op.exercise,sort:op.sort||0},{onConflict:"id"});
+    if(op.k==="wkPlanAdd") return supa.from("wk_plan").upsert({id:op.id,person:op.person,day:op.day,muscle:op.muscle,exercise:op.exercise,sort:op.sort||0},{onConflict:"id"});
     if(op.k==="wkPlanDel") return supa.from("wk_plan").delete().eq("id",op.id);
-    if(op.k==="wkSetAdd") return supa.from("wk_set").upsert({id:op.id,person:op.person,plan_id:op.planId,week:op.week,setno:op.setno,weight:op.weight,reps:op.reps,sort:op.sort||0},{onConflict:"id"});
+    if(op.k==="wkSetAdd") return supa.from("wk_set").upsert({id:op.id,person:op.person,plan_id:op.planId,week:op.week,setno:op.setno,weight:op.weight,reps:op.reps,sets:op.sets,sort:op.sort||0},{onConflict:"id"});
     if(op.k==="wkSetDel") return supa.from("wk_set").delete().eq("id",op.id);
     if(op.k==="wkDay") return supa.from("wk_day").upsert({person:op.person,day:op.day,focus:op.focus,note:op.note},{onConflict:"person,day"});
     if(op.k==="workoutDel") return supa.from("workouts").delete().eq("id",op.id);
@@ -1233,8 +1256,8 @@
       wko.forEach(function(w){ fresh.workouts[w.id]={person:w.person,ym:w.ym,day:w.day,muscle:w.muscle,exercise:w.exercise,setno:w.setno,weight:w.weight,reps:w.reps,sort:(w.sort||0)}; });
       var wpl=(r[14]&&r[14].data)||[], wst=(r[15]&&r[15].data)||[];
       fresh.wkPlan={}; fresh.wkSet={};
-      wpl.forEach(function(p){ fresh.wkPlan[p.id]={person:p.person,day:p.day,exercise:p.exercise,sort:(p.sort||0)}; });
-      wst.forEach(function(s){ fresh.wkSet[s.id]={person:s.person,planId:s.plan_id,week:s.week,setno:s.setno,weight:s.weight,reps:s.reps,sort:(s.sort||0)}; });
+      wpl.forEach(function(p){ fresh.wkPlan[p.id]={person:p.person,day:p.day,muscle:p.muscle,exercise:p.exercise,sort:(p.sort||0)}; });
+      wst.forEach(function(s){ fresh.wkSet[s.id]={person:s.person,planId:s.plan_id,week:s.week,setno:s.setno,weight:s.weight,reps:s.reps,sets:s.sets,sort:(s.sort||0)}; });
       var wdy=(r[16]&&r[16].data)||[]; fresh.wkDay={}; wdy.forEach(function(d){ fresh.wkDay[d.person+"|"+d.day]={focus:d.focus||"",note:d.note||""}; });
       wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
       stp.forEach(function(x){ fresh.steps[x.person+"|"+x.ym+"|"+x.day]=x.count; });
@@ -1269,9 +1292,9 @@
     else if(op.k==="mealAdd"){ if(!s.meals)s.meals={}; s.meals[op.id]={person:op.person,ym:op.ym,day:op.day,at:op.at,item:op.item,sort:op.sort||0}; }
     else if(op.k==="mealDel"){ if(s.meals) delete s.meals[op.id]; }
     else if(op.k==="workoutAdd"){ if(!s.workouts)s.workouts={}; s.workouts[op.id]={person:op.person,ym:op.ym,day:op.day,muscle:op.muscle,exercise:op.exercise,setno:op.setno,weight:op.weight,reps:op.reps,sort:op.sort||0}; }
-    else if(op.k==="wkPlanAdd"){ if(!s.wkPlan)s.wkPlan={}; s.wkPlan[op.id]={person:op.person,day:op.day,exercise:op.exercise,sort:op.sort||0}; }
+    else if(op.k==="wkPlanAdd"){ if(!s.wkPlan)s.wkPlan={}; s.wkPlan[op.id]={person:op.person,day:op.day,muscle:op.muscle,exercise:op.exercise,sort:op.sort||0}; }
     else if(op.k==="wkPlanDel"){ if(s.wkPlan) delete s.wkPlan[op.id]; }
-    else if(op.k==="wkSetAdd"){ if(!s.wkSet)s.wkSet={}; s.wkSet[op.id]={person:op.person,planId:op.planId,week:op.week,setno:op.setno,weight:op.weight,reps:op.reps,sort:op.sort||0}; }
+    else if(op.k==="wkSetAdd"){ if(!s.wkSet)s.wkSet={}; s.wkSet[op.id]={person:op.person,planId:op.planId,week:op.week,setno:op.setno,weight:op.weight,reps:op.reps,sets:op.sets,sort:op.sort||0}; }
     else if(op.k==="wkSetDel"){ if(s.wkSet) delete s.wkSet[op.id]; }
     else if(op.k==="wkDay"){ if(!s.wkDay)s.wkDay={}; s.wkDay[op.person+"|"+op.day]={focus:op.focus,note:op.note}; }
     else if(op.k==="workoutDel"){ if(s.workouts) delete s.workouts[op.id]; }
@@ -1739,6 +1762,43 @@
     });
     return h;
   }
+  // ── sheet model: muscle groups per day, Weight/Reps/Sets, per-week values by date ──
+  var wkOpenGroups={};
+  function curWeek(){ var d=new Date().getDate(); return Math.min(4,Math.floor((d-1)/7)+1); }
+  function dayMuscles(who,day){ var rows=[],seen={},order=[]; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person===who&&p.day===day) rows.push(p); } rows.sort(function(a,b){return (a.sort||0)-(b.sort||0);}); rows.forEach(function(p){ if(p.muscle&&!seen[p.muscle]){ seen[p.muscle]=1; order.push(p.muscle); } }); (wkOpenGroups[who+"|"+day]||[]).forEach(function(m){ if(!seen[m]){ seen[m]=1; order.push(m); } }); return order; }
+  function exsFor(who,day,muscle){ var a=[]; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person===who&&p.day===day&&p.muscle===muscle) a.push({id:id,exercise:p.exercise,sort:p.sort||0}); } a.sort(function(x,y){return x.sort-y.sort;}); return a; }
+  function addEx(who,day,muscle,name){ name=(name||"").trim(); if(!name) return null; var mx=-1; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person===who&&p.day===day&&(p.sort||0)>mx) mx=p.sort||0; } var nid=uid(), so=mx+1; state.wkPlan[nid]={person:who,day:day,muscle:muscle,exercise:name,sort:so}; enqueue({k:"wkPlanAdd",id:nid,person:who,day:day,muscle:muscle,exercise:name,sort:so}); saveCache(); return nid; }
+  function renameEx(id,name){ var p=state.wkPlan[id]; if(!p) return; name=(name||"").trim(); if(!name) return; p.exercise=name; enqueue({k:"wkPlanAdd",id:id,person:p.person,day:p.day,muscle:p.muscle,exercise:name,sort:p.sort||0}); saveCache(); render(); }
+  function delEx(id){ var p=state.wkPlan[id]; if(!p) return; for(var sid in state.wkSet){ if(state.wkSet[sid].planId===id){ enqueue({k:"wkSetDel",id:sid}); delete state.wkSet[sid]; } } delete state.wkPlan[id]; enqueue({k:"wkPlanDel",id:id}); saveCache(); }
+  function openGroup(who,day,muscle){ var k=who+"|"+day; if(!wkOpenGroups[k]) wkOpenGroups[k]=[]; if(wkOpenGroups[k].indexOf(muscle)<0 && dayMuscles(who,day).indexOf(muscle)<0) wkOpenGroups[k].push(muscle); }
+  function valId(planId,week){ return planId+":w"+week; }
+  function getVal(planId,week){ return state.wkSet[valId(planId,week)]||null; }
+  function setValField(planId,week,field,raw){ var p=state.wkPlan[planId]; if(!p) return; var id=valId(planId,week), cur=state.wkSet[id]||{person:p.person,planId:planId,week:week,setno:1,weight:null,reps:null,sets:null,sort:Date.now()}; var nv=(raw===""||raw==null?null:+raw); cur[field]=nv; state.wkSet[id]=cur; enqueue({k:"wkSetAdd",id:id,person:cur.person,planId:planId,week:week,setno:1,weight:cur.weight,reps:cur.reps,sets:cur.sets,sort:cur.sort||0}); saveCache(); }
+  function copyDayGroups(who,other,day){ var mine=[]; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person===who&&p.day===day) mine.push(p); } if(!mine.length){ toast("Nothing on Day "+day+" to copy"); return; } mine.sort(function(a,b){return (a.sort||0)-(b.sort||0);}); var have={}; for(var id2 in state.wkPlan){ var q=state.wkPlan[id2]; if(q.person===other&&q.day===day) have[q.muscle+"||"+q.exercise]=id2; } var copied=0; mine.forEach(function(p){ if(have[p.muscle+"||"+p.exercise]) return; copied++; var origId=null; for(var k in state.wkPlan){ if(state.wkPlan[k]===p){origId=k;break;} } var nid=addEx(other,day,p.muscle,p.exercise); if(!nid||!origId) return; for(var w=1;w<=4;w++){ var v=getVal(origId,w); if(v){ ["weight","reps","sets"].forEach(function(f){ if(v[f]!=null) setValField(nid,w,f,v[f]); }); } } }); var nd=state.wkDay[who+"|"+day]; if(nd&&nd.note){ setDayNote(other,day,nd.note); } render(); toast(copied?("Copied Day "+day+" \u00b7 "+copied+" exercise"+(copied>1?"s":"")+" to "+(state.names[other]||other)):(state.names[other]||other)+" already has Day "+day); }
+  function wkMonthAgg(who){ var g={}; FOCUS_GROUPS.forEach(function(m){ g[m]={w:[0,0,0,0],r:[0,0,0,0]}; }); for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person!==who||!p.muscle||!g[p.muscle]) continue; for(var w=1;w<=4;w++){ var v=getVal(id,w); if(!v) continue; if(v.weight!=null&&v.reps!=null){ var st=(v.sets!=null?v.sets:1); g[p.muscle].w[w-1]+=v.weight*v.reps*st; g[p.muscle].r[w-1]+=v.reps*st; } } } return g; }
+  function wkMonthAggTable(who,light){
+    var g=wkMonthAgg(who), cls=light?"rp-magg":"wk-magg", tw=[0,0,0,0], tr=[0,0,0,0];
+    var head='<thead><tr><th rowspan="2">Muscle group</th><th colspan="2">Week 1</th><th colspan="2">Week 2</th><th colspan="2">Week 3</th><th colspan="2">Week 4</th><th colspan="2">Month total</th></tr><tr>'+('<th>Vol</th><th>Reps</th>'.repeat(5))+'</tr></thead>';
+    var body="";
+    FOCUS_GROUPS.forEach(function(m){ var row=g[m], mv=0,mr=0, cells=""; for(var k=0;k<4;k++){ cells+='<td>'+bfmt(row.w[k])+'</td><td>'+row.r[k]+'</td>'; mv+=row.w[k]; mr+=row.r[k]; tw[k]+=row.w[k]; tr[k]+=row.r[k]; } cells+='<td>'+bfmt(mv)+'</td><td>'+mr+'</td>'; body+='<tr><td class="'+cls+'-m">'+m+'</td>'+cells+'</tr>'; });
+    var tv=0,trr=0,tc=""; for(var k=0;k<4;k++){ tc+='<td>'+bfmt(tw[k])+'</td><td>'+tr[k]+'</td>'; tv+=tw[k]; trr+=tr[k]; } tc+='<td>'+bfmt(tv)+'</td><td>'+trr+'</td>';
+    return '<div class="wk-magg-wrap"><table class="'+cls+'">'+head+'<tbody>'+body+'<tr class="'+cls+'-total"><td>TOTAL</td>'+tc+'</tr></tbody></table></div>';
+  }
+  function wkGroupTableHTML(who,day,muscle,editable){
+    var exs=exsFor(who,day,muscle), wk=curWeek(), h='';
+    h+='<div class="wsg"><div class="wsg-h"><span>'+esc(muscle)+'</span>'+(editable?'<button class="wsg-del" data-groupdel="'+day+'||'+esc(muscle).replace(/"/g,'&quot;')+'" title="Remove group">✕</button>':'')+'</div>';
+    h+='<div class="wsg-head"><span>Exercise</span><span>Kg</span><span>Reps</span><span>Sets</span><span></span></div>';
+    if(!exs.length){ h+='<div class="wkp-none">No exercises yet.</div>'; }
+    exs.forEach(function(e){ var v=getVal(e.id,wk)||{};
+      h+='<div class="wsg-row"><div class="wsg-ex'+(editable?' edit':'')+'"'+(editable?' data-exrename="'+e.id+'"':'')+'>'+esc(e.exercise)+'</div>'
+        +cellHTML(e.id,"weight",v.weight,editable)+cellHTML(e.id,"reps",v.reps,editable)+cellHTML(e.id,"sets",v.sets,editable)
+        +'<div class="wsg-x">'+(editable?'<button class="wk-del" data-exdel="'+e.id+'" aria-label="Delete">✕</button>':'')+'</div></div>';
+    });
+    if(editable) h+='<div class="wsg-newex" data-exaddrow="'+day+'||'+esc(muscle).replace(/"/g,'&quot;')+'"><input class="wkt-in wsg-exin" list="wkExList" placeholder="+ add exercise"><button class="wkt-addex-btn" aria-label="Add">+</button></div>';
+    h+='</div>';
+    return h;
+  }
+  function cellHTML(planId,field,val,editable){ return '<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-valcell="'+planId+'|'+field+'"':'')+'>'+(val!=null?bfmt(val):(editable?'<span class="wkt-hint">＋</span>':'—'))+'</div>'; }
   function wkExByMuscle(who,muscle){ var set={}; for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.muscle===muscle&&w.exercise) set[w.exercise]=1; } return Object.keys(set).sort(); }
   function wkMusclesLogged(who){ var seen={},order=[]; for(var id in state.workouts){ var w=state.workouts[id]; if(w.person===who&&w.muscle&&!seen[w.muscle]){ seen[w.muscle]=1; order.push(w.muscle); } } return order.sort(function(a,b){return MUSCLES.indexOf(a)-MUSCLES.indexOf(b);}); }
   function editWkOne(id,field,val){ var w=state.workouts[id]; if(!w) return; var nv=(val===""||val==null?null:+val); if(field==="weight") w.weight=nv; else w.reps=nv; enqueue({k:"workoutAdd",id:id,person:w.person,ym:w.ym,day:w.day,muscle:w.muscle,exercise:w.exercise,setno:w.setno,weight:w.weight,reps:w.reps,sort:w.sort||0}); saveCache(); render(); }
@@ -1829,19 +1889,18 @@
   }
   function secWorkout(who){
     var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0];
-    var focus=getFocus(who,wkDay);
+    var groups=dayMuscles(who,wkDay), avail=FOCUS_GROUPS.filter(function(m){return groups.indexOf(m)<0;});
     var h='<section>';
     h+='<div class="today-head"><div class="date display">Day '+wkDay+' · '+DAY_NAMES[wkDay]+'</div><button class="btn wkp-copyday" id="wkCopyDay" style="--mc:'+(other==="swetha"?"var(--swetha)":"var(--pravin)")+'">→ Copy to '+esc(oname)+'</button></div>';
     h+='<datalist id="wkExList">'+planExNames(who).map(function(x){return '<option value="'+esc(x)+'"></option>';}).join("")+'</datalist>';
     h+='<div class="wkp-daytabs">'+[1,2,3].map(function(d){return '<button class="wkp-dtab'+(wkDay===d?' active':'')+'" data-wkday="'+d+'" type="button">Day '+d+'</button>';}).join("")+'</div>';
-    h+='<div class="wkf-lab">Choose today\u2019s focus</div>';
-    h+='<div class="wkf-pick">'+FOCUS_GROUPS.map(function(m){return '<button class="wkf-opt'+(focus===m?' on':'')+'" data-focuspick="'+m+'" type="button"><span class="wkf-dot"></span>'+m+'</button>';}).join("")+'</div>';
-    h+='<div class="wkl-title">Workout log</div>';
-    h+=wkProgramDayHTML(who,wkDay,1,true);
-    h+='<div class="wkp-newex" data-planaddex="'+wkDay+'"><input class="wkt-in wkp-exin" list="wkExList" placeholder="+ add exercise" /><button class="wkt-addex-btn" aria-label="Add exercise">+</button></div>';
+    h+='<div class="wkweek-note">Logging <b>Week '+curWeek()+'</b> of this month · sets are binned by date into the report below</div>';
+    groups.forEach(function(m){ h+=wkGroupTableHTML(who,wkDay,m,true); });
+    if(avail.length){ h+='<div class="wkf-lab">'+(groups.length?'Add another muscle group':'Choose today\u2019s focus')+'</div>';
+      h+='<div class="wkf-pick">'+avail.map(function(m){return '<button class="wkf-opt" data-grouppick="'+esc(m).replace(/"/g,'&quot;')+'" type="button"><span class="wkf-dot"></span>'+m+'</button>';}).join("")+'</div>'; }
     h+='<div class="wkl-title">Notes</div><textarea class="wkn" id="wkDayNote" placeholder="Notes for Day '+wkDay+'…">'+esc(getDayNote(who,wkDay))+'</textarea>';
-    h+='<div class="wkl-title">Aggregate report</div>'+aggregateTableHTML(who,false);
-    h+='<div class="wk-hint">Total Volume = \u03a3(weight \u00d7 reps). Avg wt = Total Volume \u00f7 Total Reps. Workouts = sessions logged per muscle group.</div>';
+    h+='<div class="wkl-title">Aggregate report · monthly</div>'+wkMonthAggTable(who,false);
+    h+='<div class="wk-hint">Vol = \u03a3(Weight \u00d7 Reps \u00d7 Sets). Reps = total reps performed. Weeks are set automatically by the date you log.</div>';
     h+='</section>';
     return h;
   }
@@ -1958,20 +2017,21 @@
     return false;
   }
   function repProgram(who){
-    var any=false, h="";
+    var any=false, h="", wk=curWeek();
     [1,2,3].forEach(function(day){
-      var plans=planRows(who,day); if(!plans.length) return; any=true;
-      var f=getFocus(who,day), note=getDayNote(who,day);
-      h+='<div class="rp-person"><h4 class="rp-cardh">Day '+day+' · '+DAY_NAMES[day]+(f?' · '+esc(f):'')+'</h4><table class="rp-prog"><thead><tr><th>Exercise</th><th>Weight (kg)</th><th>Reps</th></tr></thead><tbody>';
-      plans.forEach(function(p){
-        var sets=planSetsAll(p.id);
-        if(!sets.length){ h+='<tr><td class="rp-prog-ex">'+esc(p.exercise)+'</td><td>·</td><td>·</td></tr>'; return; }
-        sets.forEach(function(s,i){ h+='<tr><td class="rp-prog-ex">'+(i===0?esc(p.exercise):'')+'</td><td>'+(s.weight!=null?bfmt(s.weight):'—')+'</td><td>'+(s.reps!=null?s.reps:'—')+'</td></tr>'; });
+      var groups=dayMuscles(who,day); if(!groups.length) return; any=true;
+      var note=getDayNote(who,day);
+      h+='<div class="rp-person"><h4 class="rp-cardh">Day '+day+' · '+DAY_NAMES[day]+'</h4>';
+      groups.forEach(function(m){
+        var exs=exsFor(who,day,m); if(!exs.length) return;
+        h+='<table class="rp-prog"><thead><tr><th>'+esc(m)+'</th><th>Weight (kg)</th><th>Reps</th><th>Sets</th></tr></thead><tbody>';
+        exs.forEach(function(e){ var v=getVal(e.id,wk)||{}; h+='<tr><td class="rp-prog-ex">'+esc(e.exercise)+'</td><td>'+(v.weight!=null?bfmt(v.weight):'·')+'</td><td>'+(v.reps!=null?v.reps:'·')+'</td><td>'+(v.sets!=null?v.sets:'·')+'</td></tr>'; });
+        h+='</tbody></table>';
       });
-      h+='</tbody></table>'+(note?'<div class="rp-note">Notes: '+esc(note)+'</div>':'')+'</div>';
+      h+=(note?'<div class="rp-note">Notes: '+esc(note)+'</div>':'')+'</div>';
     });
     if(!any) return '<div class="rp-person"><div class="rp-sub">No program set.</div></div>';
-    h+='<div class="rp-person"><h4 class="rp-cardh">Aggregate report</h4>'+aggregateTableHTML(who,true)+'<div class="rp-sub" style="margin-top:6px">Total Volume = \u03a3(weight \u00d7 reps) \u00b7 Avg wt = Volume \u00f7 Reps</div></div>';
+    h+='<div class="rp-person"><h4 class="rp-cardh">Aggregate report · monthly</h4>'+wkMonthAggTable(who,true)+'<div class="rp-sub" style="margin-top:6px">Vol = \u03a3(Weight \u00d7 Reps \u00d7 Sets) \u00b7 Reps = total reps performed</div></div>';
     return h;
   }
   function repWeightCard(who){
@@ -2058,7 +2118,7 @@
       +".rp-bodygrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}@media(max-width:520px){.rp-bodygrid{grid-template-columns:1fr}}.rp-bodycard{background:#faf7f1;border:1px solid #e7e1d7;border-radius:12px;padding:13px 14px;min-width:0;overflow:hidden}.rp-bodycard .rp-lab{margin-bottom:3px}.rp-bodycard .rp-big{font-size:18px}.rp-bodycard svg{max-height:66px;margin-top:8px}.rp-sec>svg{max-height:120px}.rp-bchg{font-size:13px;font-weight:700}.rp-bchg.good{color:#1f8f5b}.rp-bchg.bad{color:#c0562e}"
       +".rp-hcon{display:flex;flex-direction:column;gap:9px}.rp-hrow{display:flex;align-items:center;gap:9px;font-size:12.5px}.rp-hdot{width:9px;height:9px;border-radius:50%;flex:none}.rp-hname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rp-hbar{flex:none;width:56px;height:6px;background:#efeae2;border-radius:3px;overflow:hidden}.rp-hbar span{display:block;height:100%}.rp-hval{flex:none;font-size:11px;color:#6b655c;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}.rp-hfreq{color:#9a948a;font-size:10px;font-weight:700}"
       +".rp-f{max-width:920px;margin:14px auto 40px;padding:0 16px;color:#b0a99e;font-size:11px}"
-      +".rp-flags{margin-top:9px;display:flex;flex-direction:column;gap:6px}.rp-flag{font-size:12px;padding:8px 11px;border-radius:8px;font-weight:600}.rpf-bad{background:#fbeaea;color:#a3352f}.rpf-warn{background:#fbf3e2;color:#8a5a12}.rpf-good{background:#e9f6ee;color:#2e7d4f}.rp-ok{color:#2e7d4f;font-size:12px;font-weight:600;margin-top:7px}.rp-insight{margin:9px 0 0;font-size:13px;line-height:1.55;color:#4a453e}.rp-prog{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}.rp-prog th{background:#efe9df;color:#5a544a;text-align:center;padding:6px 5px;border:1px solid #e0d9cd;font-weight:700}.rp-prog th:first-child{text-align:left}.rp-prog td{border:1px solid #e7e1d7;padding:5px 6px;text-align:center;vertical-align:top}.rp-prog-ex{text-align:left;font-weight:600;white-space:nowrap}.rp-agg{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}.rp-agg th{background:#111;color:#fff;padding:6px 7px;text-align:center;font-weight:700}.rp-agg th:first-child{text-align:left}.rp-agg td{border:1px solid #d9d2c6;padding:5px 7px;text-align:center}.rp-agg-m{text-align:left;font-weight:600}.rp-agg-total td{background:#efe9df;font-weight:800}.rp-note{font-size:11px;color:#7a7367;margin:6px 0 0}";
+      +".rp-flags{margin-top:9px;display:flex;flex-direction:column;gap:6px}.rp-flag{font-size:12px;padding:8px 11px;border-radius:8px;font-weight:600}.rpf-bad{background:#fbeaea;color:#a3352f}.rpf-warn{background:#fbf3e2;color:#8a5a12}.rpf-good{background:#e9f6ee;color:#2e7d4f}.rp-ok{color:#2e7d4f;font-size:12px;font-weight:600;margin-top:7px}.rp-insight{margin:9px 0 0;font-size:13px;line-height:1.55;color:#4a453e}.rp-prog{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}.rp-prog th{background:#efe9df;color:#5a544a;text-align:center;padding:6px 5px;border:1px solid #e0d9cd;font-weight:700}.rp-prog th:first-child{text-align:left}.rp-prog td{border:1px solid #e7e1d7;padding:5px 6px;text-align:center;vertical-align:top}.rp-prog-ex{text-align:left;font-weight:600;white-space:nowrap}.rp-agg{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}.rp-agg th{background:#111;color:#fff;padding:6px 7px;text-align:center;font-weight:700}.rp-agg th:first-child{text-align:left}.rp-agg td{border:1px solid #d9d2c6;padding:5px 7px;text-align:center}.rp-agg-m{text-align:left;font-weight:600}.rp-agg-total td{background:#efe9df;font-weight:800}.rp-note{font-size:11px;color:#7a7367;margin:6px 0 0}.rp-magg{width:100%;border-collapse:collapse;font-size:10px;margin-top:4px}.rp-magg th{background:#111;color:#fff;padding:5px 5px;text-align:center;font-weight:700;white-space:nowrap}.rp-magg th[rowspan]{text-align:left}.rp-magg td{border:1px solid #d9d2c6;padding:4px 5px;text-align:center}.rp-magg-m{text-align:left;font-weight:600}.rp-magg-total td{background:#dff0e4;font-weight:800}";
     var persons = scope==="both" ? ["pravin","swetha"] : [scope];
     if(!months.length){ body='<div class="rp-month"><p>No data logged yet.</p></div>'; }
     else {
@@ -2302,11 +2362,11 @@
       h.push('</section>');
     }
     else if(coachSec==="workout"){
-      var cf=getFocus(who,wkDay), cn=getDayNote(who,wkDay);
-      h.push('<section><h2 class="eyebrow">Day '+wkDay+' · '+DAY_NAMES[wkDay]+(cf?' · '+esc(cf):'')+'</h2>');
+      var cn=getDayNote(who,wkDay), cg=dayMuscles(who,wkDay);
+      h.push('<section><h2 class="eyebrow">Day '+wkDay+' · '+DAY_NAMES[wkDay]+'</h2>');
       h.push('<div class="wkp-daytabs">'+[1,2,3].map(function(d){return '<button class="wkp-dtab'+(wkDay===d?' active':'')+'" data-wkday="'+d+'" type="button">Day '+d+'</button>';}).join("")+'</div>');
-      h.push('<div class="panel" style="--pc:'+pc+'">'+wkProgramDayHTML(who,wkDay,1,false)+(cn?'<div class="wkn-ro"><b>Notes:</b> '+esc(cn)+'</div>':'')+'</div>');
-      h.push('<div class="wkl-title">Aggregate report</div>'+aggregateTableHTML(who,false)+'</section>');
+      h.push('<div class="panel" style="--pc:'+pc+'">'+(cg.length?cg.map(function(m){return wkGroupTableHTML(who,wkDay,m,false);}).join(""):'<div class="wk-empty">Nothing logged for Day '+wkDay+'.</div>')+(cn?'<div class="wkn-ro"><b>Notes:</b> '+esc(cn)+'</div>':'')+'</div>');
+      h.push('<div class="wkl-title">Aggregate report · monthly</div>'+wkMonthAggTable(who,false)+'</section>');
     }
     else if(coachSec==="photos"){
       h.push('<section><h2 class="eyebrow">Progress photos · latest</h2><div class="panel" style="--pc:'+pc+'">');
@@ -2357,10 +2417,7 @@
     app.querySelectorAll("[data-coachwho]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachWho=el.getAttribute("data-coachwho"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-dashwho]").forEach(function(el){ el.onclick=function(){ coachWho=el.getAttribute("data-dashwho"); renderBoth(); var r=document.getElementById("coachSubRow"); if(r) r.scrollIntoView({behavior:"smooth",block:"start"}); }; });
     app.querySelectorAll("[data-aicopy]").forEach(function(el){ el.onclick=function(){ copyForAI(el.getAttribute("data-aicopy")); }; });
-    app.querySelectorAll("[data-wkday]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkDay=+el.dataset.wkday; wkChartPlan=""; renderBoth(); window.scrollTo(0,y); }; });
-    app.querySelectorAll("[data-wkweek]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkWeek=+el.dataset.wkweek; renderBoth(); window.scrollTo(0,y); }; });
-    var _cwcs=document.getElementById("wkChartSel"); if(_cwcs) _cwcs.onchange=function(){ var y=window.scrollY; wkChartPlan=_cwcs.value; renderBoth(); window.scrollTo(0,y); };
-    app.querySelectorAll("[data-wkmetric]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkChartMetric=el.dataset.wkmetric; renderBoth(); window.scrollTo(0,y); }; });
+    app.querySelectorAll("[data-wkday]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkDay=+el.dataset.wkday; renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-coachsec]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachSec=el.getAttribute("data-coachsec"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-coachbody]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; coachBody=el.getAttribute("data-coachbody"); renderBoth(); window.scrollTo(0,y); }; });
     app.querySelectorAll(".tl-wrap").forEach(function(el){ wireTimelapse(el); });
@@ -2435,41 +2492,31 @@
     if(mItem) mItem.onkeydown=function(e){ if(e.key==="Enter") addM(); };
     app.querySelectorAll("[data-meal]").forEach(function(el){ el.onclick=function(){ delMeal(el.dataset.meal); render(); }; });
     app.querySelectorAll("[data-mealcopy]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.mealcopy.split("|"); copyMeal(p[0],p[1],+p[2]); }; });
-    app.querySelectorAll("[data-focuspick]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; setFocus(who,wkDay,el.dataset.focuspick); render(); window.scrollTo(0,y); }; });
     var _wdn=document.getElementById("wkDayNote"); if(_wdn) _wdn.onblur=function(){ setDayNote(who,wkDay,_wdn.value); };
-    // program: day/week tabs
-    app.querySelectorAll("[data-wkday]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkDay=+el.dataset.wkday; wkChartPlan=""; render(); window.scrollTo(0,y); }; });
-    app.querySelectorAll("[data-wkweek]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkWeek=+el.dataset.wkweek; render(); window.scrollTo(0,y); }; });
-    // graph
-    var _wcs=document.getElementById("wkChartSel"); if(_wcs) _wcs.onchange=function(){ var y=window.scrollY; wkChartPlan=_wcs.value; render(); window.scrollTo(0,y); };
-    app.querySelectorAll("[data-wkmetric]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkChartMetric=el.dataset.wkmetric; render(); window.scrollTo(0,y); }; });
-    // copy day → other
-    var _wcd=document.getElementById("wkCopyDay"); if(_wcd) _wcd.onclick=function(){ copyDayToOther(who,(who==="pravin"?"swetha":"pravin"),wkDay); };
-    // rename / delete exercise
-    app.querySelectorAll("[data-planrename]").forEach(function(el){ el.onclick=function(){
-      var id=el.dataset.planrename, p=state.wkPlan[id]; if(!p) return;
+    app.querySelectorAll("[data-wkday]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkDay=+el.dataset.wkday; render(); window.scrollTo(0,y); }; });
+    var _wcd=document.getElementById("wkCopyDay"); if(_wcd) _wcd.onclick=function(){ copyDayGroups(who,(who==="pravin"?"swetha":"pravin"),wkDay); };
+    app.querySelectorAll("[data-grouppick]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; openGroup(who,wkDay,el.dataset.grouppick); render(); window.scrollTo(0,y); }; });
+    app.querySelectorAll("[data-groupdel]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.groupdel.split("||"), d=+p[0], m=p[1]; exsFor(who,d,m).forEach(function(e){ delEx(e.id); }); var k=who+"|"+d; if(wkOpenGroups[k]){ var i=wkOpenGroups[k].indexOf(m); if(i>=0) wkOpenGroups[k].splice(i,1); } render(); }; });
+    app.querySelectorAll("[data-exrename]").forEach(function(el){ el.onclick=function(){
+      var id=el.dataset.exrename, p=state.wkPlan[id]; if(!p) return;
       var inp=document.createElement("input"); inp.className="mitem-inp"; inp.value=p.exercise;
       el.replaceWith(inp); inp.focus(); try{ inp.select(); }catch(e){}
-      var done=false; function commit(save){ if(done)return; done=true; if(save&&inp.value.trim()) renamePlanEx(id,inp.value); else render(); }
+      var done=false; function commit(save){ if(done)return; done=true; if(save&&inp.value.trim()) renameEx(id,inp.value); else render(); }
       inp.addEventListener("blur",function(){ commit(true); });
       inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
     }; });
-    app.querySelectorAll("[data-plandel]").forEach(function(el){ el.onclick=function(){ delPlanEx(el.dataset.plandel); render(); }; });
-    app.querySelectorAll("[data-plansetdel]").forEach(function(el){ el.onclick=function(){ delPlanSet(el.dataset.plansetdel); render(); }; });
-    // + set (duplicate last set of that exercise in this week)
-    app.querySelectorAll("[data-planaddset]").forEach(function(el){ el.onclick=function(){ var pid=el.dataset.planaddset, ss=planSets(pid,wkWeek), last=ss.length?ss[ss.length-1]:null; addPlanSet(pid,wkWeek, last?last.weight:"", last?last.reps:""); render(); }; });
-    // add exercise to the day
-    app.querySelectorAll("[data-planaddex]").forEach(function(row){ var btn=row.querySelector(".wkt-addex-btn"); if(!btn) return;
-      var go=function(){ var exi=row.querySelector(".wkp-exin"), ex=(exi.value||"").trim(); if(!ex){ toast("Type an exercise name"); exi.focus(); return; } addPlanEx(who,wkDay,ex); render(); };
+    app.querySelectorAll("[data-exdel]").forEach(function(el){ el.onclick=function(){ delEx(el.dataset.exdel); render(); }; });
+    app.querySelectorAll("[data-exaddrow]").forEach(function(row){ var btn=row.querySelector(".wkt-addex-btn"); if(!btn) return;
+      var pp=row.getAttribute("data-exaddrow").split("||"), d=+pp[0], m=pp[1];
+      var go=function(){ var exi=row.querySelector(".wsg-exin"), ex=(exi.value||"").trim(); if(!ex){ toast("Type an exercise name"); exi.focus(); return; } addEx(who,d,m,ex); render(); };
       btn.onclick=go;
-      var exi=row.querySelector(".wkp-exin"); if(exi) exi.addEventListener("keydown",function(e){ if(e.key==="Enter") go(); });
+      var exi=row.querySelector(".wsg-exin"); if(exi) exi.addEventListener("keydown",function(e){ if(e.key==="Enter") go(); });
     });
-    // per-cell edit (Kg / Reps)
-    app.querySelectorAll("[data-plancell]").forEach(function(el){ el.onclick=function(){
-      var parts=el.dataset.plancell.split("|"), id=parts[0], field=parts[1], s=state.wkSet[id]; if(!s) return;
-      var inp=document.createElement("input"); inp.className="wkt-cellinp"; inp.type="number"; inp.step=(field==="weight"?"0.5":"1"); inp.min="0"; inp.inputMode=(field==="weight"?"decimal":"numeric"); inp.value=(field==="weight"?(s.weight!=null?s.weight:""):(s.reps!=null?s.reps:""));
+    app.querySelectorAll("[data-valcell]").forEach(function(el){ el.onclick=function(){
+      var parts=el.dataset.valcell.split("|"), id=parts[0], field=parts[1], wk=curWeek(), v=getVal(id,wk)||{};
+      var inp=document.createElement("input"); inp.className="wkt-cellinp"; inp.type="number"; inp.step=(field==="weight"?"0.5":"1"); inp.min="0"; inp.inputMode=(field==="weight"?"decimal":"numeric"); inp.value=(v[field]!=null?v[field]:"");
       el.replaceWith(inp); inp.focus(); try{ inp.select(); }catch(e){}
-      var done=false; function commit(save){ if(done)return; done=true; if(save) editPlanSet(id,field,inp.value); else render(); }
+      var done=false; function commit(save){ if(done)return; done=true; if(save) setValField(id,wk,field,inp.value); render(); }
       inp.addEventListener("blur",function(){ commit(true); });
       inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ inp.blur(); } else if(e.key==="Escape"){ commit(false); } });
     }; });
@@ -2582,7 +2629,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 93 · workout-sheet</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 94 · workout-groups-monthly</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
