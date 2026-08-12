@@ -1809,7 +1809,7 @@
     3:["Seated DB Press","Lateral Raise","Rear Fly Bench","Arnold Press","Goblet Squat","DB RDL","Assist Rev Lunges","Calf Raises"]
   };
   function exsForDay(who,day){ var a=[]; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person===who&&p.day===day) a.push({id:id,exercise:p.exercise,sort:p.sort||0}); } a.sort(function(x,y){return x.sort-y.sort;}); return a; }
-  function ensureSeed(who,day){ if(getFocus(who,day)==="seeded") return; (DEFAULT_EX[day]||[]).forEach(function(name,i){ var id="s_"+who+"_"+day+"_"+i; if(!state.wkPlan[id]){ state.wkPlan[id]={person:who,day:day,muscle:"",exercise:name,sort:i}; enqueue({k:"wkPlanAdd",id:id,person:who,day:day,muscle:"",exercise:name,sort:i}); } }); setFocus(who,day,"seeded"); saveCache(); }
+  function ensureSeed(who,day){ if(exsForDay(who,day).length) return; (DEFAULT_EX[day]||[]).forEach(function(name,i){ var id="s_"+who+"_"+day+"_"+i; state.wkPlan[id]={person:who,day:day,muscle:"",exercise:name,sort:i}; enqueue({k:"wkPlanAdd",id:id,person:who,day:day,muscle:"",exercise:name,sort:i}); }); saveCache(); }
   function addExercise(who,day,name){ name=(name||"").trim(); if(!name) return null; var mx=-1; for(var id in state.wkPlan){ var p=state.wkPlan[id]; if(p.person===who&&p.day===day&&(p.sort||0)>mx) mx=p.sort||0; } var nid=uid(), so=mx+1; state.wkPlan[nid]={person:who,day:day,muscle:"",exercise:name,sort:so}; enqueue({k:"wkPlanAdd",id:nid,person:who,day:day,muscle:"",exercise:name,sort:so}); saveCache(); return nid; }
   function renameEx(id,name){ var p=state.wkPlan[id]; if(!p) return; name=(name||"").trim(); if(!name) return; p.exercise=name; enqueue({k:"wkPlanAdd",id:id,person:p.person,day:p.day,muscle:p.muscle||"",exercise:name,sort:p.sort||0}); saveCache(); render(); }
   function delEx(id){ var p=state.wkPlan[id]; if(!p) return; for(var sid in state.wkSet){ if(state.wkSet[sid].planId===id){ enqueue({k:"wkSetDel",id:sid}); delete state.wkSet[sid]; } } delete state.wkPlan[id]; enqueue({k:"wkPlanDel",id:id}); saveCache(); }
@@ -2670,7 +2670,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 99 · workout-done-toggle</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 100 · workout-seed-fix</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
