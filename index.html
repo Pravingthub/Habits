@@ -197,6 +197,22 @@
   .wkp-row{padding:3px 0}
   .wkp-sn{font-family:"Space Grotesk";font-size:12px;color:var(--muted);text-align:center}
   .wkp-none{font-size:12.5px;color:var(--muted);padding:6px 2px}
+  .wkf-lab,.wkl-title{font-family:"Space Grotesk";text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;color:var(--muted);font-weight:600;margin:6px 2px 9px}
+  .wkl-title{margin:22px 2px 10px}
+  .wkf-pick{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:6px}
+  .wkf-opt{display:flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:11px;padding:11px 13px;font-family:"Space Grotesk";font-weight:600;font-size:13.5px;cursor:pointer;text-align:left}
+  .wkf-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted);flex:none}
+  .wkf-opt.on{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface));color:var(--ink)}
+  .wkf-opt.on .wkf-dot{border-color:var(--good);background:radial-gradient(circle,var(--good) 45%,transparent 48%)}
+  .wkn{width:100%;min-height:64px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-family:Inter;font-size:13.5px;padding:11px 12px;outline:none;resize:vertical}
+  .wkn:focus{border-color:var(--accent)}
+  .wkn-ro{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .wk-agg{width:100%;border-collapse:collapse;font-family:"Space Grotesk";font-size:12px;margin-top:2px}
+  .wk-agg th{background:var(--surface-2);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-size:10px;padding:8px 6px;text-align:center;border:1px solid var(--line)}
+  .wk-agg th:first-child{text-align:left}
+  .wk-agg td{border:1px solid var(--line);padding:8px 6px;text-align:center;font-weight:600}
+  .wk-agg .wk-agg-m{text-align:left;color:var(--muted);font-weight:600}
+  .wk-agg .wk-agg-total td{background:color-mix(in srgb,var(--good) 10%,var(--surface));color:var(--good);font-weight:700}
   .wkp-newex{display:grid;grid-template-columns:1fr 34px;gap:6px;margin-top:2px}
   .wkp-exin{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:Inter;font-size:13px;padding:9px 11px;outline:none;min-width:0}
   .wkp-exin:focus{border-color:var(--accent)}
@@ -723,6 +739,7 @@
   if(!state.meals) state.meals={};
   if(!state.workouts) state.workouts={};
   if(!state.wkPlan) state.wkPlan={};
+  if(!state.wkDay) state.wkDay={};
   if(!state.wkSet) state.wkSet={};
   if(!state.water) state.water={};
   if(!state.steps) state.steps={};
@@ -1168,6 +1185,7 @@
     if(op.k==="wkPlanDel") return supa.from("wk_plan").delete().eq("id",op.id);
     if(op.k==="wkSetAdd") return supa.from("wk_set").upsert({id:op.id,person:op.person,plan_id:op.planId,week:op.week,setno:op.setno,weight:op.weight,reps:op.reps,sort:op.sort||0},{onConflict:"id"});
     if(op.k==="wkSetDel") return supa.from("wk_set").delete().eq("id",op.id);
+    if(op.k==="wkDay") return supa.from("wk_day").upsert({person:op.person,day:op.day,focus:op.focus,note:op.note},{onConflict:"person,day"});
     if(op.k==="workoutDel") return supa.from("workouts").delete().eq("id",op.id);
     if(op.k==="mealSort") return supa.from("meals").update({sort:op.sort}).eq("id",op.id);
     if(op.k==="habitAdd") return supa.from("habits").insert({id:op.id,person:op.person,label:op.label,color:op.color,sort:op.sort,week:op.week||0,icon:op.icon||null});
@@ -1200,7 +1218,7 @@
   function pull(){
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
-    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};}),fetchAllRows("tape").catch(function(){return {data:[],error:null};}),fetchAllRows("inbody").catch(function(){return {data:[],error:null};}),fetchAllRows("goals").catch(function(){return {data:[],error:null};}),fetchAllRows("workouts").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_plan").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_set").catch(function(){return {data:[],error:null};})])
+    Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};}),fetchAllRows("tape").catch(function(){return {data:[],error:null};}),fetchAllRows("inbody").catch(function(){return {data:[],error:null};}),fetchAllRows("goals").catch(function(){return {data:[],error:null};}),fetchAllRows("workouts").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_plan").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_set").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_day").catch(function(){return {data:[],error:null};})])
     .then(function(r){
       if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error);
       var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[], tap=(r[10]&&r[10].data)||[], inb=(r[11]&&r[11].data)||[], gol=(r[12]&&r[12].data)||[], wko=(r[13]&&r[13].data)||[];
@@ -1217,6 +1235,7 @@
       fresh.wkPlan={}; fresh.wkSet={};
       wpl.forEach(function(p){ fresh.wkPlan[p.id]={person:p.person,day:p.day,exercise:p.exercise,sort:(p.sort||0)}; });
       wst.forEach(function(s){ fresh.wkSet[s.id]={person:s.person,planId:s.plan_id,week:s.week,setno:s.setno,weight:s.weight,reps:s.reps,sort:(s.sort||0)}; });
+      var wdy=(r[16]&&r[16].data)||[]; fresh.wkDay={}; wdy.forEach(function(d){ fresh.wkDay[d.person+"|"+d.day]={focus:d.focus||"",note:d.note||""}; });
       wat.forEach(function(x){ fresh.water[x.person+"|"+x.ym+"|"+x.day]=x.ml; });
       stp.forEach(function(x){ fresh.steps[x.person+"|"+x.ym+"|"+x.day]=x.count; });
       bod.forEach(function(x){ fresh.body[x.person+"|"+x.ym+"|"+x.day]={site1:x.site1,site2:x.site2,site3:x.site3,bodyfat:x.bodyfat}; });
@@ -1254,6 +1273,7 @@
     else if(op.k==="wkPlanDel"){ if(s.wkPlan) delete s.wkPlan[op.id]; }
     else if(op.k==="wkSetAdd"){ if(!s.wkSet)s.wkSet={}; s.wkSet[op.id]={person:op.person,planId:op.planId,week:op.week,setno:op.setno,weight:op.weight,reps:op.reps,sort:op.sort||0}; }
     else if(op.k==="wkSetDel"){ if(s.wkSet) delete s.wkSet[op.id]; }
+    else if(op.k==="wkDay"){ if(!s.wkDay)s.wkDay={}; s.wkDay[op.person+"|"+op.day]={focus:op.focus,note:op.note}; }
     else if(op.k==="workoutDel"){ if(s.workouts) delete s.workouts[op.id]; }
     else if(op.k==="mealSort"){ if(s.meals&&s.meals[op.id]) s.meals[op.id].sort=op.sort; }
     else if(op.k==="habitAdd"){if(s.habits[op.person])s.habits[op.person].push({id:op.id,label:op.label,color:op.color,sort:op.sort,week:op.week||0,icon:op.icon||null});}
@@ -1377,6 +1397,8 @@
   var app=document.getElementById("app"), current="pravin", section="today";
   var SECTIONS=[["today","Day"],["habits","Habits"],["weight","Weight"],["food","Food"],["workout","Workout"],["photos","Photos"],["body","Measurements"]];
   var MUSCLES=["Chest","Shoulder","Triceps","Biceps","Lats","Back","Legs","Glutes","Hamstrings","Quads","Calves","Core / Abs","Forearms","Cardio","Full Body"];
+  var FOCUS_GROUPS=["Chest","Back","Shoulders","Biceps","Triceps","Legs"];
+  var DAY_NAMES={1:"Monday",2:"Wednesday",3:"Friday"};
   function accentVars(who){return who==="swetha"?"--accent:var(--swetha);--accent-deep:var(--swetha-deep)":"--accent:var(--pravin);--accent-deep:var(--pravin-deep)";}
   function applyAccent(who){document.documentElement.setAttribute("style",accentVars(who));}
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -1656,7 +1678,30 @@
   function addPlanSet(planId,week,weight,reps){ var p=state.wkPlan[planId]; if(!p) return; var n=0; for(var id in state.wkSet){ var s=state.wkSet[id]; if(s.planId===planId&&s.week===week) n++; } var nid=uid(), wt=(weight===""||weight==null?null:+weight), rp=(reps===""||reps==null?null:+reps), so=Date.now(); state.wkSet[nid]={person:p.person,planId:planId,week:week,setno:n+1,weight:wt,reps:rp,sort:so}; enqueue({k:"wkSetAdd",id:nid,person:p.person,planId:planId,week:week,setno:n+1,weight:wt,reps:rp,sort:so}); saveCache(); }
   function editPlanSet(id,field,val){ var s=state.wkSet[id]; if(!s) return; var nv=(val===""||val==null?null:+val); if(field==="weight") s.weight=nv; else s.reps=nv; enqueue({k:"wkSetAdd",id:id,person:s.person,planId:s.planId,week:s.week,setno:s.setno,weight:s.weight,reps:s.reps,sort:s.sort||0}); saveCache(); render(); }
   function delPlanSet(id){ if(state.wkSet[id]){ delete state.wkSet[id]; enqueue({k:"wkSetDel",id:id}); saveCache(); } }
-  function copyDayToOther(who,other,day){ var mine=planRows(who,day); if(!mine.length){ toast("Nothing on Day "+day+" to copy"); return; } var have={}; planRows(other,day).forEach(function(p){ have[p.exercise]=1; }); var copied=0; mine.forEach(function(p){ if(have[p.exercise]) return; var nid=addPlanEx(other,day,p.exercise); if(!nid) return; copied++; for(var w=1;w<=4;w++){ planSets(p.id,w).forEach(function(s){ addPlanSet(nid,w,s.weight,s.reps); }); } }); render(); toast(copied?("Copied Day "+day+" \u00b7 "+copied+" exercise"+(copied>1?"s":"")+" to "+(state.names[other]||other)):(state.names[other]||other)+" already has Day "+day); }
+  function copyDayToOther(who,other,day){ var mine=planRows(who,day); if(!mine.length){ toast("Nothing on Day "+day+" to copy"); return; } var have={}; planRows(other,day).forEach(function(p){ have[p.exercise]=1; }); var copied=0; mine.forEach(function(p){ if(have[p.exercise]) return; var nid=addPlanEx(other,day,p.exercise); if(!nid) return; copied++; for(var w=1;w<=4;w++){ planSets(p.id,w).forEach(function(s){ addPlanSet(nid,w,s.weight,s.reps); }); } }); var f=getFocus(who,day); if(f) setFocus(other,day,f); render(); toast(copied?("Copied Day "+day+" \u00b7 "+copied+" exercise"+(copied>1?"s":"")+" to "+(state.names[other]||other)):(state.names[other]||other)+" already has Day "+day); }
+  function getFocus(who,day){ var d=state.wkDay[who+"|"+day]; return d?(d.focus||""):""; }
+  function getDayNote(who,day){ var d=state.wkDay[who+"|"+day]; return d?(d.note||""):""; }
+  function setFocus(who,day,muscle){ var k=who+"|"+day, cur=state.wkDay[k]||{focus:"",note:""}; cur.focus=muscle||""; state.wkDay[k]=cur; enqueue({k:"wkDay",person:who,day:day,focus:cur.focus,note:cur.note||""}); saveCache(); }
+  function setDayNote(who,day,note){ var k=who+"|"+day, cur=state.wkDay[k]||{focus:"",note:""}; cur.note=note||""; state.wkDay[k]=cur; enqueue({k:"wkDay",person:who,day:day,focus:cur.focus||"",note:cur.note}); saveCache(); }
+  function planSetsAll(planId){ var a=[]; for(var id in state.wkSet){ var s=state.wkSet[id]; if(s.planId===planId) a.push(s); } return a; }
+  function wkAggregate(who){
+    var g={}; FOCUS_GROUPS.forEach(function(m){ g[m]={workouts:0,volume:0,reps:0}; });
+    [1,2,3].forEach(function(d){ var F=getFocus(who,d); if(!F||!g[F]) return; var dayHas=false;
+      planRows(who,d).forEach(function(p){ planSetsAll(p.id).forEach(function(s){ if(s.weight!=null&&s.reps!=null){ dayHas=true; g[F].volume+=s.weight*s.reps; g[F].reps+=s.reps; } }); });
+      if(dayHas) g[F].workouts+=1;
+    });
+    return g;
+  }
+  function aggregateTableHTML(who,light){
+    var g=wkAggregate(who), tW=0,tV=0,tR=0;
+    var cls=light?"rp-agg":"wk-agg";
+    var h='<table class="'+cls+'"><thead><tr><th>Muscle group</th><th>Workouts</th><th>Volume (kg)</th><th>Reps</th><th>Avg wt</th></tr></thead><tbody>';
+    FOCUS_GROUPS.forEach(function(m){ var r=g[m]; tW+=r.workouts; tV+=r.volume; tR+=r.reps; var avg=r.reps?bfmt(Math.round(r.volume/r.reps*10)/10):"0"; h+='<tr><td class="'+cls+'-m">'+m+'</td><td>'+r.workouts+'</td><td>'+bfmt(r.volume)+'</td><td>'+r.reps+'</td><td>'+avg+'</td></tr>'; });
+    var tAvg=tR?bfmt(Math.round(tV/tR*10)/10):"0";
+    h+='<tr class="'+cls+'-total"><td>TOTAL</td><td>'+tW+'</td><td>'+bfmt(tV)+'</td><td>'+tR+'</td><td>'+tAvg+'</td></tr>';
+    h+='</tbody></table>';
+    return h;
+  }
   function planExWeeks(planId){ var out=[]; for(var w=1;w<=4;w++){ var sets=planSets(planId,w), has=false, top=0,vol=0,e=0; sets.forEach(function(s){ if(s.weight!=null&&s.reps!=null){ has=true; vol+=s.weight*s.reps; if(s.weight>top)top=s.weight; var e1=s.weight*(1+s.reps/30); if(e1>e)e=e1; } }); if(has) out.push({week:w,x:w,label:"Wk "+w,top:Math.round(top*10)/10,vol:Math.round(vol),e1rm:Math.round(e*10)/10}); } return out; }
   function wkProgramGraph(who,day){
     var plans=planRows(who,day);
@@ -1784,15 +1829,19 @@
   }
   function secWorkout(who){
     var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0];
+    var focus=getFocus(who,wkDay);
     var h='<section>';
-    h+='<div class="today-head"><div class="date display">Workout program</div><button class="btn wkp-copyday" id="wkCopyDay" style="--mc:'+(other==="swetha"?"var(--swetha)":"var(--pravin)")+'">→ Copy Day '+wkDay+' to '+esc(oname)+'</button></div>';
+    h+='<div class="today-head"><div class="date display">Day '+wkDay+' · '+DAY_NAMES[wkDay]+'</div><button class="btn wkp-copyday" id="wkCopyDay" style="--mc:'+(other==="swetha"?"var(--swetha)":"var(--pravin)")+'">→ Copy to '+esc(oname)+'</button></div>';
     h+='<datalist id="wkExList">'+planExNames(who).map(function(x){return '<option value="'+esc(x)+'"></option>';}).join("")+'</datalist>';
     h+='<div class="wkp-daytabs">'+[1,2,3].map(function(d){return '<button class="wkp-dtab'+(wkDay===d?' active':'')+'" data-wkday="'+d+'" type="button">Day '+d+'</button>';}).join("")+'</div>';
-    h+='<div class="wkp-weektabs">'+[1,2,3,4].map(function(w){return '<button class="wkp-wtab'+(wkWeek===w?' active':'')+'" data-wkweek="'+w+'" type="button">Week '+w+'</button>';}).join("")+'</div>';
-    h+=wkProgramDayHTML(who,wkDay,wkWeek,true);
-    h+='<div class="wkp-newex" data-planaddex="'+wkDay+'"><input class="wkt-in wkp-exin" list="wkExList" placeholder="+ add exercise to Day '+wkDay+'" /><button class="wkt-addex-btn" aria-label="Add exercise">+</button></div>';
-    h+='<div class="wk-hint">Day 1/2/3 = your Mon/Wed/Fri split. Add exercises to a day (name alone saves); tap the ＋ cells to fill kg &amp; reps for the week you\u2019re on. Switch Week 1\u20134 up top as the block progresses.</div>';
-    h+=wkProgramGraph(who,wkDay);
+    h+='<div class="wkf-lab">Choose today\u2019s focus</div>';
+    h+='<div class="wkf-pick">'+FOCUS_GROUPS.map(function(m){return '<button class="wkf-opt'+(focus===m?' on':'')+'" data-focuspick="'+m+'" type="button"><span class="wkf-dot"></span>'+m+'</button>';}).join("")+'</div>';
+    h+='<div class="wkl-title">Workout log</div>';
+    h+=wkProgramDayHTML(who,wkDay,1,true);
+    h+='<div class="wkp-newex" data-planaddex="'+wkDay+'"><input class="wkt-in wkp-exin" list="wkExList" placeholder="+ add exercise" /><button class="wkt-addex-btn" aria-label="Add exercise">+</button></div>';
+    h+='<div class="wkl-title">Notes</div><textarea class="wkn" id="wkDayNote" placeholder="Notes for Day '+wkDay+'…">'+esc(getDayNote(who,wkDay))+'</textarea>';
+    h+='<div class="wkl-title">Aggregate report</div>'+aggregateTableHTML(who,false);
+    h+='<div class="wk-hint">Total Volume = \u03a3(weight \u00d7 reps). Avg wt = Total Volume \u00f7 Total Reps. Workouts = sessions logged per muscle group.</div>';
     h+='</section>';
     return h;
   }
@@ -1912,15 +1961,18 @@
     var any=false, h="";
     [1,2,3].forEach(function(day){
       var plans=planRows(who,day); if(!plans.length) return; any=true;
-      h+='<div class="rp-person"><h4 class="rp-cardh">Day '+day+'</h4><table class="rp-prog"><thead><tr><th>Exercise</th><th>Wk1</th><th>Wk2</th><th>Wk3</th><th>Wk4</th></tr></thead><tbody>';
+      var f=getFocus(who,day), note=getDayNote(who,day);
+      h+='<div class="rp-person"><h4 class="rp-cardh">Day '+day+' · '+DAY_NAMES[day]+(f?' · '+esc(f):'')+'</h4><table class="rp-prog"><thead><tr><th>Exercise</th><th>Weight (kg)</th><th>Reps</th></tr></thead><tbody>';
       plans.forEach(function(p){
-        h+='<tr><td class="rp-prog-ex">'+esc(p.exercise)+'</td>';
-        for(var w=1;w<=4;w++){ var sets=planSets(p.id,w); var cell=sets.length?sets.map(function(s){return (s.weight!=null?bfmt(s.weight):'—')+'×'+(s.reps!=null?s.reps:'—');}).join('<br>'):'·'; h+='<td>'+cell+'</td>'; }
-        h+='</tr>';
+        var sets=planSetsAll(p.id);
+        if(!sets.length){ h+='<tr><td class="rp-prog-ex">'+esc(p.exercise)+'</td><td>·</td><td>·</td></tr>'; return; }
+        sets.forEach(function(s,i){ h+='<tr><td class="rp-prog-ex">'+(i===0?esc(p.exercise):'')+'</td><td>'+(s.weight!=null?bfmt(s.weight):'—')+'</td><td>'+(s.reps!=null?s.reps:'—')+'</td></tr>'; });
       });
-      h+='</tbody></table></div>';
+      h+='</tbody></table>'+(note?'<div class="rp-note">Notes: '+esc(note)+'</div>':'')+'</div>';
     });
-    return any?h:'<div class="rp-person"><div class="rp-sub">No program set.</div></div>';
+    if(!any) return '<div class="rp-person"><div class="rp-sub">No program set.</div></div>';
+    h+='<div class="rp-person"><h4 class="rp-cardh">Aggregate report</h4>'+aggregateTableHTML(who,true)+'<div class="rp-sub" style="margin-top:6px">Total Volume = \u03a3(weight \u00d7 reps) \u00b7 Avg wt = Volume \u00f7 Reps</div></div>';
+    return h;
   }
   function repWeightCard(who){
     var col=who==="swetha"?"#DD5A86":"#E08A1E";
@@ -2006,7 +2058,7 @@
       +".rp-bodygrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}@media(max-width:520px){.rp-bodygrid{grid-template-columns:1fr}}.rp-bodycard{background:#faf7f1;border:1px solid #e7e1d7;border-radius:12px;padding:13px 14px;min-width:0;overflow:hidden}.rp-bodycard .rp-lab{margin-bottom:3px}.rp-bodycard .rp-big{font-size:18px}.rp-bodycard svg{max-height:66px;margin-top:8px}.rp-sec>svg{max-height:120px}.rp-bchg{font-size:13px;font-weight:700}.rp-bchg.good{color:#1f8f5b}.rp-bchg.bad{color:#c0562e}"
       +".rp-hcon{display:flex;flex-direction:column;gap:9px}.rp-hrow{display:flex;align-items:center;gap:9px;font-size:12.5px}.rp-hdot{width:9px;height:9px;border-radius:50%;flex:none}.rp-hname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rp-hbar{flex:none;width:56px;height:6px;background:#efeae2;border-radius:3px;overflow:hidden}.rp-hbar span{display:block;height:100%}.rp-hval{flex:none;font-size:11px;color:#6b655c;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}.rp-hfreq{color:#9a948a;font-size:10px;font-weight:700}"
       +".rp-f{max-width:920px;margin:14px auto 40px;padding:0 16px;color:#b0a99e;font-size:11px}"
-      +".rp-flags{margin-top:9px;display:flex;flex-direction:column;gap:6px}.rp-flag{font-size:12px;padding:8px 11px;border-radius:8px;font-weight:600}.rpf-bad{background:#fbeaea;color:#a3352f}.rpf-warn{background:#fbf3e2;color:#8a5a12}.rpf-good{background:#e9f6ee;color:#2e7d4f}.rp-ok{color:#2e7d4f;font-size:12px;font-weight:600;margin-top:7px}.rp-insight{margin:9px 0 0;font-size:13px;line-height:1.55;color:#4a453e}.rp-prog{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}.rp-prog th{background:#efe9df;color:#5a544a;text-align:center;padding:6px 5px;border:1px solid #e0d9cd;font-weight:700}.rp-prog th:first-child{text-align:left}.rp-prog td{border:1px solid #e7e1d7;padding:5px 6px;text-align:center;vertical-align:top}.rp-prog-ex{text-align:left;font-weight:600;white-space:nowrap}";
+      +".rp-flags{margin-top:9px;display:flex;flex-direction:column;gap:6px}.rp-flag{font-size:12px;padding:8px 11px;border-radius:8px;font-weight:600}.rpf-bad{background:#fbeaea;color:#a3352f}.rpf-warn{background:#fbf3e2;color:#8a5a12}.rpf-good{background:#e9f6ee;color:#2e7d4f}.rp-ok{color:#2e7d4f;font-size:12px;font-weight:600;margin-top:7px}.rp-insight{margin:9px 0 0;font-size:13px;line-height:1.55;color:#4a453e}.rp-prog{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}.rp-prog th{background:#efe9df;color:#5a544a;text-align:center;padding:6px 5px;border:1px solid #e0d9cd;font-weight:700}.rp-prog th:first-child{text-align:left}.rp-prog td{border:1px solid #e7e1d7;padding:5px 6px;text-align:center;vertical-align:top}.rp-prog-ex{text-align:left;font-weight:600;white-space:nowrap}.rp-agg{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}.rp-agg th{background:#111;color:#fff;padding:6px 7px;text-align:center;font-weight:700}.rp-agg th:first-child{text-align:left}.rp-agg td{border:1px solid #d9d2c6;padding:5px 7px;text-align:center}.rp-agg-m{text-align:left;font-weight:600}.rp-agg-total td{background:#efe9df;font-weight:800}.rp-note{font-size:11px;color:#7a7367;margin:6px 0 0}";
     var persons = scope==="both" ? ["pravin","swetha"] : [scope];
     if(!months.length){ body='<div class="rp-month"><p>No data logged yet.</p></div>'; }
     else {
@@ -2250,11 +2302,11 @@
       h.push('</section>');
     }
     else if(coachSec==="workout"){
-      h.push('<section><h2 class="eyebrow">Workout program</h2>');
+      var cf=getFocus(who,wkDay), cn=getDayNote(who,wkDay);
+      h.push('<section><h2 class="eyebrow">Day '+wkDay+' · '+DAY_NAMES[wkDay]+(cf?' · '+esc(cf):'')+'</h2>');
       h.push('<div class="wkp-daytabs">'+[1,2,3].map(function(d){return '<button class="wkp-dtab'+(wkDay===d?' active':'')+'" data-wkday="'+d+'" type="button">Day '+d+'</button>';}).join("")+'</div>');
-      h.push('<div class="wkp-weektabs">'+[1,2,3,4].map(function(w){return '<button class="wkp-wtab'+(wkWeek===w?' active':'')+'" data-wkweek="'+w+'" type="button">Week '+w+'</button>';}).join("")+'</div>');
-      h.push('<div class="panel" style="--pc:'+pc+'">'+wkProgramDayHTML(who,wkDay,wkWeek,false)+'</div>');
-      h.push(wkProgramGraph(who,wkDay)+'</section>');
+      h.push('<div class="panel" style="--pc:'+pc+'">'+wkProgramDayHTML(who,wkDay,1,false)+(cn?'<div class="wkn-ro"><b>Notes:</b> '+esc(cn)+'</div>':'')+'</div>');
+      h.push('<div class="wkl-title">Aggregate report</div>'+aggregateTableHTML(who,false)+'</section>');
     }
     else if(coachSec==="photos"){
       h.push('<section><h2 class="eyebrow">Progress photos · latest</h2><div class="panel" style="--pc:'+pc+'">');
@@ -2383,6 +2435,8 @@
     if(mItem) mItem.onkeydown=function(e){ if(e.key==="Enter") addM(); };
     app.querySelectorAll("[data-meal]").forEach(function(el){ el.onclick=function(){ delMeal(el.dataset.meal); render(); }; });
     app.querySelectorAll("[data-mealcopy]").forEach(function(el){ el.onclick=function(){ var p=el.dataset.mealcopy.split("|"); copyMeal(p[0],p[1],+p[2]); }; });
+    app.querySelectorAll("[data-focuspick]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; setFocus(who,wkDay,el.dataset.focuspick); render(); window.scrollTo(0,y); }; });
+    var _wdn=document.getElementById("wkDayNote"); if(_wdn) _wdn.onblur=function(){ setDayNote(who,wkDay,_wdn.value); };
     // program: day/week tabs
     app.querySelectorAll("[data-wkday]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkDay=+el.dataset.wkday; wkChartPlan=""; render(); window.scrollTo(0,y); }; });
     app.querySelectorAll("[data-wkweek]").forEach(function(el){ el.onclick=function(){ var y=window.scrollY; wkWeek=+el.dataset.wkweek; render(); window.scrollTo(0,y); }; });
@@ -2528,7 +2582,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 92 · workout-program</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 93 · workout-sheet</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
