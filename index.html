@@ -1337,10 +1337,13 @@
 
   function fetchAllRows(table){
     var PAGE=1000, all=[], from=0;
-    var scoped=(authPerson && !isAdmin() && table!=="logs");   // non-admin: only own rows
+    var withPerson=(authPerson && table!=="logs");
     function step(){
       var q=supa.from(table).select("*");
-      if(scoped) q=q.eq("person", authPerson);
+      if(withPerson){
+        if(!isAdmin()) q=q.eq("person", authPerson);              // Arun: only his own rows
+        else if(authPerson!=="pravin") q=q.neq("person","arun");  // Swetha/Hari: everyone but Arun
+      }                                                           // Pravin: everything
       return q.range(from, from+PAGE-1).then(function(r){
         if(r.error) return {data:null,error:r.error};
         var rows=r.data||[];
@@ -2768,7 +2771,7 @@
     var el=document.getElementById("tabs"); if(!el) return;
     var h="";
     if(isAdmin()){
-      PERSONS.forEach(function(w){ h+='<button class="tab" data-who="'+w+'" role="tab"><span class="dot"></span><span class="tname">'+esc(state.names[w]||w)+'</span></button>'; });
+      PERSONS.forEach(function(w){ if(w==="arun" && authPerson!=="pravin") return; h+='<button class="tab" data-who="'+w+'" role="tab"><span class="dot"></span><span class="tname">'+esc(state.names[w]||w)+'</span></button>'; });
       h+='<button class="tab" data-who="both" role="tab"><span class="dot"></span>Coach '+esc(state.names.hari||"Hari")+'’s View</button>';
     } else if(authPerson){
       h+='<button class="tab active" data-who="'+authPerson+'" role="tab"><span class="dot"></span><span class="tname">'+esc(state.names[authPerson]||authPerson)+'</span></button>';
@@ -2845,7 +2848,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 105 · multi-user-fix</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 106 · arun-private</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
