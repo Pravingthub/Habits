@@ -743,6 +743,26 @@
 
   @media (max-width:560px){.stats{grid-template-columns:1fr 1fr}.duo{grid-template-columns:1fr}.brand p{display:none}.rightcol{gap:7px}.tabs .tab{font-size:11.5px;padding:9px 5px;gap:5px;letter-spacing:-.02em;white-space:nowrap}.tabs .tab .dot{width:8px;height:8px}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  :root{--arun:#12A5A0;--arun-deep:#0C7A76}
+  .tab[data-who="arun"] .dot{background:var(--arun)}
+  .tab.active[data-who="arun"]{background:linear-gradient(105deg,var(--arun),var(--arun-deep))}
+  .lock-bg{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:22px;background:radial-gradient(120% 80% at 50% -10%,#15171C,#0B0C0F 62%)}
+  .lock-bg.open{display:flex}
+  .lock-card{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh-3);padding:26px 22px}
+  .lock-brand{font-family:"Space Grotesk";font-weight:800;font-size:30px;letter-spacing:-.03em;text-align:center;background:linear-gradient(105deg,var(--pravin),var(--swetha));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .lock-sub{text-align:center;color:var(--muted);font-size:13px;margin:6px 0 18px}
+  .lock-people{display:flex;flex-direction:column;gap:9px}
+  .lock-person{display:flex;align-items:center;gap:11px;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-family:"Inter";font-weight:600;font-size:15.5px;cursor:pointer;text-align:left}
+  .lock-person:hover{border-color:var(--accent)}
+  .lp-dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .lp-pravin{background:var(--pravin)} .lp-swetha{background:var(--swetha)} .lp-arun{background:var(--arun)} .lp-hari{background:var(--brand)}
+  .lock-pin{display:flex;flex-direction:column;gap:12px}
+  .lock-back{align-self:flex-start;background:transparent;border:0;color:var(--muted);font-size:13px;cursor:pointer;padding:2px 0}
+  .lock-pinlab{font-size:13.5px;color:var(--ink-2);font-weight:600}
+  .lock-pininp{width:100%;text-align:center;letter-spacing:.5em;font-family:"Space Grotesk";font-size:26px;font-weight:700;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:14px 10px}
+  .lock-pininp:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+  .lock-msg{min-height:16px;font-size:12.5px;color:var(--bad);font-weight:600;text-align:center}
+  .lock-go{width:100%;justify-content:center}
 </style>
 </head>
 <body>
@@ -762,11 +782,7 @@
     </div>
   </header>
 
-  <div class="tabs" role="tablist">
-    <button class="tab active" data-who="pravin" role="tab"><span class="dot"></span><span class="tname">Pravin</span></button>
-    <button class="tab" data-who="swetha" role="tab"><span class="dot"></span><span class="tname">Swetha</span></button>
-    <button class="tab" data-who="both" role="tab"><span class="dot"></span>Coach Hari’s View</button>
-  </div>
+  <div class="tabs" id="tabs" role="tablist"></div>
 
   <div id="syncbar" class="syncbar" hidden></div>
   <div id="lightbox" class="lightbox" hidden><img id="lightboxImg" alt="progress photo" /></div>
@@ -787,6 +803,8 @@
   </div>
 </div>
 
+<div class="lock-bg" id="lockScreen"></div>
+
 <script src="./supabase.min.js"></script>
 <script>
 (function(){
@@ -804,6 +822,7 @@
 
   var PALETTE = ["#5B6EE1","#12A5A0","#E0912A","#DD5A86","#2FA36B","#8B5CF6","#F0714E","#159ED4","#7BAE2F","#B0568E"];
   var SEED=[["No phone","#5B6EE1"],["Get sunlight","#E0912A"],["Drink 500ml water","#159ED4"]];
+  var PERSONS=["pravin","swetha","arun"];   // loggers (hari is an admin who logs nothing)
 
   var CKEY="pravinSwethaHabits.cache.v2", OKEY="pravinSwethaHabits.outbox.v2", mem={};
   function lget(k){try{var r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return mem[k]||null;}}
@@ -829,9 +848,11 @@
   if(!state.inbody) state.inbody={};
   if(!state.goals) state.goals={};
   if(!state.photos) state.photos={};
+  if(!state.pins) state.pins={};
+  if(!state.roles) state.roles={};
   // migrate old boolean logs (true) -> "done"
   Object.keys(state.logs).forEach(function(k){ if(state.logs[k]===true) state.logs[k]="done"; });
-  ["pravin","swetha"].forEach(function(w){
+  PERSONS.forEach(function(w){
     if(!state.habits[w]||!state.habits[w].length) state.habits[w]=seedHabits();
     if(!state.names[w]) state.names[w]=w[0].toUpperCase()+w.slice(1);
     state.habits[w].forEach(function(h){ if(typeof h.week==="undefined") h.week=0; }); // 0 = daily
@@ -1309,15 +1330,18 @@
     if(op.k==="habitFreq") return supa.from("habits").update({week:op.week}).eq("id",op.id);
     if(op.k==="habitSort") return supa.from("habits").update({sort:op.sort}).eq("id",op.id);
     if(op.k==="habitDel") return supa.from("habits").delete().eq("id",op.id);
-    if(op.k==="person") return supa.from("people").upsert({person:op.person,display_name:op.name},{onConflict:"person"});
+    if(op.k==="person"){ var _py={person:op.person}; if(op.name!=null)_py.display_name=op.name; if(op.pin!=null)_py.pin=op.pin; if(op.role!=null)_py.role=op.role; return supa.from("people").upsert(_py,{onConflict:"person"}); }
     return Promise.resolve({});
   }
   function applyOp(op){ return Promise.resolve(rawOp(op)).then(function(r){ if(r&&r.error) throw r.error; return r; }); }
 
   function fetchAllRows(table){
     var PAGE=1000, all=[], from=0;
+    var scoped=(authPerson && !isAdmin() && table!=="logs");   // non-admin: only own rows
     function step(){
-      return supa.from(table).select("*").range(from, from+PAGE-1).then(function(r){
+      var q=supa.from(table).select("*");
+      if(scoped) q=q.eq("person", authPerson);
+      return q.range(from, from+PAGE-1).then(function(r){
         if(r.error) return {data:null,error:r.error};
         var rows=r.data||[];
         all=all.concat(rows);
@@ -1330,16 +1354,17 @@
   }
 
   function pull(){
+    if(!authPerson) return;
     if(!cloud) return;
     if(!navigator.onLine){ setStatus("wait","Offline"); return; }
     Promise.all([fetchAllRows("people"),fetchAllRows("habits"),fetchAllRows("logs"),fetchAllRows("notes"),fetchAllRows("weights"),fetchAllRows("meals"),fetchAllRows("water"),fetchAllRows("photos"),fetchAllRows("steps"),fetchAllRows("body").catch(function(){return {data:[],error:null};}),fetchAllRows("tape").catch(function(){return {data:[],error:null};}),fetchAllRows("inbody").catch(function(){return {data:[],error:null};}),fetchAllRows("goals").catch(function(){return {data:[],error:null};}),fetchAllRows("workouts").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_plan").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_set").catch(function(){return {data:[],error:null};}),fetchAllRows("wk_day").catch(function(){return {data:[],error:null};}),fetchAllRows("walk").catch(function(){return {data:[],error:null};})])
     .then(function(r){
       if(r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error) throw (r[0].error||r[1].error||r[2].error||r[3].error||r[4].error||r[5].error||r[6].error||r[7].error||r[8].error);
       var ppl=r[0].data||[], hbs=r[1].data||[], lgs=r[2].data||[], nts=r[3].data||[], wts=r[4].data||[], mls=r[5].data||[], wat=r[6].data||[], pho=r[7].data||[], stp=r[8].data||[], bod=(r[9]&&r[9].data)||[], tap=(r[10]&&r[10].data)||[], inb=(r[11]&&r[11].data)||[], gol=(r[12]&&r[12].data)||[], wko=(r[13]&&r[13].data)||[];
-      var fresh={names:{pravin:"Pravin",swetha:"Swetha"},habits:{pravin:[],swetha:[]},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{},body:{},tape:{},inbody:{},goals:{},workouts:{}};
-      ppl.forEach(function(p){ if(fresh.names[p.person]!==undefined) fresh.names[p.person]=p.display_name; });
+      var fresh={names:{pravin:"Pravin",swetha:"Swetha",arun:"Arun"},habits:{pravin:[],swetha:[],arun:[]},pins:{},roles:{},logs:{},notes:{},weights:{},meals:{},water:{},photos:{},steps:{},body:{},tape:{},inbody:{},goals:{},workouts:{}};
+      ppl.forEach(function(p){ if(fresh.names[p.person]!==undefined) fresh.names[p.person]=p.display_name; if(p.pin!=null)fresh.pins[p.person]=p.pin; if(p.role!=null)fresh.roles[p.person]=p.role; });
       hbs.forEach(function(h){ if(fresh.habits[h.person]) fresh.habits[h.person].push({id:h.id,label:h.label,color:h.color||"#888",sort:h.sort||0,week:h.week||0,icon:h.icon||null}); });
-      ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); if(!cloud && !fresh.habits[w].length) fresh.habits[w]=seedHabits(); });
+      PERSONS.forEach(function(w){ if(!fresh.habits[w])fresh.habits[w]=[]; fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); if(!cloud && !fresh.habits[w].length) fresh.habits[w]=seedHabits(); });
       lgs.forEach(function(l){ fresh.logs[l.habit_id+"|"+l.ym+"|"+l.day]=l.state||"done"; });
       nts.forEach(function(n){ fresh.notes[n.person+"|"+n.ym+"|"+n.day]=n.body; });
       wts.forEach(function(x){ fresh.weights[x.person+"|"+x.ym+"|"+x.day]=x.kg; });
@@ -1359,7 +1384,7 @@
       gol.forEach(function(x){ fresh.goals[x.person]={weight:x.target,water:x.water,steps:x.steps}; });
       pho.forEach(function(p){ fresh.photos[p.id]={person:p.person,ym:p.ym,day:p.day,pose:p.pose||"front",path:p.path}; });
       outbox.forEach(function(op){ applyOpLocal(fresh,op); });
-      ["pravin","swetha"].forEach(function(w){ fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
+      PERSONS.forEach(function(w){ if(fresh.habits[w])fresh.habits[w].sort(function(a,b){return a.sort-b.sort;}); });
       state=fresh; saveCache(); render();
       setStatus(outbox.length?"wait":"ok", outbox.length?"Syncing…":"Synced"); flush();
       var okf=document.querySelector(".foot"); if(okf) okf.style.display="none";
@@ -1397,11 +1422,11 @@
     else if(op.k==="habitRename"){eachHabit(s,function(h){if(h.id===op.id)h.label=op.label;});}
     else if(op.k==="habitColor"){eachHabit(s,function(h){if(h.id===op.id)h.color=op.color;});}
     else if(op.k==="habitFreq"){eachHabit(s,function(h){if(h.id===op.id)h.week=op.week;});}
-    else if(op.k==="habitSort"){eachHabit(s,function(h){if(h.id===op.id)h.sort=op.sort;});["pravin","swetha"].forEach(function(w){s.habits[w].sort(function(a,b){return a.sort-b.sort;});});}
-    else if(op.k==="habitDel"){["pravin","swetha"].forEach(function(w){s.habits[w]=s.habits[w].filter(function(h){return h.id!==op.id;});});}
-    else if(op.k==="person"){if(s.names[op.person]!==undefined)s.names[op.person]=op.name;}
+    else if(op.k==="habitSort"){eachHabit(s,function(h){if(h.id===op.id)h.sort=op.sort;});PERSONS.forEach(function(w){if(s.habits[w])s.habits[w].sort(function(a,b){return a.sort-b.sort;});});}
+    else if(op.k==="habitDel"){PERSONS.forEach(function(w){if(s.habits[w])s.habits[w]=s.habits[w].filter(function(h){return h.id!==op.id;});});}
+    else if(op.k==="person"){ if(op.name!=null)s.names[op.person]=op.name; if(!s.pins)s.pins={}; if(op.pin!=null)s.pins[op.person]=op.pin; if(!s.roles)s.roles={}; if(op.role!=null)s.roles[op.person]=op.role; }
   }
-  function eachHabit(s,fn){["pravin","swetha"].forEach(function(w){s.habits[w].forEach(fn);});}
+  function eachHabit(s,fn){PERSONS.forEach(function(w){if(s.habits[w])s.habits[w].forEach(fn);});}
 
   var CHECK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>';
   var DASH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M6 12h12"/></svg>';
@@ -1484,7 +1509,7 @@
     svg+='</svg>';
     return svg;
   }
-  var HEX={pravin:"#E08A1E",swetha:"#DD5A86"};
+  var HEX={arun:"#12A5A0",pravin:"#E08A1E",swetha:"#DD5A86"};
   function weightMini(who){
     var s=weightSeries(who), name=esc(state.names[who]), col=HEX[who];
     if(!s.length) return '<div class="wmini"><div class="wm-h"><span class="wm-name" style="color:'+col+'">'+name+'</span><span class="wm-empty">No weight logged</span></div></div>';
@@ -1526,7 +1551,7 @@
     3:[{n:"Seated DB Press",m:"Shoulders"},{n:"Lateral Raise",m:"Shoulders"},{n:"Rear Fly Bench",m:"Shoulders"},{n:"Arnold Press",m:"Shoulders"},{n:"Goblet Squat",m:"Legs"},{n:"DB RDL",m:"Legs"},{n:"Assist Rev Lunges",m:"Legs"},{n:"Calf Raises",m:"Legs"}]
   };
   function exId(day,name){ return "d"+day+"|"+name; }
-  function accentVars(who){return who==="swetha"?"--accent:var(--swetha);--accent-deep:var(--swetha-deep)":"--accent:var(--pravin);--accent-deep:var(--pravin-deep)";}
+  function accentVars(who){return who==="swetha"?"--accent:var(--swetha);--accent-deep:var(--swetha-deep)":(who==="arun"?"--accent:var(--arun);--accent-deep:var(--arun-deep)":"--accent:var(--pravin);--accent-deep:var(--pravin-deep)");}
   function applyAccent(who){document.documentElement.setAttribute("style",accentVars(who));}
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function stat(v,suf,l){return '<div class="stat"><div class="k display">'+v+(suf?'<small>'+suf+'</small>':'')+'</div><div class="l">'+l+'</div></div>';}
@@ -1534,8 +1559,7 @@
   function render(){
     for(var _tk in tlTimers){ if(tlTimers[_tk]) clearInterval(tlTimers[_tk]); } tlTimers={};
     var dp=document.getElementById("datePick"); if(dp) dp.value=selISO();
-    document.querySelector('.tab[data-who="pravin"] .tname').textContent=state.names.pravin;
-    document.querySelector('.tab[data-who="swetha"] .tname').textContent=state.names.swetha;
+    PERSONS.forEach(function(w){ var _tn=document.querySelector('.tab[data-who="'+w+'"] .tname'); if(_tn) _tn.textContent=state.names[w]||w; });
     document.querySelectorAll(".tab").forEach(function(t){t.classList.toggle("active",t.dataset.who===current);});
     if(current==="both"){ applyAccent("pravin"); renderBoth(); } else { applyAccent(current); renderProfile(current); }
   }
@@ -1544,12 +1568,12 @@
   function mealItems(who,day,editable,reorder){
     var ms=mealsFor(who,day);
     if(!ms.length) return '<div class="meal-empty">No meals logged.</div>';
-    var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0], oc=other==="swetha"?"var(--swetha)":"var(--pravin)";
+    var other=partnerOf(who), oname=(other?(state.names[other]||other).split(" ")[0]:""), oc=other==="swetha"?"var(--swetha)":"var(--pravin)";
     return ms.map(function(m,i){
       var mv = reorder ? '<span class="mvcol"><button class="mv" data-mmv="up|'+day+'|'+m.id+'"'+(i===0?' disabled':'')+' aria-label="Move up">▲</button><button class="mv" data-mmv="down|'+day+'|'+m.id+'"'+(i===ms.length-1?' disabled':'')+' aria-label="Move down">▼</button></span>' : '';
       var timeEl = editable ? '<button class="mtime edit" data-mealtime="'+m.id+'" title="Edit time">'+(m.at||'—')+'</button>' : '<span class="mtime">'+(m.at||'—')+'</span>';
       return '<div class="meal">'+mv+timeEl+'<span class="mitem'+(editable?' edit':'')+'"'+(editable?' data-mealitem="'+m.id+'"':'')+'>'+esc(m.item)+'</span>'+
-        (editable?'<button class="mcopy" data-mealcopy="'+m.id+'|'+other+'|'+day+'" style="--mc:'+oc+'" title="Copy to '+esc(oname)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M12 6l6 6-6 6"/></svg>'+esc(oname)+'</button><button class="mdel" data-meal="'+m.id+'" aria-label="Delete">✕</button>':'')+'</div>';
+        (editable&&other?'<button class="mcopy" data-mealcopy="'+m.id+'|'+other+'|'+day+'" style="--mc:'+oc+'" title="Copy to '+esc(oname)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M12 6l6 6-6 6"/></svg>'+esc(oname)+'</button><button class="mdel" data-meal="'+m.id+'" aria-label="Delete">✕</button>':'')+'</div>';
     }).join("");
   }
   function mealAddRow(){
@@ -1984,7 +2008,7 @@
   }
   function wkDayHTML(who,day,editable){
     var rows=wkRows(who,day), groups={}, order=[];
-    var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0], oc=other==="swetha"?"var(--swetha)":"var(--pravin)";
+    var other=partnerOf(who), oname=(other?(state.names[other]||other).split(" ")[0]:""), oc=other==="swetha"?"var(--swetha)":"var(--pravin)";
     rows.forEach(function(r){ if(!groups[r.muscle]){groups[r.muscle]={exOrder:[],ex:{}}; order.push(r.muscle);} var g=groups[r.muscle]; if(!g.ex[r.exercise]){g.ex[r.exercise]=[]; g.exOrder.push(r.exercise);} g.ex[r.exercise].push(r); });
     order.sort(function(a,b){return MUSCLES.indexOf(a)-MUSCLES.indexOf(b);});
     if(editable && wkAddGroup && order.indexOf(wkAddGroup)<0){ order.push(wkAddGroup); groups[wkAddGroup]=groups[wkAddGroup]||{exOrder:[],ex:{}}; }
@@ -1997,7 +2021,7 @@
         var sets=groups[mus].ex[ex].sort(function(a,b){return a.setno-b.setno;});
         h+='<div class="wkt-exblock">';
         sets.forEach(function(s,i){
-          var nameCell = i===0 ? '<span class="wkt-exn">'+esc(ex)+'</span>'+(editable?'<button class="wkt-copy" data-wkcopy="'+esc(mus).replace(/"/g,'&quot;')+'||'+esc(ex).replace(/"/g,'&quot;')+'" style="--mc:'+oc+'" title="Copy to '+esc(oname)+'"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M12 6l6 6-6 6"/></svg></button>':'') : '<span class="wkt-exn dim">·</span>';
+          var nameCell = i===0 ? '<span class="wkt-exn">'+esc(ex)+'</span>'+(editable&&other?'<button class="wkt-copy" data-wkcopy="'+esc(mus).replace(/"/g,'&quot;')+'||'+esc(ex).replace(/"/g,'&quot;')+'" style="--mc:'+oc+'" title="Copy to '+esc(oname)+'"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M12 6l6 6-6 6"/></svg></button>':'') : '<span class="wkt-exn dim">·</span>';
           h+='<div class="wkt-row">'
             +'<div class="wkt-c1">'+nameCell+'</div>'
             +'<div class="wkt-cell'+(editable?' edit':'')+'"'+(editable?' data-wkcell="'+s.id+'|weight"':'')+'>'+(s.weight!=null?bfmt(s.weight):(editable?'<span class="wkt-hint">＋</span>':'—'))+'</div>'
@@ -2021,10 +2045,10 @@
     return h;
   }
   function secWorkout(who){
-    var other=who==="pravin"?"swetha":"pravin", oname=(state.names[other]||other).split(" ")[0];
+    var other=partnerOf(who), oname=(other?(state.names[other]||other).split(" ")[0]:"");
     ensureSeed(who,wkDay);
     var h='<section>';
-    h+='<div class="today-head"><div class="date display">Day '+wkDay+' · '+DAY_NAMES[wkDay]+(wkDay===wkTodayDay?' · Today':'')+'</div><button class="btn wkp-copyday" id="wkCopyDay" style="--mc:'+(other==="swetha"?"var(--swetha)":"var(--pravin)")+'">→ Copy to '+esc(oname)+'</button></div>';
+    h+='<div class="today-head"><div class="date display">Day '+wkDay+' · '+DAY_NAMES[wkDay]+(wkDay===wkTodayDay?' · Today':'')+'</div>'+(other?'<button class="btn wkp-copyday" id="wkCopyDay" style="--mc:'+(other==="swetha"?"var(--swetha)":"var(--pravin)")+'">→ Copy to '+esc(oname)+'</button>':'')+'</div>';
     h+='<datalist id="wkExList">'+planExNames(who).map(function(x){return '<option value="'+esc(x)+'"></option>';}).join("")+'</datalist>';
     h+='<div class="wkp-daytabs">'+[1,2,3].map(function(d){return '<button class="wkp-dtab'+(wkDay===d?' active':'')+(d===wkTodayDay?' istoday':'')+'" data-wkday="'+d+'" type="button">Day '+d+' \u00b7 '+DAY_SHORT[d]+'</button>';}).join("")+'</div>';
     h+='<div class="wkweek-note">Today is in <b>Week '+curWeek()+'</b> \u2014 sets you log now go into the Week '+curWeek()+' column of the report below.</div>';
@@ -2046,7 +2070,7 @@
     else if(section==="photos") h+=secPhotos(who);
     else if(section==="body") h+=secBody(who);
     h+=reminderCard(who);
-    h+='<div class="toolrow">'+(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>')+'</div>';
+    h+='<div class="toolrow">'+(cloud?'<button class="btn" id="refresh">↻ Refresh</button>':'<button class="btn" id="backup">↓ Back up</button><button class="btn" id="restore">↑ Restore</button>')+'<button class="btn" id="switchUser">🔓 Switch user</button>'+(isAdmin()?'<button class="btn" id="setPin">🔑 Set '+esc(state.names[who]||who)+'\'s PIN</button>':'')+'</div>';
     app.innerHTML=h; wireProfile(who); wireReminderBtn(who);
     var _at=app.querySelector(".subtab.active"); if(_at&&_at.scrollIntoView) try{ _at.scrollIntoView({inline:"center",block:"nearest"}); }catch(e){}
     var _sn=app.querySelector(".subnav"), _snw=app.querySelector(".subnav-wrap");
@@ -2709,6 +2733,8 @@
     if(add)add.onclick=addH; if(inp)inp.onkeydown=function(e){if(e.key==="Enter")addH();};
     var rp=document.getElementById("renameProfile");
     if(rp)rp.onclick=function(){var v=prompt("Name for this person:",state.names[who]);if(v&&v.trim()){state.names[who]=v.trim();enqueue({k:"person",person:who,name:v.trim()});saveCache();render();}};
+    var _su=document.getElementById("switchUser"); if(_su)_su.onclick=lockOut;
+    var _sp=document.getElementById("setPin"); if(_sp)_sp.onclick=function(){ var v=prompt("Set a 4-digit PIN for "+(state.names[who]||who)+":",""); if(v==null)return; v=(""+v).trim(); if(!/^[0-9]{4}$/.test(v)){ toast("PIN must be 4 digits"); return; } state.pins=state.pins||{}; state.pins[who]=v; state.roles=state.roles||{}; if(state.roles[who]==null)state.roles[who]=DEFAULT_ROLES[who]||"user"; enqueue({k:"person",person:who,pin:v,role:state.roles[who]}); saveCache(); toast("PIN set for "+(state.names[who]||who)); };
     var rf=document.getElementById("refresh"); if(rf)rf.onclick=pull;
     var b=document.getElementById("backup"),r=document.getElementById("restore"); if(b)b.onclick=doBackup; if(r)r.onclick=doRestore;
   }
@@ -2730,12 +2756,83 @@
   var toastEl=document.getElementById("toast"),tT;
   function toast(m){toastEl.textContent=m;toastEl.classList.add("show");clearTimeout(tT);tT=setTimeout(function(){toastEl.classList.remove("show");},2000);}
 
+  /* ───────── access control (soft gate: PIN + role, UI-level) ───────── */
+  var AUTH_KEY="arc.auth.person";
+  var DEFAULT_ROLES={pravin:"admin",swetha:"admin",hari:"admin",arun:"user"};
+  var authPerson=null; try{ authPerson=localStorage.getItem(AUTH_KEY)||null; }catch(e){ authPerson=null; }
+  function personRole(p){ return (p&&state.roles&&state.roles[p])||DEFAULT_ROLES[p]||"user"; }
+  function isAdmin(){ return personRole(authPerson)==="admin"; }
+  function personPin(p){ return (state.pins&&state.pins[p]!=null)?String(state.pins[p]):null; }
+  function partnerOf(who){ return who==="pravin"?"swetha":(who==="swetha"?"pravin":null); }
+  function buildTabs(){
+    var el=document.getElementById("tabs"); if(!el) return;
+    var h="";
+    if(isAdmin()){
+      PERSONS.forEach(function(w){ h+='<button class="tab" data-who="'+w+'" role="tab"><span class="dot"></span><span class="tname">'+esc(state.names[w]||w)+'</span></button>'; });
+      h+='<button class="tab" data-who="both" role="tab"><span class="dot"></span>Coach '+esc(state.names.hari||"Hari")+'’s View</button>';
+    } else if(authPerson){
+      h+='<button class="tab active" data-who="'+authPerson+'" role="tab"><span class="dot"></span><span class="tname">'+esc(state.names[authPerson]||authPerson)+'</span></button>';
+    }
+    el.innerHTML=h;
+    el.querySelectorAll(".tab").forEach(function(t){ t.onclick=function(){ current=t.dataset.who; render(); }; });
+  }
+  function grantAccess(person){
+    authPerson=person; try{ localStorage.setItem(AUTH_KEY,person); }catch(e){}
+    current=isAdmin()?"pravin":person; section="today";
+    var ls=document.getElementById("lockScreen"); if(ls) ls.classList.remove("open");
+    buildTabs(); if(cloud) pull(); render();
+  }
+  function lockOut(){ authPerson=null; try{ localStorage.removeItem(AUTH_KEY); }catch(e){} var t=document.getElementById("tabs"); if(t)t.innerHTML=""; if(app)app.innerHTML=""; showLock(); }
+  function showLock(){
+    var ls=document.getElementById("lockScreen"); if(!ls) return;
+    var order=["pravin","swetha","arun","hari"], fallback={pravin:"Pravin",swetha:"Swetha",arun:"Arun",hari:"Hari"};
+    var h='<div class="lock-card"><div class="lock-brand">Arc</div><div class="lock-sub">Who’s using this device?</div><div class="lock-people">';
+    order.forEach(function(p){ h+='<button class="lock-person" type="button" data-lockwho="'+p+'"><span class="lp-dot lp-'+p+'"></span>'+esc(state.names[p]||fallback[p]||p)+'</button>'; });
+    h+='</div><div class="lock-pin" hidden><button class="lock-back" id="lockBack" type="button">‹ Back</button><div class="lock-pinlab" id="lockPinLab"></div><input id="lockPinInp" class="lock-pininp" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••"/><div class="lock-msg" id="lockMsg"></div><button class="btn accent lock-go" id="lockGo" type="button">Unlock</button></div></div>';
+    ls.innerHTML=h; ls.classList.add("open");
+    var chosen=null, peopleWrap=ls.querySelector(".lock-people"), pinWrap=ls.querySelector(".lock-pin");
+    ls.querySelectorAll("[data-lockwho]").forEach(function(b){ b.onclick=function(){
+      chosen=b.getAttribute("data-lockwho");
+      peopleWrap.hidden=true; pinWrap.hidden=false;
+      var known=personPin(chosen)!=null;
+      document.getElementById("lockPinLab").textContent=(state.names[chosen]||chosen)+(known?" · enter your 4-digit PIN":" · set a new 4-digit PIN");
+      document.getElementById("lockMsg").textContent="";
+      var inp=document.getElementById("lockPinInp"); inp.value=""; setTimeout(function(){ try{inp.focus();}catch(e){} },60);
+    }; });
+    document.getElementById("lockBack").onclick=function(){ pinWrap.hidden=true; peopleWrap.hidden=false; chosen=null; };
+    function proceed(){
+      var msg=document.getElementById("lockMsg"), pin=(document.getElementById("lockPinInp").value||"").trim(), stored=personPin(chosen);
+      if(stored==null){
+        state.pins=state.pins||{}; state.pins[chosen]=pin;
+        state.roles=state.roles||{}; if(state.roles[chosen]==null) state.roles[chosen]=DEFAULT_ROLES[chosen]||"user";
+        enqueue({k:"person",person:chosen,pin:pin,role:state.roles[chosen]}); saveCache();
+        grantAccess(chosen);
+      } else if(stored===pin){ grantAccess(chosen); }
+      else { msg.textContent="Wrong PIN — try again"; }
+    }
+    function submit(){
+      if(!chosen) return;
+      var msg=document.getElementById("lockMsg"), pin=(document.getElementById("lockPinInp").value||"").trim();
+      if(!/^[0-9]{4}$/.test(pin)){ msg.textContent="Enter 4 digits"; return; }
+      if(personPin(chosen)==null && cloud && supa){
+        msg.textContent="Checking…";
+        supa.from("people").select("*").eq("person",chosen).limit(1).then(function(r){
+          var row=(r&&r.data&&r.data[0])||null;
+          if(row){ if(row.display_name)state.names[chosen]=row.display_name; state.pins=state.pins||{}; if(row.pin!=null)state.pins[chosen]=row.pin; state.roles=state.roles||{}; if(row.role!=null)state.roles[chosen]=row.role; saveCache(); }
+          proceed();
+        }).catch(function(){ proceed(); });
+      } else { proceed(); }
+    }
+    document.getElementById("lockGo").onclick=submit;
+    document.getElementById("lockPinInp").addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
+  }
+
   document.querySelectorAll(".tab").forEach(function(t){t.onclick=function(){current=t.dataset.who;render();};});
   document.getElementById("prevD").onclick=function(){stepSel(-1);render();if(cloud)pull();};
   document.getElementById("nextD").onclick=function(){stepSel(1);render();if(cloud)pull();};
   document.getElementById("datePick").onchange=function(e){var v=e.target.value;if(!v)return;var p=v.split("-");setSelFromDate(new Date(+p[0],+p[1]-1,+p[2]));render();if(cloud)pull();};
 
-  render(); // show cached data instantly
+  if(authPerson){ current=isAdmin()?"pravin":authPerson; buildTabs(); render(); } else { showLock(); }
   (function(){
     var sb=document.getElementById("syncbar");
     if(sb) sb.onclick=function(){ if(cloud){ toast("Retrying sync…"); flush(); pull(); } else { location.reload(); } };
@@ -2748,7 +2845,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 103 · walk-input-polish</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 104 · multi-user</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
