@@ -1330,7 +1330,7 @@
     if(op.k==="habitFreq") return supa.from("habits").update({week:op.week}).eq("id",op.id);
     if(op.k==="habitSort") return supa.from("habits").update({sort:op.sort}).eq("id",op.id);
     if(op.k==="habitDel") return supa.from("habits").delete().eq("id",op.id);
-    if(op.k==="person"){ var _py={person:op.person}; if(op.name!=null)_py.display_name=op.name; if(op.pin!=null)_py.pin=op.pin; if(op.role!=null)_py.role=op.role; return supa.from("people").upsert(_py,{onConflict:"person"}); }
+    if(op.k==="person"){ var _py={}; if(op.name!=null)_py.display_name=op.name; if(op.pin!=null)_py.pin=op.pin; if(op.role!=null)_py.role=op.role; if(!Object.keys(_py).length) return Promise.resolve({}); return supa.from("people").update(_py).eq("person",op.person); }
     return Promise.resolve({});
   }
   function applyOp(op){ return Promise.resolve(rawOp(op)).then(function(r){ if(r&&r.error) throw r.error; return r; }); }
@@ -2845,7 +2845,7 @@
   })();
   (function(){
     var b=document.getElementById("build");
-    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 104 · multi-user</span>';
+    b.innerHTML='<span class="chip" role="button" tabindex="0">↻ Build 105 · multi-user-fix</span>';
     function force(){
       toast("Updating to latest…");
       var steps=Promise.resolve();
