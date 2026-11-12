@@ -1,0 +1,5 @@
+services:
+  api:
+    build: .
+    # Bound to this computer only (127.0.0.1). Do not expose it to your network or the internet.
+    ports: ["127.0.0.1:8000:8000"]

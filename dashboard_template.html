@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vriddhi · Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F4; --panel:#FFFFFF; --panel2:#F6F8FA; --line:#D8DEE4; --ink:#141B22; --muted:#5D6B78; --dim:#8794A0;
+  --bull:#1E8A5A; --bear:#C23B32; --warn:#A76A00; --cpr:#2B63A6; --cpr-t:rgba(43,99,166,.14);
+  --bull-t:rgba(30,138,90,.12); --bear-t:rgba(194,59,50,.11); --warn-t:rgba(167,106,0,.13); --focus:#2B63A6;
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0A0E13; --panel:#10161D; --panel2:#151C24; --line:#1F2933; --ink:#DCE3EA; --muted:#8A97A4; --dim:#5E6B78;
+  --bull:#3DBE84; --bear:#EF5F55; --warn:#E8A33D; --cpr:#6AA6E8; --cpr-t:rgba(106,166,232,.16);
+  --bull-t:rgba(61,190,132,.13); --bear-t:rgba(239,95,85,.13); --warn-t:rgba(232,163,61,.14); --focus:#6AA6E8; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0A0E13; --panel:#10161D; --panel2:#151C24; --line:#1F2933; --ink:#DCE3EA; --muted:#8A97A4; --dim:#5E6B78;
+  --bull:#3DBE84; --bear:#EF5F55; --warn:#E8A33D; --cpr:#6AA6E8; --cpr-t:rgba(106,166,232,.16);
+  --bull-t:rgba(61,190,132,.13); --bear-t:rgba(239,95,85,.13); --warn-t:rgba(232,163,61,.14); --focus:#6AA6E8; color-scheme:dark;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:13.5px/1.45 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.num,.mono{font-family:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit}
+button:focus-visible,a:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+a{color:inherit}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--panel);border-bottom:1px solid var(--line)}
+.brandrow{display:flex;flex-direction:column}
+.tabbar{max-width:1520px;margin:0 auto;padding:0 16px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;border-top:1px solid var(--line)}
+.tabs{display:flex;gap:2px}
+.tabs button{border:0;background:none;padding:10px 14px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.tabs button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--cpr)}
+.statusline{margin-left:auto;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--dim);letter-spacing:.03em;padding:6px 0}
+.statusline span{display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.statusline i{width:6px;height:6px;border-radius:50%;background:var(--dim);display:inline-block}
+.statusline .ok i{background:var(--bull)} .statusline .warn i{background:var(--warn)} .statusline .bad i{background:var(--bear)}
+.statusline .warn{color:var(--warn)} .statusline .bad{color:var(--bear)}
+.tab[hidden]{display:none}
+.c4{grid-column:span 4}.c8{grid-column:span 8}
+.kl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:7px 0 7px 9px;border-bottom:1px solid var(--line);border-left:3px solid var(--line)}
+.kl:last-child{border-bottom:0}
+.kl.res{border-left-color:var(--bear)} .kl.sup{border-left-color:var(--bull)} .kl.cpr{border-left-color:var(--cpr);background:var(--cpr-t)} .kl.px{border-left-color:var(--ink)}
+.kl .n{font-size:12px;color:var(--muted);grid-column:1/-1}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--panel)}
+.topin{max-width:1520px;margin:0 auto;padding:8px 16px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.brand{font-weight:600;letter-spacing:.06em;font-size:13px}
+.brand b{color:var(--cpr)}
+.sess{color:var(--muted);font-size:12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.pill{display:inline-flex;gap:6px;align-items:center;font-size:11px;letter-spacing:.04em;padding:3px 8px;border-radius:4px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);white-space:nowrap}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--dim);display:inline-block}
+.pill.ok i{background:var(--bull)} .pill.warn i{background:var(--warn)} .pill.bad i{background:var(--bear)}
+.pill.warn{color:var(--warn);border-color:var(--warn-t);background:var(--warn-t)}
+.banner{background:var(--warn-t);color:var(--warn);border-bottom:1px solid var(--line)}
+.banner div{max-width:1520px;margin:0 auto;padding:6px 16px;font-size:12.5px;font-weight:500}
+.tape{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:6px;margin-left:auto}
+.tk{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:0 10px}
+.tk[aria-pressed="true"]{border-color:var(--cpr);box-shadow:inset 0 0 0 1px var(--cpr)}
+.tk .sym{font-weight:600;font-size:12px;letter-spacing:.05em}
+.tk .px{font-size:14px;font-weight:500}
+.tk .chg{font-size:11.5px;text-align:right}
+.tk .st{font-size:11px;text-align:right;align-self:center}
+@media (max-width:760px){.tape{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tk{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+  .tk .sym{order:0}.tk .px{order:1;font-size:15px}.tk .chg{order:2;text-align:left}.tk .st{order:3;text-align:left;align-self:flex-start}}
+.desk{max-width:1520px;margin:12px auto 24px;padding:0 16px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+.c3{grid-column:span 3}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c12{grid-column:span 12}
+.stack{display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (max-width:1180px){.c3,.c4{grid-column:span 6}.c6,.c8{grid-column:span 12}.c5,.c7{grid-column:span 12}}
+@media (max-width:760px){.desk>*{grid-column:span 12!important}
+  .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);padding:0 4px env(safe-area-inset-bottom,0px)}
+  .tabs{width:100%;justify-content:space-between}.tabs button{padding:12px 6px;font-size:12px;flex:1}
+  .statusline{display:none} main{padding-bottom:64px}
+  .top{position:static} .topin{padding:8px 12px}
+  .tape{display:flex!important;overflow-x:auto;margin-left:0;width:100%;gap:6px;scrollbar-width:none}
+  .tape::-webkit-scrollbar{display:none}
+  .tape .tk{flex:0 0 auto;min-width:138px;display:grid!important;grid-template-columns:1fr;gap:0}
+  .tape .tk .st{display:none} .tape .tk .chg{text-align:left}}
+.p{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.ph h2{margin:0;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ph .aside{font-size:11px;color:var(--dim)}
+.pb{padding:10px 12px}
+.scroll{overflow-x:auto}
+.verdict{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr) minmax(0,1fr)}
+.verdict>div{padding:14px 16px;border-right:1px solid var(--line)}
+.verdict>div:last-child{border-right:0}
+@media (max-width:1000px){.verdict{grid-template-columns:1fr}.verdict>div{border-right:0;border-bottom:1px solid var(--line)}.verdict>div:last-child{border-bottom:0}}
+.call{font-size:30px;font-weight:600;letter-spacing:.04em;line-height:1.1}
+.call.NO{color:var(--bear)} .call.STAND{color:var(--warn)} .call.WATCH{color:var(--bull)}
+.why{color:var(--muted);margin-top:6px;font-size:13px}
+.lbl{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+.gates{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.gates li{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;font-size:13px}
+.gates .k{font-weight:700;text-align:center}
+.gates .ok .k{color:var(--bull)} .gates .no .k{color:var(--bear)}
+.gates .n{color:var(--dim);font-size:12px}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}
+.kv .k{font-size:10.5px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
+.kv .v{font-size:15px;font-weight:500}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.row:last-child{border-bottom:0}
+.row .k{color:var(--muted)}
+.tag{font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:3px;white-space:nowrap;text-transform:capitalize}
+.bull{color:var(--bull)} .bear{color:var(--bear)} .warn{color:var(--warn)} .neutral{color:var(--ink)}
+.tag.bull{background:var(--bull-t)} .tag.bear{background:var(--bear-t)} .tag.warn{background:var(--warn-t)} .tag.neutral{background:var(--panel2)}
+.sc{padding:8px 0;border-bottom:1px solid var(--line)} .sc:last-child{border-bottom:0}
+.sc b{display:block;font-size:12.5px;margin-bottom:2px;font-weight:600}
+.sc span{color:var(--muted);font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-weight:500;color:var(--dim);text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;padding:5px 8px 5px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px 6px 0;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.r{text-align:right}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.seg button{border:0;background:none;padding:4px 10px;font-size:12px;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.chart svg,.ladder svg{display:block;width:100%;height:auto}
+.chart svg{touch-action:pan-y}
+.readout{font-size:12.5px;color:var(--muted);min-height:20px;margin-top:6px}
+.readout b{color:var(--ink)}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{padding:8px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:3px 8px}
+.feed li:last-child{border-bottom:0}
+.imp{font-size:11px;font-weight:600;letter-spacing:.02em;padding:1px 6px;border-radius:3px;height:fit-content;white-space:nowrap}
+.imp.high{background:var(--bear-t);color:var(--bear)} .imp.medium{background:var(--warn-t);color:var(--warn)} .imp.low{background:var(--panel2);color:var(--dim)}
+.feed .t{font-size:12.5px;text-decoration:none;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mr{padding:14px 16px}.mr .lean{font-size:22px;font-weight:600;letter-spacing:.03em}
+.lean.bullish{color:var(--bull)}.lean.bearish{color:var(--bear)}.lean.neutral{color:var(--ink)}
+.mr .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:10px}
+@media (max-width:1000px){.mr .cols{grid-template-columns:1fr}} .feed a.t:hover{text-decoration:underline}
+.feed .m{grid-column:2;font-size:11px;color:var(--dim)}
+.feed li.empty{display:block}
+.empty{color:var(--dim);font-size:12.5px;padding:6px 0;margin:0}
+.note{font-size:11.5px;color:var(--dim);margin:8px 0 0}
+.zgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+@media (max-width:560px){.zgrid{grid-template-columns:1fr}}
+.zh{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:4px}
+.zone{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:7px 0 7px 9px;border-bottom:1px solid var(--line);border-left:3px solid var(--line)}
+.zone:last-child{border-bottom:0}
+.zone.res{border-left-color:var(--bear)} .zone.sup{border-left-color:var(--bull)}
+.zone .px{font-size:13px;font-weight:500} .zone .dist{font-size:12px;text-align:right}
+.zone .mem{grid-column:1/-1;font-size:11.5px;color:var(--dim)}
+.dots{display:inline-flex;gap:2px;vertical-align:middle;margin-left:6px}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--line)} .dots i.on{background:var(--cpr)}
+.tf{display:inline-block;font-size:10px;font-weight:600;padding:0 4px;border-radius:3px;margin-left:3px;background:var(--cpr-t);color:var(--cpr)}
+.read{margin:0;padding-left:0;list-style:none}
+.read li{font-size:13px;padding:2px 0} .read li:first-child{font-weight:600}
+.ins{list-style:none;margin:8px 0 0;padding:0}
+.ins li{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:baseline;padding:5px 0;border-top:1px dashed var(--line);font-size:12.5px}
+.ins i{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block}
+.ins i.bull{background:var(--bull)} .ins i.bear{background:var(--bear)} .ins i.warn{background:var(--warn)}
+.ins .n{font-size:11px;color:var(--dim)}
+.feed li.b-supportive{box-shadow:inset 3px 0 0 var(--bull);padding-left:9px}
+.feed li.b-adverse{box-shadow:inset 3px 0 0 var(--bear);padding-left:9px}
+.feed li.b-check,.feed li.b-mixed{box-shadow:inset 3px 0 0 var(--warn);padding-left:9px}
+.feed li.b-neutral{box-shadow:inset 3px 0 0 var(--cpr);padding-left:9px}
+.feed li.b-routine{box-shadow:inset 3px 0 0 var(--line);padding-left:9px}
+.bias{font-size:11px;font-weight:600;letter-spacing:.02em;padding:1px 6px;border-radius:3px;height:fit-content;white-space:nowrap}
+.bias.supportive{background:var(--bull-t);color:var(--bull)} .bias.adverse{background:var(--bear-t);color:var(--bear)}
+.bias.check,.bias.mixed{background:var(--warn-t);color:var(--warn)} .bias.neutral{background:var(--cpr-t);color:var(--cpr)}
+.bias.routine{background:var(--panel2);color:var(--dim)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.sum{font-size:12.5px;margin:0 0 6px}
+.src{font-size:10.5px;color:var(--dim);letter-spacing:.03em}
+.layers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0}
+.layers div{background:var(--panel2);border-radius:4px;padding:6px 8px}
+.layers .k{font-size:10px;color:var(--dim);letter-spacing:.07em;text-transform:uppercase}
+.cands{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.cand{border:1px solid var(--line);border-radius:5px;padding:9px 11px;background:var(--panel2)}
+.cand .hd{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:4px}
+.cand .dec{font-size:11px;font-weight:700;letter-spacing:.06em;padding:1px 6px;border-radius:3px}
+.dec.NO_TRADE{background:var(--bear-t);color:var(--bear)} .dec.WATCH_ONLY{background:var(--warn-t);color:var(--warn)} .dec.PAPER_TRADE{background:var(--bull-t);color:var(--bull)}
+.cand ul{margin:4px 0 0;padding-left:16px;font-size:12px}
+.cand .lb{font-size:10px;color:var(--dim);letter-spacing:.07em;text-transform:uppercase;margin-top:6px}
+.plan{padding:16px 18px}
+.plan .top{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:baseline;justify-content:space-between}
+.plan .callp{font-size:24px;font-weight:600;letter-spacing:.03em}
+.callp.PRACTICE,.callp.WATCH{color:var(--warn)} .callp.STAND,.callp.DONE{color:var(--bear)} .callp.PAPER-TRADE{color:var(--bull)}
+.plan .money{font-size:13px;color:var(--warn);font-weight:500}
+.stance{display:inline-flex;gap:8px;align-items:center;margin:8px 0 4px;font-size:13px}
+.st{font-size:11px;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:3px}
+.st.LONG_BIAS{background:var(--bull-t);color:var(--bull)} .st.SHORT_BIAS{background:var(--bear-t);color:var(--bear)}
+.st.NEUTRAL{background:var(--panel2);color:var(--ink)} .st.STAND_ASIDE,.st.DONE_FOR_DAY{background:var(--bear-t);color:var(--bear)}
+.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+@media (max-width:1000px){.cases{grid-template-columns:1fr}}
+.case{border:1px solid var(--line);border-radius:5px;padding:10px 12px;background:var(--panel2)}
+.case h3{margin:0 0 6px;font-size:13px;font-weight:600}
+.case .dir{font-size:11px;font-weight:700;letter-spacing:.06em;padding:1px 6px;border-radius:3px;margin-left:6px}
+.dir.LONG{background:var(--bull-t);color:var(--bull)} .dir.SHORT{background:var(--bear-t);color:var(--bear)} .dir.WAIT{background:var(--panel);color:var(--muted)}
+.case dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0;font-size:12.5px}
+.case dt{color:var(--dim)} .case dd{margin:0}
+.ctx{margin:12px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)} .ctx li{margin:2px 0}
+footer{max-width:1520px;margin:0 auto 28px;padding:0 16px;color:var(--dim);font-size:12px}
+footer .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px 18px;margin-bottom:8px}
+footer b{color:var(--muted);font-weight:500}
+</style>
+</head>
+<body>
+<header class="top"><div class="topin">
+  <div class="brandrow"><div class="brand">VRIDDHI<b> ·</b> DESK</div><div class="sess mono" id="sess"></div></div>
+  <nav class="tape" id="tape" aria-label="Instrument"></nav>
+</div>
+<div class="tabbar"><nav class="tabs" id="tabs" aria-label="Sections">
+  <button data-t="today">Today</button><button data-t="levels">Levels</button><button data-t="market">Market</button><button data-t="evidence">Evidence</button><button data-t="risk">Risk</button>
+</nav><div class="statusline" id="pills"></div></div></header>
+<div class="banner" id="banner" hidden><div></div></div>
+
+<main>
+<section class="tab" data-tab="today"><div class="desk">
+  <section class="p c8 plan" id="plan" aria-label="Today's plan"></section>
+  <div class="stack c4">
+    <section class="p"><div class="ph"><h2>Levels that matter today</h2><span class="aside">nearest first</span></div><div class="pb" id="keylv"></div></section>
+    <section class="p"><div class="ph"><h2>Before you trade</h2></div><div class="pb" id="todayctx"></div></section>
+  </div>
+  <section class="p c12"><div class="ph"><h2>Stocks to watch</h2><span class="aside" id="staside"></span></div><div class="pb scroll" id="stocks"></div></section>
+</div></section>
+
+<section class="tab" data-tab="levels" hidden><div class="desk">
+  <section class="p c5"><div class="ph"><h2 id="wth">What to watch</h2></div><div class="pb" id="watch"></div></section>
+  <section class="p c7 ladder"><div class="ph"><h2 id="lvh">Levels</h2>
+    <div class="seg" id="period"><button data-p="day" aria-pressed="true">Daily</button><button data-p="week" aria-pressed="false">Weekly</button><button data-p="month" aria-pressed="false">Monthly</button></div>
+    </div><div class="pb"><div id="ladder"></div><div class="note" id="srcnote"></div><div class="note" id="rawnote"></div></div></section>
+  <section class="p c12 chart"><div class="ph"><h2>Daily CPR · last 40 sessions + today</h2><span class="aside">dashed = untouched · ▲ narrow CPR day</span></div>
+    <div class="pb"><div id="chart"></div><div class="readout" id="readout"></div>
+    <div class="lbl" style="margin-top:12px">What this instrument does around its CPR</div><ul class="ins" id="insights"></ul><p class="note" id="insnote"></p></div></section>
+</div></section>
+
+<section class="tab" data-tab="market" hidden><div class="desk">
+  <section class="p c12" id="mread" aria-label="Market read"></section>
+  <section class="p c4"><div class="ph"><h2>Global overnight</h2><span class="aside" id="glaside"></span></div><div class="pb" id="global"></div></section>
+  <section class="p c5"><div class="ph"><h2>Official announcements</h2>
+    <div class="seg" id="nf"><button data-f="notable" aria-pressed="true">Notable</button><button data-f="all" aria-pressed="false">All</button><button data-f="bank" aria-pressed="false">Banking</button></div></div>
+    <div class="pb"><p class="sum" id="newssum"></p><div class="legend"><span class="bias supportive">Good for markets ↑</span><span class="bias adverse">Bad for markets ↓</span><span class="bias check">Read before trading</span><span class="bias neutral">Worth knowing</span><span class="bias routine">Routine, ignore</span></div>
+    <ul class="feed" id="news"></ul><p class="note" id="newsaside"></p></div></section>
+  <section class="p c3"><div class="ph"><h2>Events</h2><span class="aside">events.csv</span></div><div class="pb"><ul class="feed" id="events"></ul></div></section>
+</div></section>
+
+<section class="tab" data-tab="evidence" hidden><div class="desk">
+  <section class="p c12 verdict" id="verdict" aria-label="Why this call"></section>
+  <section class="p c4"><div class="ph"><h2>Market regime</h2><span class="aside" id="rgaside"></span></div><div class="pb" id="regime"></div></section>
+  <section class="p c4"><div class="ph"><h2>Signals</h2><span class="aside">descriptive, not forecasts</span></div><div class="pb" id="posture"></div></section>
+  <section class="p c4"><div class="ph"><h2>Setups</h2><span class="aside">gate: backtest</span></div><div class="pb scroll" id="setups"></div></section>
+  <section class="p c12"><div class="ph"><h2>Trade candidates</h2><span class="aside">no scores: nothing is calibrated yet · every gate must pass</span></div><div class="pb" id="cands"></div></section>
+  <section class="p c7"><div class="ph"><h2>Option strike check</h2><span class="aside" id="optaside"></span></div><div class="pb scroll" id="opts"></div></section>
+  <section class="p c5"><div class="ph"><h2>Timeframes &amp; indicators</h2></div><div class="pb scroll" id="mtf"></div></section>
+  <section class="p c12"><div class="ph"><h2>Data inputs</h2></div><div class="pb" id="foot"></div></section>
+</div></section>
+
+<section class="tab" data-tab="risk" hidden><div class="desk">
+  <section class="p c6"><div class="ph"><h2>Risk desk</h2><span class="aside" id="capaside"></span></div><div class="pb" id="risk"></div></section>
+</div></section>
+</main>
+
+<script>
+const DATA = __DATA__;
+const S = { i: Math.max(0, DATA.instruments.findIndex(x => x.verdict)), p: "day", nf: "notable" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const f = (v, d = 2) => v == null || Number.isNaN(+v) ? "—" : Number(v).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+const dt = (s, o = { weekday: "short", day: "numeric", month: "short" }) => new Date(String(s).slice(0, 10) + "T00:00:00").toLocaleDateString("en-GB", o);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const NS = "http://www.w3.org/2000/svg";
+const el = (t, a = {}, x) => { const e = document.createElementNS(NS, t); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (x != null) e.textContent = x; return e; };
+const W = s => String(s).replace(/_/g, " ");
+const cur = () => DATA.instruments[S.i];
+const MONO = '"IBM Plex Mono",ui-monospace,monospace';
+
+function topbar() {
+  const st = DATA.status, b = DATA.brief;
+  const built = new Date(st.built_ist).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  $("sess").textContent = `${dt(b.for_session, { weekday: "short", day: "2-digit", month: "short", year: "numeric" }).toUpperCase()} · PRE-OPEN · DATA TO ${dt(st.last_session).toUpperCase()} · BUILT ${built.toUpperCase()} IST`;
+  const comp = Object.fromEntries(b.completeness.map(c => [c.input, c]));
+  const pill = (cls, t) => `<span class="${cls}"><i></i>${esc(t)}</span>`;
+  const bt = comp["backtests"], oa = comp["official announcements"];
+  $("pills").innerHTML = [
+    pill(st.data_mode === "simulated" ? "warn" : "ok", st.data_mode === "simulated" ? "DATA · DEMO" : "DATA · " + st.data_mode.toUpperCase()),
+    pill(oa && oa.status === "ok" ? "ok" : "warn", "ANNOUNCEMENTS · " + (oa ? oa.status.toUpperCase() : "—")),
+    pill(bt.status === "ok" ? "ok" : "warn", "BACKTESTS · " + (bt.status === "ok" ? "LOADED" : "NONE")),
+    pill(cur().provenance && cur().provenance.health === "HEALTHY" ? "ok" : "bad", "HEALTH · " + (cur().provenance ? cur().provenance.health : "—")),
+    pill(b.calendar.checked ? "ok" : "warn", "CALENDAR · " + (b.calendar.checked ? "CHECKED" : b.calendar.status.replace("_", " ").toUpperCase())),
+    pill(DATA.global ? (DATA.global.tone === "shock" ? "bad" : "ok") : "", "GLOBAL · " + (DATA.global ? DATA.global.tone.toUpperCase() : "NOT FETCHED")),
+    pill(DATA.guard.can_recommend ? "ok" : "bad", `GUARD · ${DATA.guard.trades_opened_today}/${b.risk.max_trades} TRADES`),
+  ].join("");
+  if (b.demo) { $("banner").hidden = false; $("banner").firstElementChild.textContent = "Demo prices: simulated, not NSE quotes. Announcements are real RBI press releases. Use this screen to learn the desk, not to trade."; }
+}
+
+function tape() {
+  $("tape").innerHTML = DATA.instruments.map((x, k) => {
+    if (!x.verdict) return `<button class="tk" data-k="${k}" aria-pressed="${k === S.i}"><span class="sym">${esc(x.meta.symbol)}</span><span></span><span class="note">levels unavailable</span></button>`;
+    const up = x.change >= 0, pos = x.brief.cpr.day.close_position;
+    return `<button class="tk" data-k="${k}" aria-pressed="${k === S.i}">
+      <span class="sym">${esc(x.meta.symbol)}</span><span class="chg num ${up ? "bull" : "bear"}">${up ? "+" : ""}${f(x.change)} (${up ? "+" : ""}${f(x.change_pct)}%)</span>
+      <span class="px num">${f(x.brief.last_close)}</span><span class="st"><span class="tag ${pos === "above" ? "bull" : pos === "below" ? "bear" : "neutral"}">${pos} CPR</span></span></button>`;
+  }).join("");
+  $("tape").querySelectorAll(".tk").forEach(b => b.onclick = () => { S.i = +b.dataset.k; render(); });
+}
+
+function verdict() {
+  const x = cur(), v = x.verdict, r = DATA.risk;
+  $("verdict").innerHTML = `
+    <div><div class="lbl">Desk call · ${esc(x.meta.symbol)}</div><div class="src">${esc(x.provenance.status)} · ${esc(x.provenance.source)} · data to ${dt(x.provenance.as_of)}</div><div class="call ${v.call.split(" ")[0]}">${esc(v.call)}</div><div class="why">${esc(v.why)}</div></div>
+    <div><div class="lbl">Gates · all must pass</div><ul class="gates">${v.gates.map(q => `<li class="${q.ok ? "ok" : "no"}" title="${esc(q.ok ? "passed" : "failed: " + q.note)}"><span class="k">${q.ok ? "✓" : "✗"}</span><span>${esc(q.gate)}</span><span class="n">${esc(q.note)}</span></li>`).join("")}</ul></div>
+    <div><div class="lbl">Today's risk</div><div class="kv">
+      <div><div class="k">Per trade</div><div class="v num">₹${f(r.per_trade, 0)}</div></div>
+      <div><div class="k">Day stop</div><div class="v num">₹${f(r.daily_stop, 0)}</div></div>
+      <div><div class="k">Trades left</div><div class="v num">${r.trades_left} / ${r.max_trades}</div></div>
+      <div><div class="k">Min reward:risk</div><div class="v num">1 : ${r.min_reward_risk}</div></div></div></div>`;
+}
+
+function posture() {
+  $("posture").innerHTML = cur().posture.map(p => `<div class="row"><span class="k">${esc(p.label)}</span><span class="tag ${p.tone}">${esc(p.value)}</span></div>`).join("");
+  if ($("scen")) $("scen").innerHTML = cur().brief.scenarios.map(s => `<div class="sc"><b>If it opens ${esc(s.if_open)}</b><span>${esc(s.reference)}</span></div>`).join("");
+  const ST = { candidate_for_paper_trading: ["passed", "bull"], rejected: ["failed", "bear"], insufficient_sample: ["thin sample", "warn"], not_backtested: ["untested", "warn"] };
+  $("setups").innerHTML = `<table><thead><tr><th>Setup</th><th>Today</th><th>Test</th></tr></thead><tbody>${cur().brief.setups.map(s => {
+    const today = s.conditions_met_premarket === null ? ["on the open", "neutral"] : s.conditions_met_premarket ? ["met", "bull"] : ["not today", "neutral"];
+    const [bl, bt] = ST[s.backtest_status];
+    return `<tr><td>${esc(s.name)}${s.eligible ? ' <span class="tag bull">eligible</span>' : ""}</td><td><span class="tag ${today[1]}">${today[0]}</span></td><td><span class="tag ${bt}">${bl}</span></td></tr>`;
+  }).join("")}</tbody></table><p class="note">A setup can alert only after passing out-of-sample tests, then paper trading.</p>`;
+}
+
+function instseg() {
+  $("instseg").innerHTML = DATA.instruments.map((x, k) => x.verdict ? `<button data-k="${k}" aria-pressed="${k === S.i}">${esc({ "NIFTY 50": "NIFTY", "NIFTY BANK": "BANK NIFTY", "NIFTY FUT": "NIFTY FUT" }[x.meta.symbol] || x.meta.symbol)}</button>` : "").join("");
+  $("instseg").querySelectorAll("button").forEach(b => b.onclick = () => { S.i = +b.dataset.k; render(); });
+}
+
+function watch() {
+  const w = cur().watch;
+  $("wth").textContent = `What to watch · ${cur().meta.symbol}`;
+  const dots = n => `<span class="dots" title="strength ${n}/5">${[1, 2, 3, 4, 5].map(k => `<i class="${k <= n ? "on" : ""}"></i>`).join("")}</span>`;
+  const zone = (z, cls) => `<div class="zone ${cls}"><span class="px num">${f(z.low, 0)}${z.high - z.low >= 1 ? "–" + f(z.high, 0) : ""}${dots(z.strength)}</span>
+    <span class="dist num ${cls === "res" ? "bear" : "bull"}" title="distance to the nearest edge; midpoint ${z.distance >= 0 ? "+" : ""}${f(z.distance, 0)} pts">${z.edge_distance >= 0 ? "+" : ""}${f(z.edge_distance, 0)} pts · ${f(z.abs_edge_distance_atr, 2)} ATR</span>
+    <span class="mem">${z.timeframes.map(t => `<span class="tf">${t}</span>`).join("")} ${esc(z.members.join(" · "))}</span></div>`;
+  const at = w.at_price.length ? `<p class="sum warn">Price is sitting inside a zone now: ${w.at_price.map(z => esc(z.members.join(", "))).join("; ")}.</p>` : "";
+  $("watch").innerHTML = `<ul class="read">${w.headline.map(l => `<li>${esc(l)}</li>`).join("")}</ul>${at}
+    <div class="zgrid">
+      <div><div class="zh bear">Resistance above</div>${w.above.length ? [...w.above].map(z => zone(z, "res")).join("") : '<p class="empty">No levels within 2.5 ATR above.</p>'}</div>
+      <div><div class="zh bull">Support below</div>${w.below.length ? w.below.map(z => zone(z, "sup")).join("") : '<p class="empty">No levels within 2.5 ATR below.</p>'}</div>
+    </div><p class="note">Zones merge daily (D), weekly (W) and monthly (M) levels lying within ${f(w.tolerance_points, 0)} points of each other. Distance is to the nearest edge (hover for the midpoint). More dots = more timeframes agreeing. Nearest first.</p>`;
+}
+
+function stocks() {
+  const sc = DATA.screen;
+  if (!sc) {
+    $("staside").textContent = "needs Zerodha";
+    $("stocks").innerHTML = `<p class="empty">Every evening Vriddhi screens all NSE stocks, keeps only properly tradable ones (price and turnover filters), and picks the 3–5 best for the next day, each with a plan sized to your risk. This needs Zerodha data, so it starts once Kite Connect is set up.</p>`;
+    return;
+  }
+  $("staside").textContent = `${sc.tradable} tradable of ${sc.universe} NSE stocks · built ${String(sc.built).replace("T", " ")}`;
+  $("stocks").innerHTML = `<table><thead><tr><th>Stock</th><th>Lean</th><th>Why</th><th>Long trigger · stop · target</th><th>Short trigger · stop · target</th><th>Size</th><th>Options</th></tr></thead><tbody>${sc.top.map(t => `<tr>
+    <td><b>${esc(t.symbol)}</b><div class="src">${f(t.close)} · ₹${f(t.turnover_cr, 0)} cr/day</div>${t.event_risk ? '<span class="tag bear">results</span>' : ""}</td>
+    <td><span class="tag ${t.lean === "long" ? "bull" : t.lean === "short" ? "bear" : "neutral"}">${esc(t.lean)}</span></td>
+    <td style="font-size:12px">${t.reasons.map(esc).join("<br>")}</td>
+    <td class="num" style="font-size:12px">${esc(t.plan.long.trigger)}<br>${f(t.plan.long.stop)} · ${f(t.plan.long.target)}</td>
+    <td class="num" style="font-size:12px">${esc(t.plan.short.trigger)}<br>${f(t.plan.short.stop)} · ${f(t.plan.short.target)}</td>
+    <td class="num">${t.plan.long.shares} sh<div class="src">₹${f(t.plan.long.share_risk, 0)} risk</div></td>
+    <td style="font-size:12px">${esc(t.plan.long.options)}</td></tr>`).join("")}</tbody></table>
+    <p class="note">Same rules as the indices: trade only on the trigger, one shared limit of ${DATA.risk.max_trades} trades and ₹${f(DATA.risk.daily_stop, 0)} daily stop across indices and stocks. Paper-trade only until the setups are validated on a basket of stocks.</p>`;
+}
+
+function keylv() {
+  const x = cur(), w = x.watch, c = x.cpr.day.levels, close = x.brief.last_close, pd = x.brief.previous_day;
+  const row = (cls, name, lo, hi, dist, note) => `<div class="kl ${cls}"><span class="num">${f(lo, 0)}${hi - lo >= 1 ? "–" + f(hi, 0) : ""}</span>
+    <span class="num ${cls === "res" ? "bear" : cls === "sup" ? "bull" : ""}">${dist == null ? "" : (dist >= 0 ? "+" : "") + f(dist, 0) + " pts"}</span><span class="n">${esc(name)}${note ? " · " + esc(note) : ""}</span></div>`;
+  const notCpr = z => !(z.low <= c.top + 1 && z.high >= c.bottom - 1 && z.members.every(m => m.startsWith("D CPR") || m === "D pivot"));
+  const above = w.above.filter(notCpr).slice(0, 2).reverse(), below = w.below.filter(notCpr).slice(0, 2);
+  $("keylv").innerHTML =
+    above.map(z => row("res", z.members.slice(0, 2).join(", "), z.low, z.high, z.edge_distance, z.timeframes.join("+"))).join("") +
+    row("cpr", "Today's CPR (" + x.brief.cpr.day.width_label + ")", c.bottom, c.top, null, "") +
+    row("px", "Last close", close, close, null, x.brief.cpr.day.close_position + " the CPR") +
+    below.map(z => row("sup", z.members.slice(0, 2).join(", "), z.low, z.high, z.edge_distance, z.timeframes.join("+"))).join("") +
+    `<p class="note">Previous day high ${f(pd.high)} · low ${f(pd.low)}. All zones in <a href="#levels">Levels</a>.</p>`;
+}
+
+function todayctx() {
+  const x = cur(), p = x.plan, r = DATA.risk, g = DATA.global, b = DATA.brief;
+  const line = (k, v, cls) => `<div class="row"><span class="k">${k}</span><span class="${cls || ""}" style="text-align:right">${v}</span></div>`;
+  const ev = b.events.length ? b.events.map(e => `${esc(e.event.split(" (")[0])} → ${dt(e.affects_session)}`).join("<br>") : (b.calendar.checked ? "none in 7 days" : "calendar not checked");
+  const gt = g && g.items && g.items.length ? `<span class="tag ${g.tone === "risk-on" ? "bull" : g.tone === "risk-off" || g.tone === "shock" ? "bear" : "neutral"}">${esc(g.tone)}</span>` : "not fetched";
+  $("todayctx").innerHTML =
+    line("Data", esc(x.provenance.status.replace("_", " ").toLowerCase()) + " · " + esc(x.provenance.health.toLowerCase()), x.provenance.status === "LIVE_VERIFIED" ? "bull" : "warn") +
+    line("Overnight lean", DATA.market_read ? `<span class="tag ${DATA.market_read.lean === "bullish" ? "bull" : DATA.market_read.lean === "bearish" ? "bear" : "neutral"}">${DATA.market_read.lean} (${DATA.market_read.score >= 0 ? "+" : ""}${DATA.market_read.score})</span> <a href="#market">why</a>` : "—") +
+    line("Global overnight", gt) +
+    line("Events", ev, b.event_risk_today ? "bear" : "") +
+    (() => {
+      const n = DATA.news || [], notable = n.filter(a => a.bias && a.bias !== "routine");
+      const rank = { adverse: 0, check: 1, mixed: 1, supportive: 2, neutral: 3 };
+      const top = notable.sort((a, c) => (rank[a.bias] ?? 9) - (rank[c.bias] ?? 9))[0];
+      const cls = top ? (top.bias === "adverse" || top.bias === "check" ? "bear" : top.bias === "supportive" ? "bull" : "") : "";
+      const txt = !n.length ? "not fetched" : notable.length
+        ? `${notable.length} notable · <a href="#market">${esc(top.title.slice(0, 70))}${top.title.length > 70 ? "…" : ""}</a>`
+        : `${n.length} items, all routine · <a href="#market">see all</a>`;
+      return line("News", txt, cls);
+    })() +
+    line("Risk left today", `${r.trades_left}/${r.max_trades} trades · ₹${f(r.per_trade, 0)} each`) +
+    line("Stop for the day", `₹${f(r.daily_stop, 0)} or ${r.loss_lockout} losses in a row`) +
+    (p ? `<ul class="ctx">${p.context.filter(t => !t.startsWith("Overnight lean")).slice(0, 2).map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : "") +
+    `<p class="note">No new trades after 14:30 · flat by 15:15 · log the plan in the journal before entering.</p>`;
+}
+
+function mread() {
+  const m = DATA.market_read;
+  if (!m) { $("mread").innerHTML = ""; return; }
+  const list = (items, empty) => items.length ? `<ul class="ctx" style="margin:4px 0 0">${items.join("")}</ul>` : `<p class="empty">${empty}</p>`;
+  $("mread").innerHTML = `<div class="mr"><div class="lbl">Market read · global + announcements + events</div>
+    <div class="lean ${m.lean}">Overnight lean: ${m.lean.toUpperCase()} <span class="num" style="font-size:15px;color:var(--muted)">(${m.score >= 0 ? "+" : ""}${m.score})</span></div>
+    <p style="margin:6px 0 0;font-size:13.5px">${esc(m.how_to_use)}</p>
+    <div class="cols">
+      <div><div class="lbl">What drove it</div>${list(m.drivers.map(d => `<li><span class="${d.points > 0 ? "bull" : "bear"} num">${d.points > 0 ? "+" : ""}${d.points}</span> ${esc(d.text)}</li>`), "Nothing pushed either way.")}</div>
+      <div><div class="lbl">Cautions</div>${list(m.cautions.map(c => `<li>${esc(c)}</li>`), "None.")}</div>
+      <div><div class="lbl">How it is scored</div><p class="note" style="margin:4px 0 0">S&amp;P 500 counts 2, other global markets 1 each (only fresh values); high-impact announcements ±3, medium ±1; +3 or more = bullish, −3 or less = bearish. ${esc(m.method)}.</p></div>
+    </div></div>`;
+}
+
+function globalPanel() {
+  const g = DATA.global;
+  if (!g || !g.items || !g.items.length) {
+    $("glaside").textContent = "not fetched";
+    $("global").innerHTML = `<p class="empty">No global data yet. It is fetched from FRED (Federal Reserve) each weekday morning.</p>`; return;
+  }
+  const T = { "risk-on": "bull", "risk-off": "bear", shock: "bear", mixed: "neutral" };
+  $("glaside").textContent = "FRED · fetched " + (g.fetched_utc ? new Date(g.fetched_utc).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) + " IST" : "");
+  $("global").innerHTML = `<p style="margin:0 0 8px"><span class="tag ${T[g.tone] || "neutral"}">${esc(g.tone)}</span> <span class="note" style="margin:0">${g.supportive} supportive · ${g.adverse} adverse for Indian equities</span></p>
+    ${g.shocks && g.shocks.length ? `<p class="bear" style="margin:0 0 6px;font-size:12.5px">Shock: ${esc(g.shocks.join(", "))}</p>` : ""}
+    ${g.items.map(i => `<div class="row"><span class="k">${esc(i.name)}<span class="src" style="display:block">${dt(i.date)}${i.stale ? " · stale" : ""}</span></span>
+      <span class="num" style="text-align:right">${f(i.value)}<span class="src ${i.effect === "supportive" ? "bull" : i.effect === "adverse" ? "bear" : ""}" style="display:block;font-size:11.5px">${i.change >= 0 ? "+" : ""}${f(i.change)}${i.unit === "pts" ? " pts" : "%"}</span></span></div>`).join("")}
+    <p class="note">Daily closes from the Federal Reserve's FRED service; each value shows its own date. FRED can lag a day, so check the date before reading it as last night's move.</p>`;
+}
+
+function plan() {
+  const p = cur().plan;
+  if (!p) { $("plan").innerHTML = `<p class="empty">The trading plan covers NIFTY 50 and NIFTY BANK. Switch instrument above.</p>`; return; }
+  const kind = p.call.split(/[ :]/)[0];
+  const row = (k, v) => v && v !== "—" ? `<dt>${k}</dt><dd>${esc(v)}</dd>` : "";
+  $("plan").innerHTML = `<div class="top"><div><div class="lbl">Today's plan · ${esc(p.symbol)}</div><div class="callp ${kind}">${esc(p.call)}</div></div>
+      <div class="money">${esc(p.money)}</div></div>
+    <div class="stance">Right now: <span class="st ${p.stance}">${p.stance.replace(/_/g, " ")}</span> <span class="note" style="margin:0">${esc(p.stance_reason)}</span></div>
+    ${p.cross_check ? `<div class="stance">Cross-check: <span class="tag ${p.cross_check.agrees ? "bull" : p.cross_check.other_position === "inside" ? "neutral" : "warn"}">${esc(p.cross_check.other)} ${esc(p.cross_check.other_position)} its CPR</span> <span class="note" style="margin:0">${esc(p.cross_check.text)}</span></div>` : ""}
+    <div class="cases">${p.cases.map(c => `<div class="case"><h3>If ${esc(c.if)}<span class="dir ${c.direction}">${c.direction}</span></h3><dl>
+      ${row("Trigger", c.trigger)}${row("Entry", c.entry)}${row("Stop", c.stop)}${row("Target", c.target)}
+      ${c.reward_risk != null && c.direction !== "WAIT" ? `<dt>R:R</dt><dd class="num">1 : ${f(c.reward_risk)}</dd>` : ""}
+      ${row("Size", c.size)}${row("Option", c.option)}${row("Cancel if", c.cancel_if)}${row("Exit", c.exit)}</dl></div>`).join("")}</div>
+    <p class="note">During market hours the stance updates on rules (open, level breaks, news, results, global moves, your risk limits) and each change reaches your phone with its reason. The reasoning behind this plan is in <a href="#evidence">Evidence</a>.</p>`;
+}
+
+function regime() {
+  const R = cur().regime, T = { up: "bull", down: "bear", range: "neutral", mixed: "warn", volatile: "warn", insufficient: "neutral" };
+  const OV = { uptrend: "bull", downtrend: "bear", range: "neutral", conflicted: "warn", high_volatility: "warn", uncertain: "neutral" };
+  $("rgaside").textContent = R.version;
+  const nm = { short_term: "5m / 15m", intraday: "1h", swing: "Daily", higher: "Wk / Mo" };
+  $("regime").innerHTML = `<div><span class="tag ${OV[R.overall]}" style="font-size:13px">${esc(W(R.overall))}</span> <span class="note">${esc(R.agreement)}</span></div>
+    <div class="layers">${Object.entries(R.layers).map(([k, v]) => `<div><div class="k">${nm[k]}</div><span class="tag ${T[v.label] || "neutral"}">${esc(v.label)}</span></div>`).join("")}</div>
+    <ul class="read">${R.explanation.map(e => `<li style="font-weight:400;font-size:12.5px;color:var(--muted)">${esc(e)}</li>`).join("")}</ul>`;
+}
+
+function cands() {
+  const C = cur().candidates || [];
+  if (!C.length) { $("cands").innerHTML = `<p class="empty">No setup's pre-market conditions are met for ${esc(cur().meta.symbol)} today.</p>`; return; }
+  $("cands").innerHTML = `<div class="cands">${C.map(c => `<div class="cand">
+    <div class="hd"><b>${esc(c.strategy_id)} v${esc(c.strategy_version)} · ${c.direction.toUpperCase()}</b><span class="dec ${c.decision}">${c.decision.replace("_", " ")}</span></div>
+    <div style="font-size:12.5px">${esc(c.entry_trigger)}</div>
+    <div class="num" style="font-size:12px;margin-top:4px">entry ${f(c.entry_level)} · stop ${f(c.stop)} · target ${f(c.targets[0])} · R:R ${f(c.reward_risk)} · ${c.position.lots ? c.position.lots + " lot, ₹" + f(c.rupee_risk, 0) : esc(c.position.note)}</div>
+    <div class="src" style="margin-top:3px">${esc(c.provenance.status)} · health ${esc(c.provenance.health)} · regime ${esc(W(c.regime.overall))} · ${esc(W(c.validation_status))}</div>
+    <details><summary class="src" style="cursor:pointer;margin-top:6px">Evidence and reasons (${c.reasons.length} reason${c.reasons.length > 1 ? "s" : ""})</summary>
+    ${c.supporting.length ? `<div class="lb bull">Supporting</div><ul>${c.supporting.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    ${c.contradicting.length ? `<div class="lb bear">Contradicting</div><ul>${c.contradicting.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    <div class="lb">Why ${c.decision.replace("_", " ").toLowerCase()}</div><ul>${c.reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    ${c.news_events.length ? `<div class="lb">News &amp; events</div><ul>${c.news_events.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    </details><div class="note" style="margin-top:4px">${esc(c.reasons[0])}${c.reasons.length > 1 ? ` (+${c.reasons.length - 1} more)` : ""}</div>
+  </div>`).join("")}</div>`;
+}
+
+function spread(items, gap, lo, hi) {
+  items.sort((a, b) => a.y - b.y);
+  for (let k = 1; k < items.length; k++) if (items[k].ly - items[k - 1].ly < gap) items[k].ly = items[k - 1].ly + gap;
+  const over = items.length ? items[items.length - 1].ly - hi : 0;
+  if (over > 0) for (let k = items.length - 1; k >= 0; k--) { items[k].ly -= over; if (k > 0 && items[k].ly - items[k - 1].ly < gap) items[k - 1].ly = items[k].ly - gap; else break; }
+  return items;
+}
+
+function ladder() {
+  const x = cur(), c = x.cpr[S.p], pv = x.pivots[S.p], L = c.levels, F = pv.floor, C = pv.camarilla, close = c.reference_price.value;
+  $("lvh").textContent = `Levels · ${x.meta.symbol} · ${{ day: "daily", week: "weekly", month: "monthly" }[S.p]}`;
+  const Wd = Math.max(320, Math.min(760, $("ladder").clientWidth || 700)), H = Wd < 500 ? 470 : 520, top = 34, bot = H - 14, compact = Wd < 500;
+  const vals = [F.r3, F.s3, C.r4, C.s4, L.top, L.bottom, close];
+  let hi = Math.max(...vals), lo = Math.min(...vals); const pad = (hi - lo) * .04; hi += pad; lo -= pad;
+  const y = v => top + (hi - v) / (hi - lo) * (bot - top);
+  const svg = el("svg", { viewBox: `0 0 ${Wd} ${H}`, role: "img", "aria-label": "Level ladder" });
+  const labels = el("g"), col = { fl: [0, Wd * .36], cpr: [Wd * .375, Wd * .625], cam: [Wd * .64, Wd] };
+  [["FLOOR", 0, "start"], ["CPR", Wd / 2, "middle"], ["CAMARILLA ×" + C.multiplier, Wd, "end"]].forEach(([t, xx, a]) =>
+    svg.appendChild(el("text", { x: xx, y: 14, "text-anchor": a, fill: css("--dim"), "font-size": 10.5, "letter-spacing": ".08em" }, t)));
+  svg.appendChild(el("rect", { x: col.cpr[0], y: y(L.top), width: col.cpr[1] - col.cpr[0], height: Math.max(2, y(L.bottom) - y(L.top)), fill: css("--cpr-t"), stroke: css("--cpr"), "stroke-width": 1.4 }));
+  svg.appendChild(el("line", { x1: col.cpr[0], x2: col.cpr[1], y1: y(L.pivot), y2: y(L.pivot), stroke: css("--cpr"), "stroke-dasharray": "4 3" }));
+  const mid = (col.cpr[0] + col.cpr[1]) / 2, yc = y(close), narrow = y(L.bottom) - y(L.top) < 36;
+  const centre = spread([
+    { t: `${L.tc >= L.bc ? "TC" : "BC"} ${f(L.top)}`, y: y(L.top) - .01, ly: y(L.top) - (narrow ? 21 : 6), c: css("--cpr"), w: 600 },
+    { t: `P ${f(L.pivot)}`, y: y(L.pivot), ly: narrow ? y(L.top) - 6 : y(L.pivot) + 4, c: css("--cpr"), w: 400 },
+    { t: `${L.tc >= L.bc ? "BC" : "TC"} ${f(L.bottom)}`, y: y(L.bottom) + .01, ly: y(L.bottom) + 16, c: css("--cpr"), w: 600 },
+    { t: `${compact ? "Close" : "Last close"} ${f(close)}`, y: yc + (close >= L.pivot ? -.02 : .02), ly: yc + (close >= L.top ? -6 : 16), c: css("--ink"), w: 600 }], 15, top, bot);
+  centre.sort((a, b) => a.ly - b.ly); for (let k = 1; k < centre.length; k++) if (centre[k].ly - centre[k - 1].ly < 15) centre[k].ly = centre[k - 1].ly + 15;
+  centre.forEach(o => labels.appendChild(el("text", { x: mid, y: o.ly, "text-anchor": "middle", "font-size": 11.5, fill: o.c, "font-weight": o.w, "font-family": MONO }, o.t)));
+  function side(levels, x0, x1, anchor) {
+    const items = levels.map(([n, v]) => ({ n, v, y: y(v), ly: y(v), color: n.startsWith("R") ? css("--bear") : css("--bull") }));
+    spread(items, 15, top, bot);
+    items.forEach(it => {
+      svg.appendChild(el("line", { x1: x0, x2: x1, y1: it.y, y2: it.y, stroke: it.color, "stroke-width": 1.1, opacity: .85 }));
+      labels.appendChild(el("text", { x: anchor === "start" ? x0 : x1, y: it.ly - 4, "text-anchor": anchor, "font-size": 11.5, fill: it.color, "font-family": MONO }, `${it.n} ${f(it.v)}`));
+    });
+  }
+  side([["R3", F.r3], ["R2", F.r2], ["R1", F.r1], ["S1", F.s1], ["S2", F.s2], ["S3", F.s3]], col.fl[0], col.fl[1], "start");
+  side([["R4", C.r4], ["R3", C.r3], ["R2", C.r2], ["R1", C.r1], ["S1", C.s1], ["S2", C.s2], ["S3", C.s3], ["S4", C.s4]], col.cam[0], col.cam[1], "end");
+  svg.appendChild(el("line", { x1: 0, x2: Wd, y1: yc, y2: yc, stroke: css("--ink"), "stroke-dasharray": "1 3" }));
+  svg.appendChild(el("path", { d: `M${col.cpr[1] + 2},${yc} l8,-5 v10 z`, fill: css("--ink") }));
+  svg.appendChild(labels); $("ladder").replaceChildren(svg);
+  [...labels.querySelectorAll("text")].forEach(t => { const b = t.getBBox(); labels.insertBefore(el("rect", { x: b.x - 3, y: b.y, width: b.width + 6, height: b.height, fill: css("--panel") }), t); });
+  const s = c.source_ohlc, w = c.width_classification;
+  $("rawnote").textContent = `Raw TC ${f(L.tc)} · raw BC ${f(L.bc)} → normalised top ${f(L.top)}, bottom ${f(L.bottom)}${L.tc < L.bc ? " (TC below BC: close was in the lower half of the range)" : ""}`;
+  $("srcnote").textContent = `Width ${f(L.width)} pts (${f(L.width_pct, 3)}%)${w.percentile != null ? `, ${f(w.percentile, 0)}th percentile` : ""} · ${W(c.relation_to_previous)} vs previous · from ${s.start === s.end ? dt(s.start) : dt(s.start) + "–" + dt(s.end)}: O ${f(s.open)} H ${f(s.high)} L ${f(s.low)} C ${f(s.close)}`;
+}
+
+function chart() {
+  const rows = cur().history.sessions, today = cur().cpr.day.levels, cut = cur().behaviour.narrow_cut_pct;
+  const Wd = Math.max(320, $("chart").clientWidth || 700), H = Wd < 600 ? 230 : 280, l = 2, r = 60, t = 10, b = 22;
+  const hi = Math.max(today.top, ...rows.map(x => Math.max(x.high, x.cpr_top))), lo = Math.min(today.bottom, ...rows.map(x => Math.min(x.low, x.cpr_bottom)));
+  const y = v => t + (hi - v) / (hi - lo) * (H - t - b), step = (Wd - l - r) / (rows.length + 1), cw = Math.max(3, step * .45);
+  const svg = el("svg", { viewBox: `0 0 ${Wd} ${H}`, role: "img", "aria-label": "Daily candles with CPR bands" });
+  for (let g = 0; g <= 4; g++) { const v = lo + (hi - lo) * g / 4; svg.appendChild(el("line", { x1: l, x2: Wd - r, y1: y(v), y2: y(v), stroke: css("--line") }));
+    svg.appendChild(el("text", { x: Wd - r + 6, y: y(v) + 4, "font-size": 10.5, fill: css("--dim"), "font-family": MONO }, f(v, 0))); }
+  const hl = el("rect", { y: t, height: H - t - b, width: step, fill: css("--cpr-t"), opacity: 0 }); svg.appendChild(hl);
+  const every = Wd < 600 ? 10 : 5;
+  rows.forEach((x, k) => {
+    const cx = l + step * k + step / 2;
+    svg.appendChild(el("rect", { x: l + step * k + 1, width: step - 2, y: y(x.cpr_top), height: Math.max(1.5, y(x.cpr_bottom) - y(x.cpr_top)), fill: x.virgin ? "none" : css("--cpr-t"), stroke: css("--cpr"), "stroke-dasharray": x.virgin ? "3 2" : "0" }));
+    const up = x.close >= x.open, c = up ? css("--bull") : css("--bear");
+    svg.appendChild(el("line", { x1: cx, x2: cx, y1: y(x.high), y2: y(x.low), stroke: c }));
+    svg.appendChild(el("rect", { x: cx - cw / 2, width: cw, y: y(Math.max(x.open, x.close)), height: Math.max(1, Math.abs(y(x.open) - y(x.close))), fill: up ? css("--panel") : c, stroke: c }));
+    if (cut != null && x.width_pct <= cut) svg.appendChild(el("path", { d: `M${cx},${H - b + 2} l4,7 h-8 z`, fill: css("--warn") }));
+    if (k % every === 0) svg.appendChild(el("text", { x: k === 0 ? l : cx, y: H - 6, "text-anchor": k === 0 ? "start" : "middle", "font-size": 10.5, fill: css("--dim") }, dt(x.session, { day: "numeric", month: "short" })));
+  });
+  const tx = l + step * rows.length;
+  svg.appendChild(el("rect", { x: tx + 1, width: step - 2, y: y(today.top), height: Math.max(2, y(today.bottom) - y(today.top)), fill: css("--warn-t"), stroke: css("--warn"), "stroke-dasharray": "3 2" }));
+  svg.appendChild(el("text", { x: tx + step - 1, y: Math.min(H - b - 4, y(today.bottom) + 14), "text-anchor": "end", "font-size": 10, fill: css("--warn"), "font-weight": 600 }, "TODAY"));
+  const show = k => { if (k >= rows.length) { hl.setAttribute("x", tx); hl.setAttribute("opacity", 1);
+      $("readout").innerHTML = `<b>Today's CPR</b> ${f(today.bottom)}–${f(today.top)} (${f(today.width_pct, 3)}%) · pivot ${f(today.pivot)}`; return; }
+    const x = rows[k]; hl.setAttribute("x", l + step * k); hl.setAttribute("opacity", 1);
+    $("readout").innerHTML = `<b>${dt(x.session)}</b> · opened <b>${x.open_vs_cpr}</b> CPR ${f(x.cpr_bottom)}–${f(x.cpr_top)} (${f(x.width_pct, 3)}%) · H ${f(x.high)} L ${f(x.low)} C ${f(x.close)}${x.virgin ? " · <b>virgin</b>" : ""}`; };
+  const pick = e => { const p = svg.getBoundingClientRect(), k = Math.floor(((e.clientX - p.left) / p.width * Wd - l) / step); if (k >= 0 && k < rows.length) show(k); };
+  svg.addEventListener("pointermove", pick); svg.addEventListener("pointerdown", pick);
+  $("chart").replaceChildren(svg);
+  $("readout").textContent = "Hover or tap a session. The amber band on the right is today's CPR.";
+  const B = cur().behaviour;
+  $("insights").innerHTML = B.insights.map(i => `<li><i class="${i.tone}"></i><span>${esc(i.text)}</span><span class="n">n=${i.n}</span></li>`).join("");
+  if (B.distributions && B.distributions.length) $("insights").innerHTML += `<li style="grid-template-columns:minmax(0,1fr)"><div class="scroll"><table><thead><tr><th>Open vs CPR</th><th class="r">n</th><th class="r">Median open→close</th><th class="r">25–75%</th><th class="r">% up</th><th class="r">Next day median</th></tr></thead><tbody>${B.distributions.map(d => `<tr><td>${d.open}</td><td class="r num">${d.n}</td><td class="r num ${d.median >= 0 ? "bull" : "bear"}">${f(d.median)}%</td><td class="r num">${f(d.p25)}% / ${f(d.p75)}%</td><td class="r num">${f(d.pct_up, 0)}%</td><td class="r num">${d.next_day_median == null ? "—" : f(d.next_day_median) + "%"}</td></tr>`).join("")}</tbody></table></div></li>`;
+  $("insnote").textContent = B.note + (DATA.brief.demo ? " Computed on DEMO prices." : "");
+}
+
+function risk() {
+  const j = DATA.journal, g = DATA.guard;
+  const guardRows = g.reasons.length ? g.reasons.map(r => `<div class="row"><span class="bear">${esc(r)}</span></div>`).join("")
+    : `<div class="row"><span class="k">Risk guard</span><span class="tag bull">clear</span></div>`;
+  let disc;
+  if (!j.closed) disc = `<p class="empty">No trades in the journal yet. Log the plan before every trade with <span class="mono">pravin_journal.py open</span>.</p>`;
+  else {
+    const d = j.discipline;
+    disc = `<div class="row"><span class="k">30-day net</span><span class="num ${j.net >= 0 ? "bull" : "bear"}">₹${f(j.net, 0)}</span></div>
+      <div class="row"><span class="k">Win rate · avg R</span><span class="num">${f(j.win_rate_pct, 0)}% · ${f(j.avg_r)}R</span></div>
+      <div class="row"><span class="k">Late stop exits</span><span class="num ${d.late_stop_exits ? "bear" : ""}">${d.late_stop_exits} · ₹${f(d.late_stop_cost, 0)}</span></div>
+      <div class="row"><span class="k">Off-plan trades</span><span class="num ${d.off_plan_trades ? "bear" : ""}">${d.off_plan_trades} · ₹${f(d.off_plan_net, 0)}</span></div>
+      <div class="row"><span class="k">Against the guard</span><span class="num ${d.trades_after_guard_said_stop ? "bear" : ""}">${d.trades_after_guard_said_stop}</span></div>
+      <div class="row"><span class="k">Overtrading days</span><span class="num ${d.days_over_trade_limit ? "bear" : ""}">${d.days_over_trade_limit}</span></div>`;
+  }
+  $("capaside").textContent = `₹${f(DATA.risk.capital, 0)} capital · vriddhi_config.json`;
+  $("risk").innerHTML = `${guardRows}
+    <div class="row"><span class="k">Max trades</span><span class="num">${DATA.risk.max_trades} / day</span></div>
+    <div class="row"><span class="k">After a loss</span><span>${DATA.risk.cooldown_min} min cool-off</span></div>
+    <div class="row"><span class="k">${DATA.risk.loss_lockout} losses in a row</span><span>done for the day</span></div>
+    <div class="row"><span class="k">Daily / weekly stop</span><span class="num">₹${f(DATA.risk.daily_stop, 0)} / ₹${f(DATA.risk.weekly_stop, 0)}</span></div>
+    <div class="lbl" style="margin-top:12px">Discipline · journal, 30 days</div>${disc}`;
+}
+
+function feeds() {
+  const all = DATA.news, h = DATA.news_health;
+  const BL = { supportive: "Good for markets ↑", adverse: "Bad for markets ↓", check: "Read before trading", mixed: "Mixed signal", neutral: "Worth knowing", routine: "Routine, ignore" };
+  const WHY = {
+    "rate cut": "RBI cut rates: cheaper money usually lifts banks and the market.",
+    "rate hike": "RBI raised rates: dearer money usually weighs on banks and the market.",
+    "monetary policy": "RBI policy news: can move banks and the whole market. Read it.",
+    "RBI governor statement": "RBI governor's statement: can move rate expectations. Read it.",
+    "liquidity injection": "RBI adding cash to the banking system: mildly positive for banks.",
+    "liquidity absorption": "RBI draining cash from the banking system: mildly negative for banks.",
+    "derivatives rules": "Change to F&O rules (lots, margins, expiry): check how it affects your trades.",
+    "tightening": "New restrictions or higher costs: usually a mild negative.",
+    "easing": "Rules relaxed or costs lowered: usually a mild positive.",
+    "market timing": "Change to trading hours or holidays: check before planning trades.",
+    "macro data": "Economic data (inflation, GDP, trade): can move the market.",
+    "foreign flows": "Foreign investor flows: large flows move the index.",
+    "market surveillance": "Exchange surveillance list: affects specific small stocks, not the index.",
+    "routine enforcement": "SEBI or RBI action against specific people or firms: no effect on the index.",
+    "routine operations": "Routine RBI operation (auctions, money-market data): no effect on your trades.",
+  };
+  const why = a => { const r = String(a.reasons || "").split(", ")[0];
+    return WHY[r] || (r.startsWith("heavyweight results") ? "Results from a stock that moves the index: expect a bigger move. Read before trading." : "No market-moving keywords found."); };
+  const keep = a => S.nf === "all" || (S.nf === "notable" ? a.bias !== "routine" : String(a.affects || "").includes("BANKNIFTY"));
+  const n = all.filter(keep);
+  const cnt = b => all.filter(a => a.bias === b).length;
+  $("newssum").innerHTML = all.length ? `<span class="bull">${cnt("supportive")} good for markets</span> · <span class="bear">${cnt("adverse")} bad for markets</span> · <span class="warn">${cnt("check") + cnt("mixed")} to read before trading</span> · ${cnt("neutral")} worth knowing · ${cnt("routine")} routine`
+    : "";
+  $("newsaside").textContent = (h.last_fetch_utc ? "Last fetched " + new Date(h.last_fetch_utc).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) + " IST. " : "") + (h.never_fetched ? "Feeds not fetched yet." : (h.failing && h.failing.length ? "Failing: " + h.failing.join(", ") + "." : "Sources: RBI, SEBI, BSE official feeds."))
+    + " Colours come from transparent keyword rules in pravin_news.py, not a forecast.";
+  $("news").innerHTML = n.length ? n.map(a => `<li class="b-${a.bias || "routine"}"><span class="bias ${a.bias || "routine"}">${BL[a.bias] || "routine"}</span><a class="t" href="${esc(a.link)}" target="_blank" rel="noopener">${esc(a.title)}</a>
+    <span class="m">${esc(why(a))}<br>${esc(a.publisher)}${a.published_utc ? " · " + new Date(a.published_utc).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) + " IST" : ""}</span></li>`).join("")
+    : `<li class="empty">${all.length ? `Nothing notable: all ${all.length} recent items are routine (orders, auctions, notices). Tap <b>All</b> to see them.` : "No announcements stored. Run <span class='mono'>pravin_news.py fetch</span>."}</li>`;
+  const ev = DATA.brief.events, cal = DATA.brief.calendar;
+  const head = cal.checked ? `<li class="empty bull">Calendar checked (${esc(cal.detail)}).</li>`
+    : `<li class="empty bear">Calendar NOT checked: ${esc(cal.detail)}. Event risk is unknown, so the desk will not trade. Review events.csv and set the "reviewed:" date.</li>`;
+  const unv = cal.unverified_rows ? `<li class="empty">${cal.unverified_rows} unverified row(s) ignored.</li>` : "";
+  const IMP = { high: "Big event", medium: "Medium event", low: "Minor" };
+  $("events").innerHTML = head + unv + (ev.length ? ev.map(e => `<li><span class="imp ${e.impact}">${IMP[e.impact] || esc(e.impact)}</span><span class="t">${esc(e.event)}</span>${e.state === "read" && e.outcome ? `<span class="m ${e.outcome.bias === "adverse" ? "bear" : e.outcome.bias === "supportive" ? "bull" : ""}" style="font-size:12.5px;font-weight:600;margin-top:3px">OUT: ${esc(e.outcome.text)}</span><span class="m">Read from the official release; checks: ${esc((e.result_checks || []).join("; "))}</span>`
+      : e.state === "released_unread" ? `<span class="m bear" style="font-size:12.5px;font-weight:600;margin-top:3px">Released, not read yet: ${esc(e.state_reason || "")}. Check the official release yourself; the lean does not include it.</span>`
+      : `<span class="m" style="color:var(--ink);font-size:12px;margin-top:3px">${esc(e.reading || "")}</span>`}<span class="m">${dt(e.date)} ${esc(e.time_ist || "")} IST · ${esc(e.region || "")} · affects the ${dt(e.affects_session)} session · ${esc(e.source || "")}</span></li>`).join("")
+    : (cal.checked ? `<li class="empty">Nothing scheduled in the next 7 days.</li>` : ""));
+}
+
+function options() {
+  const o = cur().options;
+  if (!o) { $("optaside").textContent = ""; $("opts").innerHTML = `<p class="empty">The strike check runs for NIFTY 50 and NIFTY BANK.</p>`; return; }
+  const p = o.plan, ok = o.rows.filter(r => r.eligible).length;
+  $("optaside").textContent = `SYNTHETIC chain · IV ${f(p.iv_assumed * 100, 0)}% assumed`;
+  $("opts").innerHTML = `<p class="note" style="margin-top:0">Plan: ${esc(p.rule)}. Entry ${f(p.entry)} · target ${f(p.target)} · stop ${f(p.stop)} · ${p.minutes} min · index reward:risk <b class="${p.underlying_rr >= 2 ? "bull" : "bear"}">1 : ${f(p.underlying_rr)}</b>. B/E pts = index move needed to cover decay, spread and charges. Synthetic chain on demo prices; with live data this reads real bid/ask.</p>
+    <p style="margin:6px 0 8px"><span class="tag ${o.status === "illustration" ? "warn" : o.status === "ok" ? "bull" : "bear"}">${o.status === "illustration" ? "SYNTHETIC · ILLUSTRATION" : o.status === "ok" ? ok + " strike" + (ok > 1 ? "s" : "") + " pass" : "NO TRADE"}</span> ${o.reason ? `<span class="note">${esc(o.reason)}</span>` : ""}</p>
+    <p class="note" style="margin:0 0 6px">Model: ${esc(o.model || "")}. Lot size: ${p.lot ? p.lot + (p.lot_verified ? " (from Kite)" : " (unverified)") : "unverified until Kite instrument master is downloaded"}. Expiry ${dt(p.expiry)} (${esc(p.expiry_rule.replace(/_/g, " "))}).</p>
+    ${o.warnings.map(w => `<p class="warn" style="margin:0 0 6px">${esc(w)}</p>`).join("")}
+    <table><thead><tr><th>Strike</th><th class="r">Ask</th><th class="r">IV%</th><th class="r">Δ</th><th class="r">θ/hr</th><th class="r">@Tgt</th><th class="r">@Stop</th><th class="r" title="net of charges, IV down at target and stop">R:R worst</th><th class="r" title="net of charges, IV unchanged">R:R base</th><th class="r">B/E pts</th><th>Check</th></tr></thead><tbody>
+    ${o.rows.map(r => `<tr><td class="num">${f(r.strike, 0)}${r.kind}</td><td class="r num">${f(r.ask)}</td><td class="r num">${r.iv ? f(r.iv * 100, 1) : "—"}</td><td class="r num">${f(r.delta)}</td><td class="r num">${f(r.theta_per_hour)}</td>
+      <td class="r num">${f(r.premium_at_target)}</td><td class="r num">${f(r.premium_at_stop)}</td><td class="r num">${f(r.option_rr)}</td><td class="r num">${f(r.rr_net_base)}</td><td class="r num">${r.be_points == null ? "—" : "+" + f(r.be_points, 1)}</td>
+      <td>${r.eligible ? `<span class="tag bull">${r.lots} lot · ₹${f(r.rupee_risk, 0)}</span>` : `<span class="note" style="margin:0">${esc(r.reasons[0] || "")}</span>`}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function mtf() {
+  const x = cur(), I = x.indicators.indicators, s = x.session;
+  const TR = { up: ["Up", "bull"], down: ["Down", "bear"], mixed: ["Mixed", "neutral"], unknown: ["—", "neutral"] };
+  const rows = x.mtf.timeframes.map(t => t.status !== "ok" ? `<tr><td>${t.timeframe}</td><td colspan="4"><span class="note" style="margin:0">only ${t.bars} completed bars</span></td></tr>`
+    : `<tr><td>${t.timeframe}</td><td><span class="tag ${TR[t.trend][1]}">${TR[t.trend][0]}</span></td><td class="r num">${f(t.rsi14, 1)}</td><td class="r num">${f(t.adx14, 1)}</td><td class="r num">${f(t.ema20)}</td></tr>`).join("");
+  const vol = I.volume.status === "unavailable" ? "Index: no traded volume" : `RVOL ${f(I.volume.relative_volume20)} · MFI ${f(I.volume.mfi14, 1)}`;
+  const kv = (k, v) => `<div><div class="k">${k}</div><div class="v num" style="font-size:13px">${v}</div></div>`;
+  $("mtf").innerHTML = `<table><thead><tr><th>TF</th><th>Trend</th><th class="r">RSI</th><th class="r">ADX</th><th class="r">EMA 20</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="kv" style="margin-top:12px">${kv("EMA 50 / 200", `${f(I.trend.ema50)} / ${f(I.trend.ema200)}`)}${kv("+DI / −DI", `${f(I.trend.plus_di14, 1)} / ${f(I.trend.minus_di14, 1)}`)}
+      ${kv("ATR 14", `${f(I.volatility.atr14)} (${f(I.volatility.atr14_pct)}%)`)}${kv("MACD hist · BB width", `${f(I.momentum.macd_histogram)} · ${f(I.volatility.bb_bandwidth_pct)}%`)}
+      ${kv("Prev session H / L", `${f(s.high)} / ${f(s.low)}`)}${kv("VWAP · OR 15m", `${s.vwap.value == null ? "n/a" : f(s.vwap.value)} · ${s.opening_range_15m ? f(s.opening_range_15m.high) + " / " + f(s.opening_range_15m.low) : "—"}`)}</div>
+    <p class="note">${vol}${s.vwap.source_instrument && s.vwap.source_instrument !== x.meta.id ? " · VWAP from " + esc(s.vwap.source_instrument) : ""}. Indicators match TA-Lib in the test suite.</p>`;
+}
+
+function foot() {
+  $("foot").innerHTML = `<div class="grid">${DATA.brief.completeness.map(x => `<div><b>${esc(x.input)}</b>: ${esc(x.status)}${x.detail ? " — " + esc(x.detail) : ""}</div>`).join("")}</div>
+    <div>${esc(DATA.brief.disclaimer)} Built ${esc(DATA.status.built_ist.replace("T", " "))} IST from ${esc(DATA.status.provider)}. Calendar: ${esc(DATA.status.calendar)}. Every number on this screen comes from the Python engine; the page calculates nothing.</div>`;
+}
+
+const TABS = ["today", "levels", "market", "evidence", "risk"];
+function showTab(t) {
+  if (!TABS.includes(t)) t = "today";
+  S.t = t;
+  document.querySelectorAll(".tab").forEach(el => el.hidden = el.dataset.tab !== t);
+  [...$("tabs").children].forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === t)));
+  if (t === "levels" && cur().verdict) { ladder(); chart(); }
+  if (location.hash.slice(1) !== t) history.replaceState(null, "", "#" + t);
+  scrollTo(0, 0);
+}
+$("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) showTab(b.dataset.t); });
+addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+document.addEventListener("click", e => { const a = e.target.closest('a[href^="#"]'); if (a && TABS.includes(a.getAttribute("href").slice(1))) { e.preventDefault(); showTab(a.getAttribute("href").slice(1)); } });
+
+function render() { topbar(); tape(); if (!cur().verdict) return; plan(); keylv(); todayctx(); stocks(); mread(); globalPanel(); watch(); verdict(); regime(); cands(); posture(); ladder(); chart(); risk(); feeds(); options(); mtf(); foot(); }
+$("period").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.p = b.dataset.p; [...$("period").children].forEach(x => x.setAttribute("aria-pressed", String(x === b))); ladder(); });
+$("nf").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.nf = b.dataset.f; [...$("nf").children].forEach(x => x.setAttribute("aria-pressed", String(x === b))); feeds(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { ladder(); chart(); }, 150); });
+render();
+showTab(location.hash.slice(1) || "today");
+</script>
+</body>
+</html>
