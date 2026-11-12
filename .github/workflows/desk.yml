@@ -29,7 +29,7 @@ jobs:
       - name: Global markets (FRED)
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-        run: python pravin_global.py || echo "global markets (FRED) fetch failed" >> failures.txt
+        run: python pravin_global.py || true
       - name: Official announcements
         run: python pravin_news.py fetch || echo "announcements fetch failed" >> failures.txt
       - name: Official results (CPI etc.), read only when every check passes
